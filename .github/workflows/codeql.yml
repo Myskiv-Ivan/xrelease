@@ -70,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.100
         if: matrix.language == 'rust'
 
       - uses: github/codeql-action/init@v4

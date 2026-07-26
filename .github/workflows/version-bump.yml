@@ -28,8 +28,8 @@ jobs:
           # Default GITHUB_TOKEN pushes do not start new workflows — see .github/RELEASE.md.
           token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - uses: dtolnay/rust-toolchain@1.96
-      - uses: actions/setup-node@v6
+      - uses: dtolnay/rust-toolchain@1.100
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm

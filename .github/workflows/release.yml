@@ -76,7 +76,7 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.100
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
