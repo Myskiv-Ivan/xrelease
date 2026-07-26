@@ -235,11 +235,20 @@ def main() -> None:
     parser.add_argument("--check", action="store_true", help="Verify all version fields match")
     parser.add_argument("--bump", choices=["patch", "minor", "major"], help="Bump from Cargo.toml")
     parser.add_argument("--set", dest="set_version", metavar="X.Y.Z", help="Set explicit version")
-    parser.add_argument("--print", action="store_true", help="Print resulting version only")
+    parser.add_argument(
+        "--print",
+        action="store_true",
+        help="Print version only (with --bump/--set: after apply; alone: current Cargo.toml)",
+    )
     args = parser.parse_args()
 
     if args.check:
         check_sync()
+        return
+
+    # `--print` alone: read-only current version (safe for commit messages / tagging).
+    if args.print and not args.set_version and not args.bump:
+        print(read_cargo_version())
         return
 
     if args.set_version:
@@ -247,7 +256,7 @@ def main() -> None:
     elif args.bump:
         version = bump_semver(read_cargo_version(), args.bump)
     else:
-        parser.error("one of --check, --bump, or --set is required")
+        parser.error("one of --check, --bump, --set, or --print is required")
 
     apply_version(version)
     if args.print:

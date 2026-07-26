@@ -46,14 +46,32 @@ git checkout main && git pull
 python3 scripts/bump-version.py --bump patch   # or minor / major
 (cd front && npm ci && npm run gen:api)
 python3 scripts/bump-version.py --check
-git add -u && git commit -m "chore: release v$(python3 scripts/bump-version.py --print)"
-VERSION="$(python3 scripts/bump-version.py --print)"
+VERSION="$(python3 scripts/bump-version.py --print)"   # read-only; does not bump again
+git add -u && git commit -m "chore: release v${VERSION}"
 git tag "v${VERSION}"
 git push origin HEAD "v${VERSION}"
 # if no RELEASE_TOKEN: Actions → release → tag = vX.Y.Z
 ```
 
-Never create `v0.1.0` when Cargo is already `0.1.2` — tag must match `Cargo.toml`.
+Never create `v0.1.0` when Cargo is already `0.1.2` — tag must match `Cargo.toml`
+at that commit. Prefer `version-bump` over hand-made tags.
+
+### Recover a wrong tag (tag ≠ Cargo.toml)
+
+If someone pushed `vX.Y.Z` on a commit where versions are still older:
+
+```bash
+# Only if no GitHub Release / GHCR artifacts exist for that tag yet
+git push origin :refs/tags/vX.Y.Z
+git tag -d vX.Y.Z   # local, if present
+
+# After versions on main match X.Y.Z:
+git checkout main && git pull
+python3 scripts/bump-version.py --check
+git tag "vX.Y.Z"
+git push origin "vX.Y.Z"
+# then release.yml (auto via RELEASE_TOKEN, or manual dispatch)
+```
 
 ### Auto-trigger after version-bump
 
@@ -151,6 +169,58 @@ Actions → release → Run workflow → tag = vX.Y.Z
 
 Tag must already exist and match `Cargo.toml` / chart / compose versions
 (run version-bump first if not).
+
+## Dependabot
+
+Config: [`.github/dependabot.yml`](dependabot.yml). Weekly grouped PRs for
+**cargo**, **npm** (`/front`), **github-actions**, **docker** (`/docker`).
+
+Dependabot **does not** bump the product version (`0.x.y`), Helm `appVersion`, or
+compose image tags — that stays on `version-bump` → `release`.
+
+### Merge rules
+
+```
+Dependabot PR
+  │
+  ├─ CI green (ci.yml)? ── no ──► read failing job
+  │                                ├ `@dependabot rebase` / `recreate`
+  │                                ├ small fix commit on the PR branch
+  │                                └ major API break → close; bump manually with code
+  │
+  └─ yes ──► squash-merge (no version-bump)
+         │
+         ├ routine deps ──► wait for next planned version-bump
+         └ security / runtime base (node, nginx, alpine) ──►
+               green CI on main → version-bump **patch** → release
+```
+
+**Never merge with red `ci`.** Historical docker/cargo PRs landed while `rust` /
+`security` were failing — do not repeat that.
+
+### Per ecosystem
+
+| PR type | Accept when | Notes |
+|---|---|---|
+| `rust-dependencies` | `rust` + `security` green | Majors (`toml` 1.x, `jsonwebtoken` 11, crypto 0.11, …) need changelog + local `cargo test` / `cargo deny check`; close and hand-bump if API breaks |
+| `npm-dependencies` | `front` + `npm audit` green | `typescript >=7` ignored (`svelte-check`) |
+| `github-actions` | `ci` green | `dtolnay/rust-toolchain` ignored — toolchain = `rust-toolchain.toml` + workflow pin |
+| docker (`nginx`, `node`, `alpine`, …) | `docker` smoke green | OK to merge |
+| docker `rust:*` | **manual only** | Ignored by Dependabot; bump with `rust-toolchain.toml`, `Cargo.toml` `rust-version`, and workflow `toolchain:` together |
+
+Not covered by Dependabot: `postgres:*` and `caronc/apprise` in compose / Helm
+`values.yaml` — review those at release time.
+
+### Commands
+
+```bash
+gh pr comment <N> --body "@dependabot rebase"
+gh pr comment <N> --body "@dependabot recreate"
+gh pr close <N> --comment "Breaking; will bump manually with code changes"
+```
+
+After a security or runtime-base merge: wait for green `ci` on `main`, then
+Actions → **version-bump** → **patch** (and `RELEASE_TOKEN` / manual **release**).
 
 ## Artifacts consumers use
 

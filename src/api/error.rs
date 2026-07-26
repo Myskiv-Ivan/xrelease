@@ -12,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
 
-use crate::error::{PipelineError, SourceError, StoreError};
+use crate::error::{NotifyError, PipelineError, SourceError, StoreError};
 
 /// Every error an API handler or webhook handler can return.
 #[derive(Debug, thiserror::Error)]
@@ -48,13 +48,13 @@ pub enum ApiError {
     /// wrote in between.
     #[error("{0}")]
     PreconditionFailed(String),
-    /// 502 — an upstream registry or forge returned an error.
+    /// 502 — upstream registry/forge/feed or notification sink failure.
     #[error("{0}")]
     BadGateway(String),
     /// 503 — dependency temporarily unavailable (e.g. database pool exhausted).
     #[error("{0}")]
     ServiceUnavailable(String),
-    /// 500 — store failure, notifier failure, or anything unexpected.
+    /// 500 — unexpected local failure (e.g. Postgres query error, bug).
     #[error("{0}")]
     Internal(String),
 }
@@ -123,17 +123,28 @@ impl From<StoreError> for ApiError {
 }
 
 impl From<SourceError> for ApiError {
-    /// Upstream registry failures surface their real status: a 404 from the
-    /// registry means the image/package/repo is gone (404 to our caller
-    /// too); any other non-2xx is an upstream problem, not ours (502).
+    /// Upstream failures are the caller's problem to retry against the forge /
+    /// registry / feed — not a bug in xrelease. A registry 404 means the
+    /// image/package/repo is gone (404 to our caller too); transport, parse,
+    /// and other non-2xx upstream responses are 502.
     fn from(err: SourceError) -> Self {
         match &err {
             SourceError::Registry { status, .. } if *status == 404 => {
                 Self::NotFound(err.to_string())
             }
-            SourceError::Registry { .. } => Self::BadGateway(err.to_string()),
-            _ => Self::internal(err),
+            SourceError::Registry { .. } | SourceError::Http(_) | SourceError::Feed(_) => {
+                Self::BadGateway(err.to_string())
+            }
+            SourceError::Other(_) => Self::internal(err),
         }
+    }
+}
+
+impl From<NotifyError> for ApiError {
+    /// Sink delivery failures that escape the outbox retry path are upstream
+    /// of the caller (broken webhook URL, broker down, …) — 502, not 500.
+    fn from(err: NotifyError) -> Self {
+        Self::BadGateway(err.to_string())
     }
 }
 
@@ -142,7 +153,7 @@ impl From<PipelineError> for ApiError {
         match err {
             PipelineError::Source(err) => err.into(),
             PipelineError::Store(err) => err.into(),
-            PipelineError::Notify(err) => Self::BadGateway(err.to_string()),
+            PipelineError::Notify(err) => err.into(),
             PipelineError::Other(message) => Self::internal(message),
         }
     }
@@ -158,7 +169,10 @@ impl From<anyhow::Error> for ApiError {
                 Ok(source_err) => source_err.into(),
                 Err(err) => match err.downcast::<StoreError>() {
                     Ok(store_err) => store_err.into(),
-                    Err(err) => Self::internal(err),
+                    Err(err) => match err.downcast::<NotifyError>() {
+                        Ok(notify_err) => notify_err.into(),
+                        Err(err) => Self::internal(err),
+                    },
                 },
             },
         }
@@ -210,6 +224,18 @@ mod tests {
             ApiError::from(err).status(),
             StatusCode::INTERNAL_SERVER_ERROR
         );
+    }
+
+    #[test]
+    fn notify_error_should_map_to_bad_gateway() {
+        let err = NotifyError::Misconfigured("missing url".into());
+        assert_eq!(ApiError::from(err).status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[test]
+    fn pipeline_notify_error_should_map_to_bad_gateway() {
+        let err = PipelineError::Notify(NotifyError::Misconfigured("missing url".into()));
+        assert_eq!(ApiError::from(err).status(), StatusCode::BAD_GATEWAY);
     }
 
     #[test]

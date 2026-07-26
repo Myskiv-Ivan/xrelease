@@ -70,6 +70,12 @@ See [`.github/RELEASE.md`](.github/RELEASE.md).
 2. Tag `vX.Y.Z` → **release** publishes GHCR + GitHub Release.
 3. Optional secret **`RELEASE_TOKEN`** so the tag push auto-starts release.
 
+### Dependabot
+
+Weekly grouped PRs (cargo / npm / Actions / docker). Merge only with green `ci`;
+do **not** bump the product version in those PRs. Full playbook (majors, `rust`
+image lockstep, when to `version-bump`): [`.github/RELEASE.md` § Dependabot](.github/RELEASE.md#dependabot).
+
 End-user apply-from-CI: [`docs/operations/ci-cd.md`](docs/operations/ci-cd.md).
 
 ## License

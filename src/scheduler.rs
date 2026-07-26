@@ -41,7 +41,11 @@ impl WatchSupervisor {
     }
 
     /// Start (or replace) polling loops for `watches`.
-    pub async fn replace(&self, watches: Vec<Watch>) -> anyhow::Result<()> {
+    ///
+    /// Infallible: stop drains (or aborts after timeout), then spawn replaces
+    /// the handle list. Callers that previously treated this as fallible can
+    /// drop the `?` — there is no partial failure to compensate.
+    pub async fn replace(&self, watches: Vec<Watch>) {
         self.stop_watchers().await;
         self.shutdown.store(false, Ordering::SeqCst);
         let handles = spawn_watchers(
@@ -50,7 +54,6 @@ impl WatchSupervisor {
             Arc::clone(&self.shutdown),
         );
         *self.watchers.lock().await = handles;
-        Ok(())
     }
 
     /// Cooperative shutdown of all watch loops.

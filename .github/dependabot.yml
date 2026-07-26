@@ -34,8 +34,12 @@ updates:
       # to fake action versions like @1.100. We pin a commit SHA + rust-toolchain.toml.
       - dependency-name: "dtolnay/rust-toolchain"
 
-  # Backend image (docker/Dockerfile) + UI image (docker/Dockerfile.ui)
+  # Backend / CLI / UI Dockerfiles under docker/
   - package-ecosystem: docker
     directory: /docker
     schedule:
       interval: weekly
+    ignore:
+      # Keep in lockstep with rust-toolchain.toml + workflow `toolchain:` —
+      # bump those together manually (see .github/RELEASE.md § Dependabot).
+      - dependency-name: "rust"

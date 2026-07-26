@@ -529,9 +529,10 @@ pub async fn apply_document(
             );
             if let Err(restore_err) = swap.apply_runtime(&previous).await {
                 tracing::error!(
-                error = %restore_err,
-                "failed to restore previous config after ledger failure — \
-                runtime may stay ahead of the ledger until process restart"
+                    error = %restore_err,
+                    "CRITICAL: failed to restore previous config after ledger failure — \
+                     runtime is ahead of the ledger; restart this process (or re-apply the \
+                     last known-good document) before accepting further applies"
                 );
             }
             return Err(err);

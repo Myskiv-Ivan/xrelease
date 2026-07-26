@@ -340,6 +340,9 @@ async fn ensure_success(response: Response) -> anyhow::Result<Response> {
         StatusCode::PRECONDITION_FAILED => {
             " — config changed since it was read; re-run to pick up the new revision"
         }
+        StatusCode::SERVICE_UNAVAILABLE => {
+            " — dependency temporarily unavailable (database pool exhausted?); retry shortly"
+        }
         _ => "",
     };
 

@@ -282,7 +282,9 @@ async fn express_should_post_direct_with_access_token_only() {
 
     let expected_body = serde_json::json!({
         "group_chat_id": chat_id,
-        "notification": { "body": "app: v2.0.0\n\nrelease notes" }
+        "notification": {
+            "body": "app: v2.0.0\n\nrelease notes\n\nhttps://example.test/r"
+        }
     });
 
     Mock::given(method("POST"))

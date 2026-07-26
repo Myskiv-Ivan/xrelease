@@ -393,7 +393,7 @@ pub async fn serve(listen: &str, state: Arc<AppState>) -> anyhow::Result<()> {
 
     let watches: Vec<Watch> = state.desired.read().await.index.watches().to_vec();
     let engine = Arc::clone(&state.engine);
-    state.supervisor.replace(watches).await?;
+    state.supervisor.replace(watches).await;
     let tasks = scheduler::start_shared_background(Arc::clone(&engine)).await;
 
     if state.config_api.api_config && !state.config_api.hmac_configured() {
