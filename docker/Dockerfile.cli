@@ -28,18 +28,20 @@ RUN apt-get update \
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 
 RUN case "${TARGETARCH}" in \
-      amd64) TRIPLE=x86_64-unknown-linux-gnu ;; \
-      arm64) TRIPLE=aarch64-unknown-linux-gnu ;; \
+      amd64) echo x86_64-unknown-linux-gnu > /rust-target ;; \
+      arm64) echo aarch64-unknown-linux-gnu > /rust-target ;; \
       *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-    && rustup target add "${TRIPLE}" \
-    && echo "${TRIPLE}" > /rust-target
+    esac
 
 # Workspace root is also the daemon package; stub it so `cargo -p xrelease-cli`
 # resolves without compiling postgres / notifiers / OpenSSL.
+#
+# Add the rustup target *after* rust-toolchain.toml is present (see Dockerfile).
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY cli/Cargo.toml ./cli/Cargo.toml
-RUN mkdir -p src cli/src \
+RUN cargo -V \
+    && rustup target add "$(cat /rust-target)" \
+    && mkdir -p src cli/src \
     && echo 'fn main() {}' > src/main.rs \
     && echo '' > src/lib.rs \
     && echo 'fn main() {}' > cli/src/main.rs \
@@ -49,7 +51,12 @@ COPY cli/src ./cli/src
 RUN touch cli/src/main.rs \
     && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease-cli \
     && install -D "target/$(cat /rust-target)/release/xrctl" /app/xrctl \
-    && strip --strip-unneeded /app/xrctl
+    && if [ "$(cat /rust-target)" = "aarch64-unknown-linux-gnu" ]; then \
+         STRIP=aarch64-linux-gnu-strip; \
+       else \
+         STRIP=strip; \
+       fi \
+    && "${STRIP}" --strip-unneeded /app/xrctl
 
 # ---- Runtime ---------------------------------------------------------------
 # Alpine: shell + CA certs so GitLab/Jenkins can use this image as the job

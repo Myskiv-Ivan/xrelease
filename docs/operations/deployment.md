@@ -135,26 +135,44 @@ unreachable database as long as the config parses and sources resolve.
 
 ## CLI reference
 
+Canonical parameter tables: [CLI reference](../api/cli.md).
+
 ### `xrelease` (local instance / ops)
 
 | Command | Mode | Needs Postgres | Persists state | Sends notifications |
 |---|---|---|---|---|
 | `xrelease serve` (default) | Backend (API + poller) | connect | yes | yes |
-| `xrelease sources` | List config | no | no | no |
+| `xrelease sources [--format]` | List config | no\* | no | no |
 | `xrelease health` | Probe | connect | no | no |
-| `xrelease validate` | Config lint | URL in config only | no | no |
+| `xrelease validate [--format] [--online] [--strict] [--source]` | Config lint | URL in config only† | no | no |
 | `xrelease outbox-requeue` | Revive dead letters | connect | yes | no |
 
-JSON output for scripting:
+Global: `-c`/`--config` (`XRELEASE_CONFIG`, default `bootstrap.toml`),
+`-a`/`--app` (`XRELEASE_APP_CONFIG`).
+
+\* May open Postgres when resolving an API ledger.  
+† Offline validate does not open a pool; `--online` needs DB + network.
 
 ```sh
 xrelease sources --format json
-xrelease validate --format json
+xrelease validate --format json --strict
 ```
 
 ### `xrctl` (remote management)
 
-Separate binary — see [xrctl](../api/cli.md). Requires a running `xrelease serve`.
+Separate binary — see [CLI reference](../api/cli.md). Requires a running
+`xrelease serve`.
+
+| Global | Default |
+|---|---|
+| `--api-url` | `http://127.0.0.1:8080` (Compose UI: `:3000`) |
+| `--api-key` | *(none)* — flags only, no client env |
+| `--organization` | *(none)* |
+| `--format` | `text` \| `json` |
+
+Commands: `status`, `sources`, `outbox`, `organizations`, `show`, `schema`,
+`history [--limit]`, `validate <file>`, `apply <file> [--if-match] [--label]`,
+`rollback`, `reload`.
 
 ## Configuration model
 

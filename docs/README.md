@@ -11,8 +11,9 @@ Published docs: **https://myskiv-ivan.github.io/xrelease/**
 |---|---|
 | [Quick start](getting-started/quickstart.md) | First run (Docker / Helm) |
 | [Configuration overview](configuration/overview.md) | Local vs API vs API + UI authoring |
+| [CLI reference](api/cli.md) | `xrelease` / `xrctl` flags and commands |
 | [Architecture](concepts/architecture.md) | How `serve`, ledger, UI, and `xrctl` fit |
-| [Runtime deployment](operations/deployment.md) | Install matrix, CLI, Compose / Helm |
+| [Runtime deployment](operations/deployment.md) | Install matrix, Compose / Helm |
 
 ## What it is for
 
@@ -24,7 +25,7 @@ webhooks, or optional brokers — routed by team tags.
 | Binary | Role |
 |---|---|
 | **`xrelease`** | Backend — poller, outbox, sinks, HTTP API + webhooks (`serve`) |
-| **`xrctl`** | Lean management CLI over that API ([docs](api/cli.md)) |
+| **`xrctl`** | Lean management CLI over that API ([CLI reference](api/cli.md)) |
 
 Config split: **`bootstrap.toml`** (infra + optional `[[organizations]]`) vs
 **desired state** (Git YAML, API ledger, and/or dashboard Apply). Secrets live
@@ -57,7 +58,7 @@ Samples: [`deploy/examples/`](https://github.com/Myskiv-Ivan/xrelease/tree/main/
 | **Getting started** | Quick start, Docker, Kubernetes |
 | **Concepts** | Architecture, pipeline, provider categories |
 | **Configuration** | Authoring, sources (21), notifications (Apprise, Novu, …), `[api]` / `[config_api]` |
-| **API** | HTTP endpoints, `xrctl`, webhooks, OpenAPI |
+| **API** | HTTP endpoints, CLI (`xrelease` / `xrctl`), webhooks, OpenAPI |
 | **Operations** | Auth, OIDC, CI apply, deploy, TLS & Ingress, Postgres, scaling |
 | **Project** | Comparison with alternatives, changelog, [ADRs](adr/README.md) |
 

@@ -15,6 +15,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Fail-fast version gate — no Rust toolchain (seconds, not minutes).
+  version-sync:
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Version sync
+        run: python3 scripts/bump-version.py --check
+
   rust:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
@@ -40,8 +48,9 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      - name: Version sync
-        run: python3 scripts/bump-version.py --check
+      # Incremental after clippy/test — reuse target/ instead of a cold link via cargo-run.
+      - name: Build xrelease binary
+        run: cargo build --locked --bin xrelease
 
       - name: Validate bootstrap + app config
         env:
@@ -53,11 +62,13 @@ jobs:
           # 32-byte AES key (base64); offline validate only checks presence + API mode.
           XRELEASE_CONFIG_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
         run: |
+          set -euo pipefail
           sudo mkdir -p /data
+          BIN=./target/debug/xrelease
           # Lab multi-org root config (empty stub app is unused at runtime)
-          cargo run -- --config bootstrap.toml validate --format json
+          "$BIN" --config bootstrap.toml validate --format json
           # Filled single-doc sample (strict)
-          cargo run -- \
+          "$BIN" \
             --config deploy/examples/infra-app/bootstrap.toml \
             --app deploy/examples/infra-app/app/releases.yaml \
             validate --strict --format json
@@ -148,49 +159,50 @@ jobs:
           fi
           grep -qi 'replicaCount must be 1' /tmp/helm-fail.txt
 
-  docker:
+  # Compose validity does not need rust/front — run in parallel with them.
+  compose:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
-    needs: [rust, front]
     steps:
       - uses: actions/checkout@v7
-
-      # amd64-only smoke — no QEMU (multi-arch is release.yml)
-      - uses: docker/setup-buildx-action@v4
-
       - name: Compose config (images + dev build)
         run: |
           docker compose -f docker-compose.yaml config --quiet
           docker compose -f docker/docker-compose.dev.yaml config --quiet
 
-      - name: Build backend (linux/amd64)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          platforms: linux/amd64
-          push: false
-          tags: xrelease:ci
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
+  # amd64-only smoke — no QEMU (multi-arch is release.yml).
+  # Matrix runs backend/cli/ui in parallel. GHA cache scopes backend|cli|ui
+  # are shared with release.yml so tag builds stay warm.
+  docker:
+    name: docker (${{ matrix.component }})
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    needs: [rust, front]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: .
+            file: ./docker/Dockerfile
+            tag: xrelease:ci
+          - component: cli
+            context: .
+            file: ./docker/Dockerfile.cli
+            tag: xrelease-cli:ci
+          - component: ui
+            context: ./front
+            file: ./docker/Dockerfile.ui
+            tag: xrelease-ui:ci
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
 
-      - name: Build CLI / xrctl (linux/amd64)
+      - name: Build (linux/amd64)
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ./docker/Dockerfile.cli
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           platforms: linux/amd64
           push: false
-          tags: xrelease-cli:ci
-          cache-from: type=gha,scope=cli
-          cache-to: type=gha,mode=max,scope=cli
-
-      - name: Build UI (linux/amd64)
-        uses: docker/build-push-action@v7
-        with:
-          context: ./front
-          file: ./docker/Dockerfile.ui
-          platforms: linux/amd64
-          push: false
-          tags: xrelease-ui:ci
-          cache-from: type=gha,scope=ui
-          cache-to: type=gha,mode=max,scope=ui
+          tags: ${{ matrix.tag }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}

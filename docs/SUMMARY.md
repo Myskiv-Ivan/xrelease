@@ -26,7 +26,7 @@
 ## API
 
 * [API overview](api/overview.md)
-* [xrctl management CLI](api/cli.md)
+* [CLI reference (`xrelease` / `xrctl`)](api/cli.md)
 * [Webhooks](api/webhooks.md)
 * [OpenAPI](api/openapi.md)
 

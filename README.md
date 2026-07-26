@@ -196,13 +196,49 @@ GitHub Release archives). Routing: source `routing_tag` ↔ notifier `tags`.
 Details: [notifications](docs/configuration/apprise.md) ·
 [Novu setup](docs/configuration/apprise.md#novu).
 
+## CLI parameters
+
+Full tables: [CLI reference](docs/api/cli.md). Summary:
+
+### `xrelease` (local)
+
+| Flag / command | Notes |
+|---|---|
+| `-c`, `--config` / `XRELEASE_CONFIG` | Bootstrap file (default `bootstrap.toml`) |
+| `-a`, `--app` / `XRELEASE_APP_CONFIG` | Desired-state file (optional) |
+| `serve` | Backend (default when no subcommand) |
+| `sources [--format text\|json]` | List configured sources |
+| `health` | Database probe |
+| `outbox-requeue` | Revive dead-letter notifications |
+| `validate [--format …] [--online] [--strict] [--source ID]` | Config lint / online probes |
+
+### `xrctl` (remote → running `serve`)
+
+| Flag / command | Notes |
+|---|---|
+| `--api-url` | Default `http://127.0.0.1:8080`; Compose UI → `:3000` |
+| `--api-key` | Bearer matching server `[api].api_key` (flags only — no client env) |
+| `--organization` | Scope config / sources / outbox to one org |
+| `--format text\|json` | Output format |
+| `status` · `sources` · `outbox` · `organizations` | Observability |
+| `show` · `schema` · `history [--limit N]` | Config introspection |
+| `validate <file>` · `apply <file> [--if-match auto\|none\|sha] [--label …]` | Dry-run / hot-swap |
+| `rollback` · `reload` | Previous revision / re-read authority |
+
+```sh
+# Compose lab
+xrctl --api-url http://127.0.0.1:3000 --api-key "$XRELEASE_API_KEY" status
+# CI apply
+xrctl apply app/releases.yaml --if-match none --label "$GIT_SHA"
+```
+
 ## Docs & links
 
 - **Docs site:** https://myskiv-ivan.github.io/xrelease/ (mdBook · GitHub Pages)
 - **Docs hub (source):** [`docs/`](docs/README.md)
 - **Config layout:** [`bootstrap.toml`](bootstrap.toml) (infra) + desired state via UI/API ledger or Git YAML ([`app/releases.example.yaml`](app/releases.example.yaml)); secrets: [`.env.example`](.env.example)
 - **Dashboard / auth:** [Authentication](docs/operations/authentication.md) · [OIDC](docs/operations/oidc.md) · [TLS](docs/operations/tls.md)
-- **Management CLI:** [`xrctl`](docs/api/cli.md) — Compose UI → `http://127.0.0.1:3000`; CI image `ghcr.io/…/xrelease-cli`
+- **CLI:** [`xrelease` + `xrctl`](docs/api/cli.md) — Compose UI → `http://127.0.0.1:3000`; CI image `ghcr.io/…/xrelease-cli`
 - **CI apply:** [CI/CD integration](docs/operations/ci-cd.md)
 - **OpenAPI:** [`api/openapi.json`](api/openapi.json)
 

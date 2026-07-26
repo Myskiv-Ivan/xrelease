@@ -6,7 +6,7 @@
 xrelease serve
 ```
 
-Remote management with the lean CLI: [`xrctl`](cli.md).
+CLI parameter reference: [`xrelease` / `xrctl`](cli.md).
 
 ### Ports (where to call the API)
 
@@ -114,9 +114,11 @@ curl -s http://127.0.0.1:8080/ready | jq
 ## Driving the API
 
 For humans and CI, [`xrctl`](cli.md) wraps the management routes
-(`status`, `sources`, `outbox`, `show`, `schema`, `history`, `validate`,
-`apply`, `rollback`, `reload`). The optional dashboard covers observability;
-the `/config` editor needs the **API + UI** variant — see
+(`status`, `sources`, `outbox`, `organizations`, `show`, `schema`, `history`,
+`validate`, `apply`, `rollback`, `reload`). Local ops (`validate`, `sources`,
+`health`, `outbox-requeue`, `serve`) use the [`xrelease`](cli.md#xrelease--local-instance)
+binary. The optional dashboard covers observability; the `/config` editor needs
+the **API + UI** variant — see
 [authoring variants](../configuration/overview.md#authoring-variants).
 
 OpenAPI spec: [openapi.md](openapi.md).

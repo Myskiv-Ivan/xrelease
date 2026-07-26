@@ -26,20 +26,25 @@ RUN apt-get update \
 
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 
+# Resolve the cargo triple for TARGETARCH (file is re-read after toolchain pin).
 RUN case "${TARGETARCH}" in \
-      amd64) TRIPLE=x86_64-unknown-linux-gnu ;; \
-      arm64) TRIPLE=aarch64-unknown-linux-gnu ;; \
+      amd64) echo x86_64-unknown-linux-gnu > /rust-target ;; \
+      arm64) echo aarch64-unknown-linux-gnu > /rust-target ;; \
       *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-    && rustup target add "${TRIPLE}" \
-    && echo "${TRIPLE}" > /rust-target
+    esac
 
 # Cache dependencies: copy manifests first, build a stub, then the real sources.
 # The root manifest is a workspace whose only member is `cli/`, so that member's
 # manifest + a stub entrypoint must exist for any root cargo command to resolve.
+#
+# rust-toolchain.toml must be present *before* `rustup target add`: copying it
+# can install/select the pinned channel without cross targets, which yields
+# `can't find crate for core` on linux/amd64→arm64 buildx builds.
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY cli/Cargo.toml ./cli/Cargo.toml
-RUN mkdir -p src cli/src \
+RUN cargo -V \
+    && rustup target add "$(cat /rust-target)" \
+    && mkdir -p src cli/src \
     && echo 'fn main() {}' > src/main.rs \
     && echo '' > src/lib.rs \
     && echo 'fn main() {}' > cli/src/main.rs \
@@ -57,7 +62,12 @@ RUN touch src/main.rs src/lib.rs cli/src/main.rs \
     && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease-cli \
     && install -D "target/$(cat /rust-target)/release/xrelease" /app/xrelease \
     && install -D "target/$(cat /rust-target)/release/xrctl" /app/xrctl \
-    && strip --strip-unneeded /app/xrelease /app/xrctl
+    && if [ "$(cat /rust-target)" = "aarch64-unknown-linux-gnu" ]; then \
+         STRIP=aarch64-linux-gnu-strip; \
+       else \
+         STRIP=strip; \
+       fi \
+    && "${STRIP}" --strip-unneeded /app/xrelease /app/xrctl
 
 # ---- Filesystem skeleton (distroless has no shell / useradd) ----------------
 FROM debian:trixie-slim AS prepare

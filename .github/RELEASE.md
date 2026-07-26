@@ -7,11 +7,13 @@ docs — those stay in [`docs/operations/ci-cd.md`](../docs/operations/ci-cd.md)
 
 ```
 PR / push main ──► ci.yml        quality gates (no publish)
-                   ├ rust        fmt/clippy/test/version/validate
-                   ├ security    cargo-deny + npm audit (+ Trivy advisory)
-                   ├ front       check/test/build
-                   ├ helm        lint + template
-                   └ docker      amd64 image smoke (no QEMU)
+                   ├ version-sync  bump-version.py --check (fail-fast)
+                   ├ rust          fmt/clippy/test + binary validate
+                   ├ security      cargo-deny + npm audit (+ Trivy advisory)
+                   ├ front         check/test/build
+                   ├ helm          lint + template
+                   ├ compose       compose config (parallel)
+                   └ docker        matrix amd64 (backend|cli|ui; GHA cache shared w/ release)
 push main      ──► docs.yml      mdBook → GitHub Pages
 push/PR main   ──► codeql.yml    SAST (gated on private repos)
 manual         ──► version-bump  bump semver → commit + tag vX.Y.Z
@@ -20,7 +22,7 @@ tag v*.*.*     ──► release.yml   binaries + GHCR (cosign) + GitHub Release
 
 | Workflow | Trigger | Publishes? |
 |---|---|---|
-| `ci.yml` | PR, push `main` | No (rust+validate / security / front / helm / amd64 image smoke) |
+| `ci.yml` | PR, push `main` | No (version-sync / rust+validate / security / front / helm / compose / amd64 docker matrix) |
 | `docs.yml` | docs paths | GitHub Pages |
 | `codeql.yml` | main + weekly | No |
 | `version-bump.yml` | manual on `main` | Git commit + tag only |

@@ -106,6 +106,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
         with:
           toolchain: "1.96"
+          # Required for matrix.cross (aarch64); harmless for native amd64.
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
@@ -119,7 +121,6 @@ jobs:
       - name: Install cross toolchain (arm64)
         if: matrix.cross
         run: |
-          sudo apt-get update
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
@@ -225,8 +226,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           sbom: true
           provenance: mode=max
-          cache-from: type=gha,scope=release-${{ matrix.component }}
-          cache-to: type=gha,mode=max,scope=release-${{ matrix.component }}
+          # Same scopes as ci.yml docker matrix (backend|cli|ui) — warm from PR/main smoke.
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: Sign image (keyless)
         env:

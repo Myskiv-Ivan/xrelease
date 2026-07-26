@@ -3,7 +3,7 @@
 How **your** pipelines talk to a running xrelease instance.
 
 Use the lean **`xrelease-cli`** image (or the `xrctl` binary) against a deployed
-`xrelease serve`. See also [xrctl](../api/cli.md#cicd-separate-from-the-server).
+`xrelease serve`. See also [CLI — CI/CD](../api/cli.md#cicd-separate-from-the-server).
 
 Do **not** use Docker-in-Docker: the job image *is* `xrelease-cli`, so you run
 `xrctl` directly.

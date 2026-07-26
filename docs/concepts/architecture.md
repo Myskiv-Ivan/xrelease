@@ -60,7 +60,7 @@ flowchart LR
 | Surface | Role |
 |---|---|
 | **`xrelease` (local)** | `validate` / `sources` / `health` / `serve` — same resolve path (`source=api` → ledger when a revision exists, else optional seed file / empty). No remote push-apply; use `xrctl` / HTTP or edit the file. |
-| **`xrctl` (remote)** | Pure HTTP client against a running `serve`: status, sources, outbox, config show/schema/history, validate/apply/rollback/reload. |
+| **`xrctl` (remote)** | Pure HTTP client against a running `serve`: status, sources, outbox, organizations, config show/schema/history, validate/apply/rollback/reload. |
 | **API** | `GET /config`, `/schema`, `/revisions`; `POST /validate`, `/apply`, `/rollback`, `/reload` — hot-swap desired state without restarting infra. |
 | **UI** | Observability by default. Config form editor in the **API + UI** variant. Blocked when `source = local` or `ui_config = false`. |
 | **PostgreSQL** | Runtime state (`seen_release`, outbox, …) plus optional `config_revision` ledger. Secret **values** live in `app_secret` (AES-GCM); the document keeps `*_env` refs. |
