@@ -742,6 +742,31 @@ mod tests {
         out
     }
 
+    /// Clear management-auth env vars so unit tests observe config-only credentials.
+    fn without_management_auth_env<R>(f: impl FnOnce() -> R) -> R {
+        const KEYS: &[&str] = &[
+            "XRELEASE_API_KEY",
+            "XRELEASE_OIDC_ISSUER",
+            "XRELEASE_SESSION_SECRET",
+            "XRELEASE_WEBHOOK_SECRET",
+        ];
+        let prev: Vec<(String, Option<String>)> = KEYS
+            .iter()
+            .map(|key| ((*key).to_owned(), std::env::var(key).ok()))
+            .collect();
+        for key in KEYS {
+            std::env::remove_var(key);
+        }
+        let out = f();
+        for (key, value) in prev {
+            match value {
+                Some(value) => std::env::set_var(&key, value),
+                None => std::env::remove_var(&key),
+            }
+        }
+        out
+    }
+
     fn without_ledger_encryption_key<R>(f: impl FnOnce() -> R) -> R {
         let prev_key = std::env::var(ENCRYPTION_KEY_ENV).ok();
         let prev_allow = std::env::var(ALLOW_PLAINTEXT_ENV).ok();
@@ -958,8 +983,9 @@ mod tests {
 
     #[test]
     fn validate_should_error_when_require_auth_without_credentials() {
-        let config: Config = toml::from_str(
-            r#"
+        without_management_auth_env(|| {
+            let config: Config = toml::from_str(
+                r#"
             [database]
             postgres_url = "postgres://xrelease:xrelease@127.0.0.1:5432/xrelease_test"
 
@@ -974,24 +1000,26 @@ mod tests {
             type = "github"
             repo = "a/b"
         "#,
-        )
-        .expect("parse");
-        let report = validate(&config);
-        assert!(!report.valid);
-        assert!(
-            report
-                .errors
-                .iter()
-                .any(|e| e.contains("require_auth") && e.contains("unset")),
-            "errors: {:?}",
-            report.errors
-        );
+            )
+            .expect("parse");
+            let report = validate(&config);
+            assert!(!report.valid);
+            assert!(
+                report
+                    .errors
+                    .iter()
+                    .any(|e| e.contains("require_auth") && e.contains("unset")),
+                "errors: {:?}",
+                report.errors
+            );
+        });
     }
 
     #[test]
     fn validate_should_warn_when_management_api_is_open() {
-        let config: Config = toml::from_str(&format!(
-            r#"
+        without_management_auth_env(|| {
+            let config: Config = toml::from_str(&format!(
+                r#"
             {TEST_DATABASE}
 
             [[notifiers]]
@@ -1002,18 +1030,19 @@ mod tests {
             type = "github"
             repo = "a/b"
         "#
-        ))
-        .expect("parse");
-        let report = validate(&config);
-        assert!(report.valid, "errors: {:?}", report.errors);
-        assert!(
-            report
-                .warnings
-                .iter()
-                .any(|w| w.contains("unauthenticated")),
-            "warnings: {:?}",
-            report.warnings
-        );
+            ))
+            .expect("parse");
+            let report = validate(&config);
+            assert!(report.valid, "errors: {:?}", report.errors);
+            assert!(
+                report
+                    .warnings
+                    .iter()
+                    .any(|w| w.contains("unauthenticated")),
+                "warnings: {:?}",
+                report.warnings
+            );
+        });
     }
 
     #[test]

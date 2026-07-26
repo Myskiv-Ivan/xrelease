@@ -48,6 +48,10 @@ jobs:
           XRELEASE_WEBHOOK_SECRET: "ci-test-secret"
           XRELEASE_API_KEY: "ci-test-key"
           GITHUB_TOKEN: "ci-placeholder"
+          # Root bootstrap.toml has no [database] and source=api — same as Compose/.env.
+          XRELEASE_DATABASE_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease"
+          # 32-byte AES key (base64); offline validate only checks presence + API mode.
+          XRELEASE_CONFIG_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
         run: |
           sudo mkdir -p /data
           # Lab multi-org root config (empty stub app is unused at runtime)
