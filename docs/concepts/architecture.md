@@ -12,7 +12,7 @@ flowchart TB
   DES[desired: file / ledger / UI Apply] --> RESOLVE
   RESOLVE --> SERVE[xrelease serve]
   SERVE --> PG[(PostgreSQL)]
-  SERVE --> SINKS[notifiers / Apprise]
+  SERVE --> SINKS[notifiers / Apprise / Novu / …]
   UI[dashboard] --> SERVE
   CTL[xrctl] --> SERVE
 ```

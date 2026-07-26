@@ -43,7 +43,7 @@ RUN mkdir -p src cli/src \
     && echo '' > src/lib.rs \
     && echo 'fn main() {}' > cli/src/main.rs \
     && cargo build --release --locked --target "$(cat /rust-target)" \
-         -p xrelease --features all-notifiers || true
+         -p xrelease || true
 
 COPY src ./src
 COPY cli/src ./cli/src
@@ -52,7 +52,7 @@ COPY api/openapi.json api/openapi.json
 # notifier sink, and the lean API client (`xrctl`, no daemon deps) so operators
 # can `docker exec … xrctl apply` against the instance without exposing the API.
 RUN touch src/main.rs src/lib.rs cli/src/main.rs \
-    && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease --features all-notifiers \
+    && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease \
     && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease-cli \
     && install -D "target/$(cat /rust-target)/release/xrelease" /app/xrelease \
     && install -D "target/$(cat /rust-target)/release/xrctl" /app/xrctl \

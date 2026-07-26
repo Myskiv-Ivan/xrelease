@@ -42,15 +42,13 @@
 	interface SinkKind {
 		value: string;
 		label: string;
-		available: boolean;
-		requires_feature?: string | null;
 	}
 
 	interface Props {
 		notifiers: DesiredNotifierDraft[];
 		/** Team catalogue, offered as routing-tag chips. */
 		teamTags: string[];
-		/** From `GET /api/v1/config/schema`; gates feature-compiled sinks. */
+		/** From `GET /api/v1/config/schema` — labels/order for the kind picker. */
 		sinkKinds?: SinkKind[];
 		disabled?: boolean;
 		fieldError: (path: string) => string | null;
@@ -76,7 +74,7 @@
 	const kindOptions = $derived(
 		sinkKinds.length > 0
 			? sinkKinds.filter((kind) => ADDABLE_NOTIFIER_KINDS.includes(kind.value))
-			: ADDABLE_NOTIFIER_KINDS.map((value) => ({ value, label: value, available: true }))
+			: ADDABLE_NOTIFIER_KINDS.map((value) => ({ value, label: value }))
 	);
 
 	const kindOrder = $derived(
@@ -142,10 +140,6 @@
 		}
 	}
 
-	function kindMeta(value: string): SinkKind | undefined {
-		return kindOptions.find((kind) => kind.value === value);
-	}
-
 	function isOpen(key: string): boolean {
 		return openByKey[key] === true;
 	}
@@ -187,22 +181,22 @@
 		customTag = { ...customTag, [draft.key]: '' };
 	}
 
-			function channelLabel(draft: DesiredNotifierDraft): string {
-				return (
-					draft.name.trim() ||
-					(draft.fields.url ?? '').trim() ||
-					(draft.fields.endpoint ?? '').trim() ||
-					(draft.fields.base_url ?? '').trim() ||
-					(draft.fields.host ?? '').trim() ||
-					(draft.fields.workflow ?? '').trim() ||
-					(draft.fields.channel ?? '').trim() ||
-					(draft.fields.chat_id ?? '').trim() ||
-					(draft.fields.topic ?? '').trim() ||
-					(draft.fields.routing_key ?? '').trim() ||
-					(typeof draft.extra.config_key === 'string' ? draft.extra.config_key.trim() : '') ||
-					getSinkKindLabel(draft.type)
-				);
-			}
+	function channelLabel(draft: DesiredNotifierDraft): string {
+		return (
+			draft.name.trim() ||
+			(draft.fields.url ?? '').trim() ||
+			(draft.fields.endpoint ?? '').trim() ||
+			(draft.fields.base_url ?? '').trim() ||
+			(draft.fields.host ?? '').trim() ||
+			(draft.fields.workflow ?? '').trim() ||
+			(draft.fields.channel ?? '').trim() ||
+			(draft.fields.chat_id ?? '').trim() ||
+			(draft.fields.topic ?? '').trim() ||
+			(draft.fields.routing_key ?? '').trim() ||
+			(typeof draft.extra.config_key === 'string' ? draft.extra.config_key.trim() : '') ||
+			getSinkKindLabel(draft.type)
+		);
+	}
 
 	/** Apprise without urls/urls_env/config_key is not in the live sink list. */
 	function appriseNeedsTargets(draft: DesiredNotifierDraft): boolean {
@@ -379,7 +373,6 @@
 						<span class="ml-1 tabular-nums opacity-70">({group.items.length})</span>
 					</h3>
 					{#each group.items as { item: draft, index } (draft.key)}
-						{@const meta = kindMeta(draft.type)}
 						{@const selected = tagsOf(draft)}
 						{@const open = isOpen(draft.key)}
 						{@const liveIndex = liveIndexFor(draft)}
@@ -462,14 +455,6 @@
 
 							{#if open}
 								<div class="border-t border-border p-3">
-									{#if meta && !meta.available}
-										<p class="mb-3 text-xs text-destructive">
-											{t('config.notifiersUnavailable').replace(
-												'{feature}',
-												meta.requires_feature ?? draft.type
-											)}
-										</p>
-									{/if}
 									{#if liveIndex == null && testReason}
 										<p class="mb-3 {TYPE_MUTED}">{testReason}</p>
 									{/if}

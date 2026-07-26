@@ -38,8 +38,8 @@ Operators use published images: `docker compose up -d` (see [`docker/README.md`]
 | Area | Command |
 |---|---|
 | Format | `cargo fmt --all` |
-| Lint | `cargo clippy --all-targets --all-features -- -D warnings` |
-| Tests | `cargo test --all-features` |
+| Lint | `cargo clippy --all-targets -- -D warnings` |
+| Tests | `cargo test` |
 | Config | `cargo run -- --config deploy/examples/infra-app/bootstrap.toml --app deploy/examples/infra-app/app/releases.yaml validate --strict` |
 | Frontend | `cd front && npm run check && npm run build` |
 | Docs | `mdbook build docs` (optional locally; CI publishes to GitHub Pages) |

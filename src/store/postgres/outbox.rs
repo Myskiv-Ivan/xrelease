@@ -448,7 +448,7 @@ impl PostgresStore {
         Ok(usize::try_from(updated).unwrap_or(usize::MAX))
     }
 
-    /// Whether every tracked sink row is `sent` (or no rows exist — legacy outbox).
+    /// Whether every tracked sink row is `sent` (or no rows exist — pre-sink-ledger outbox).
     pub fn sinks_delivery_complete(&self, outbox_id: i64) -> Result<bool, StoreError> {
         let mut client = self.conn()?;
         let row = client.query_one(

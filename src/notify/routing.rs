@@ -4,7 +4,7 @@ use crate::notify::Event;
 
 /// Whether an event should be delivered to a sink configured with `sink_tags`.
 ///
-/// - Empty `sink_tags` → deliver all events (legacy / broadcast sinks).
+/// - Empty `sink_tags` → deliver all events (broadcast sinks).
 /// - Non-empty `sink_tags` → deliver only when `event.routing_tag` matches one entry.
 pub fn matches_routing_tags(sink_tags: &[String], event_tag: Option<&str>) -> bool {
     if sink_tags.is_empty() {

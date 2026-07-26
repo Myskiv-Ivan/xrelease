@@ -86,7 +86,7 @@ pub fn ensure_desired_only(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Alias retained for app-file / ledger validation call sites.
+/// Whether the config carries application sections (sources / notifiers / …).
 #[must_use]
 pub fn has_desired_state(config: &Config) -> bool {
     contains_app_sections(config)
@@ -625,10 +625,10 @@ mod tests {
             &app_path,
             r#"
 database:
- postgres_url: postgres://evil/db
+  postgres_url: postgres://evil/db
 sources:
- - type: github
- repo: org/app
+  - type: github
+    repo: org/app
 "#,
         )
         .expect("app");
@@ -662,8 +662,8 @@ sources:
             &app_path,
             r#"
 sources:
- - type: github
- repo: org/from-yaml
+  - type: github
+    repo: org/from-yaml
 "#,
         )
         .expect("app");
@@ -724,11 +724,11 @@ sources:
             base.join("app/platform/releases.yaml"),
             r#"
 teams:
- - tag: core
+  - tag: core
 sources:
- - type: github
- repo: org/platform-app
- routing_tag: core
+  - type: github
+    repo: org/platform-app
+    routing_tag: core
 "#,
         )
         .expect("platform");
@@ -737,18 +737,18 @@ sources:
             base.join("app/security/releases.yaml"),
             r#"
 notifiers:
- - type: apprise
- endpoint: http://127.0.0.1:9
- urls: ["mailto://a@b.c"]
- - type: apprise
- urls: ["mailto://platform@example.com"]
- - type: webhook
- url: https://example.test/hook
- tags: [ops]
+  - type: apprise
+    endpoint: http://127.0.0.1:9
+    urls: ["mailto://a@b.c"]
+  - type: apprise
+    urls: ["mailto://platform@example.com"]
+  - type: webhook
+    url: https://example.test/hook
+    tags: [ops]
 sources:
- - type: github
- repo: org/security-app
- routing_tag: ops
+  - type: github
+    repo: org/security-app
+    routing_tag: ops
 "#,
         )
         .expect("security");
@@ -822,8 +822,8 @@ sources:
     fn org_fixture(tag: &str) -> (std::path::PathBuf, ConfigPaths) {
         two_org_fixture(
  tag,
- "notifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\nsources:\n - type: github\n repo: org/platform-app\n",
- "notifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\nsources:\n - type: github\n repo: org/security-app\n")
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\nsources:\n  - type: github\n    repo: org/platform-app\n",
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\nsources:\n  - type: github\n    repo: org/security-app\n")
     }
 
     #[test]
@@ -833,8 +833,8 @@ sources:
         // `into_watches` proves the references were rewritten per-org.
         let (base, paths) = two_org_fixture(
  "presets",
- "notifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\npresets:\n team-pattern:\n pattern: \"^platform-\"\nsources:\n - type: github\n repo: org/platform-app\n preset: team-pattern\n",
- "notifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\npresets:\n team-pattern:\n pattern: \"^security-\"\nsources:\n - type: github\n repo: org/security-app\n preset: team-pattern\n");
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\npresets:\n  team-pattern:\n    pattern: \"^platform-\"\nsources:\n  - type: github\n    repo: org/platform-app\n    preset: team-pattern\n",
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\npresets:\n  team-pattern:\n    pattern: \"^security-\"\nsources:\n  - type: github\n    repo: org/security-app\n    preset: team-pattern\n");
         let bootstrap = load_infra_bootstrap(&paths).expect("bootstrap");
 
         let composed = compose_organizations(&bootstrap, &paths, None, None).expect("compose");
@@ -866,8 +866,8 @@ sources:
         // built-in for security, which is likewise standalone semantics.)
         let (base, paths) = two_org_fixture(
  "preset-x",
- "notifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\npresets:\n team-pattern:\n pattern: \"^platform-\"\nsources:\n - type: github\n repo: org/platform-app\n preset: team-pattern\n",
- "notifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\nsources:\n - type: github\n repo: org/security-app\n preset: team-pattern\n");
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\npresets:\n  team-pattern:\n    pattern: \"^platform-\"\nsources:\n  - type: github\n    repo: org/platform-app\n    preset: team-pattern\n",
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\nsources:\n  - type: github\n    repo: org/security-app\n    preset: team-pattern\n");
         let bootstrap = load_infra_bootstrap(&paths).expect("bootstrap");
 
         let composed = compose_organizations(&bootstrap, &paths, None, None).expect("compose");
@@ -883,8 +883,8 @@ sources:
     fn multi_org_upstream_cap_should_take_the_strictest_value() {
         let (base, paths) = two_org_fixture(
  "rpm",
- "defaults:\n upstream_requests_per_minute: 120\nnotifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\nsources:\n - type: github\n repo: org/platform-app\n",
- "defaults:\n upstream_requests_per_minute: 30\nnotifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\nsources:\n - type: github\n repo: org/security-app\n");
+ "defaults:\n  upstream_requests_per_minute: 120\nnotifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\nsources:\n  - type: github\n    repo: org/platform-app\n",
+ "defaults:\n  upstream_requests_per_minute: 30\nnotifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\nsources:\n  - type: github\n    repo: org/security-app\n");
         let bootstrap = load_infra_bootstrap(&paths).expect("bootstrap");
 
         let composed = compose_organizations(&bootstrap, &paths, None, None).expect("compose");
@@ -899,8 +899,8 @@ sources:
         // but the second org's explicit cap must still take effect.
         let (base, paths) = two_org_fixture(
  "rpm-zero",
- "notifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\nsources:\n - type: github\n repo: org/platform-app\n",
- "defaults:\n upstream_requests_per_minute: 60\nnotifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\nsources:\n - type: github\n repo: org/security-app\n");
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\nsources:\n  - type: github\n    repo: org/platform-app\n",
+ "defaults:\n  upstream_requests_per_minute: 60\nnotifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\nsources:\n  - type: github\n    repo: org/security-app\n");
         let bootstrap = load_infra_bootstrap(&paths).expect("bootstrap");
 
         let composed = compose_organizations(&bootstrap, &paths, None, None).expect("compose");
@@ -915,7 +915,7 @@ sources:
         let bootstrap = load_infra_bootstrap(&paths).expect("bootstrap");
 
         let candidate =
- "notifiers:\n - type: apprise\n urls: [\"mailto://p@example.com\"]\nsources:\n - type: github\n repo: org/replaced\n";
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://p@example.com\"]\nsources:\n  - type: github\n    repo: org/replaced\n";
         let composed =
             compose_organizations(&bootstrap, &paths, None, Some(("platform", candidate)))
                 .expect("compose with override");
@@ -955,7 +955,7 @@ sources:
 
         std::fs::write(
  base.join("app/security/releases.yaml"),
- "notifiers:\n - type: apprise\n urls: [\"mailto://s@example.com\"]\nsources:\n - type: github\n repo: org/security-v2\n")
+ "notifiers:\n  - type: apprise\n    urls: [\"mailto://s@example.com\"]\nsources:\n  - type: github\n    repo: org/security-v2\n")
 .expect("rewrite security");
         let third = compose_organizations(&bootstrap, &paths, None, None).expect("compose");
         assert_ne!(first.identity_sha256, third.identity_sha256);

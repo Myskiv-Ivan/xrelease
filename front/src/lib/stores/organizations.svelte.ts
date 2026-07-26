@@ -8,7 +8,7 @@ import { t } from '$lib/i18n';
  * Organization catalogue + the operator's currently-selected org.
  *
  * Multi-org mode is inferred from the catalogue: an empty list means the
- * instance runs in legacy single-document mode, so the switcher and
+ * instance runs in single-document mode, so the switcher and
  * org-scoped views stay hidden and the global `/config` page is authoritative.
  * The catalogue is bootstrap-only, so it is fetched once per authenticated
  * session; selection is persisted in `localStorage` and reconciled against the
@@ -94,7 +94,7 @@ export function getOrganizationsState() {
 		get selected(): OrganizationView | null {
 			return organizations.find((org) => org.id === selectedId) ?? null;
 		},
-		/** True when the instance runs more than the legacy single document. */
+		/** True when the instance has one or more `[[organizations]]` entries. */
 		get isMultiOrg() {
 			return organizations.length > 0;
 		},

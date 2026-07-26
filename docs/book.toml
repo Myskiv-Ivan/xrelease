@@ -1,6 +1,6 @@
 [book]
 title = "xrelease"
-description = "Self-hosted release notifier — watch upstream releases and notify your teams"
+description = "Self-hosted release notifier — watch upstream releases and notify your teams (Apprise, Novu, and more)"
 language = "en"
 src = "."
 

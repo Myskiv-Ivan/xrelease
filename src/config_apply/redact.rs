@@ -334,7 +334,7 @@ fn redact_notifiers(config: &mut Config) {
 /// `<redacted>` placeholders.
 ///
 /// After API normalize, live config usually holds **refs only** (empty inline +
-/// `*_env`). Restore must therefore reinstate env names as well as legacy
+/// `*_env`). Restore must therefore reinstate env names as well as prior
 /// inline values, or a no-op UI edit would drop vault bindings.
 #[must_use]
 pub fn restore_redacted_secrets(previous: &Config, next: &mut Config) -> bool {
@@ -949,6 +949,9 @@ mod tests {
             r#"
             [database]
             postgres_url = "postgres://xrelease:xrelease@127.0.0.1:5432/xrelease"
+
+            [api]
+            require_auth = false
 
             [[notifiers]]
             type = "apprise"

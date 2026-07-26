@@ -98,10 +98,6 @@ export function notifierFieldLabel(key: string): string {
 			return t('config.fieldPasswordEnv');
 		case 'url_env':
 			return t('config.fieldUrlEnv');
-		case 'secret_key':
-			return t('config.fieldSecretKey');
-		case 'secret_key_env':
-			return t('config.fieldSecretKeyEnv');
 		case 'password':
 			return t('config.fieldPassword');
 		case 'subject_template':
@@ -160,10 +156,6 @@ export function notifierFieldHint(key: string): string | null {
 			return t('config.fieldHintPasswordEnv');
 		case 'url_env':
 			return t('config.fieldHintUrlEnv');
-		case 'secret_key':
-			return t('config.fieldHintSecretKey');
-		case 'secret_key_env':
-			return t('config.fieldHintSecretKeyEnv');
 		case 'password':
 			return t('config.fieldHintPassword');
 		case 'subject_template':

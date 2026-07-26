@@ -17,7 +17,7 @@
 ## When to choose xrelease
 
 - You want **self-hosted** control of config, state, and notification secrets
-- You need **Apprise** (or brokers) for notification fan-out
+- You need **Apprise**, **Novu**, or brokers for notification fan-out
 - You watch **packages + containers + Git** in one config
 - You want **webhooks + polling** with an OpenAPI-documented API
 - You prefer **GitOps** for desired state, with optional API/UI apply when needed

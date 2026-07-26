@@ -7,15 +7,20 @@ docs — those stay in [`docs/operations/ci-cd.md`](../docs/operations/ci-cd.md)
 
 ```
 PR / push main ──► ci.yml        quality gates (no publish)
+                   ├ rust        fmt/clippy/test/version/validate
+                   ├ security    cargo-deny + npm audit (+ Trivy advisory)
+                   ├ front       check/test/build
+                   ├ helm        lint + template
+                   └ docker      amd64 image smoke (no QEMU)
 push main      ──► docs.yml      mdBook → GitHub Pages
-push/PR main   ──► codeql.yml    SAST
+push/PR main   ──► codeql.yml    SAST (gated on private repos)
 manual         ──► version-bump  bump semver → commit + tag vX.Y.Z
 tag v*.*.*     ──► release.yml   binaries + GHCR (cosign) + GitHub Release
 ```
 
 | Workflow | Trigger | Publishes? |
 |---|---|---|
-| `ci.yml` | PR, push `main` | No (lint / test / helm / image build smoke) |
+| `ci.yml` | PR, push `main` | No (rust+validate / security / front / helm / amd64 image smoke) |
 | `docs.yml` | docs paths | GitHub Pages |
 | `codeql.yml` | main + weekly | No |
 | `version-bump.yml` | manual on `main` | Git commit + tag only |
@@ -52,15 +57,13 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 | Setting | Value |
 |---|---|
 | Actions enabled | On |
-| Workflow permissions | Read and write |
-| Pages → Source | GitHub Actions (or `docs.yml` `enablement: true`) |
+| Workflow permissions | Read and write (Actions → General) |
+| Pages → Source | GitHub Actions (`docs.yml` can `enablement: true`) |
 | Packages | Actions can write to GHCR |
 | Optional secret `RELEASE_TOKEN` | Tag → release cascade |
 | Optional variable `ACTIONS_RUNS_ON` | Runner labels (below) |
 | Optional variable `CODE_SCANNING_ENABLED=true` | Required for CodeQL on **private** repos (needs GHAS) |
 | Code scanning | Settings → Code security → Code scanning (GHAS if private) |
-| Pages → Source | GitHub Actions |
-| Workflow permissions | Read and write (Actions → General) |
 
 ### Workflow triggers (rules)
 
@@ -77,7 +80,7 @@ the analyze job is skipped and only `gate` succeeds.
 
 ## Runners: GitHub-hosted vs self-hosted
 
-Default in all workflows: **`ubuntu-latest`** (GitHub-hosted / «облачный»).
+Default in all workflows: **`ubuntu-latest`** (GitHub-hosted).
 No self-hosted runner is required.
 
 ### GitHub-hosted (recommended)
@@ -88,7 +91,7 @@ No self-hosted runner is required.
 
 Leave variable `ACTIONS_RUNS_ON` unset (or set `["ubuntu-latest"]`).
 
-### Self-hosted («свой» / on-prem runner)
+### Self-hosted (on-prem runner)
 
 Use when you need private network, custom hardware, or to avoid hosted minutes.
 

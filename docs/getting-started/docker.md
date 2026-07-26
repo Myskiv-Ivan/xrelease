@@ -50,6 +50,7 @@ without orgs). See comments in [`docker-compose.yaml`](../../docker-compose.yaml
 | `XRELEASE_API_KEY` | Server Bearer; pass the same value to `xrctl --api-key` / curl |
 | `XRELEASE_WEBHOOK_SECRET` | Inbound forge webhook verification |
 | `XRELEASE_APPRISE_ENDPOINT` | Apprise API base (Compose sets `http://apprise:8000`) |
+| `XRELEASE_NOVU_API_KEY` | Novu API key when notifier `api_key` / `api_key_env` is unset |
 | `XRELEASE_EXPRESS_ACCESS_TOKEN` | Default eXpress Bearer (or per-sink `access_token_env`) |
 | `XRELEASE_SMTP_PASSWORD` | SMTP AUTH when notifier `password` is empty |
 | `XRELEASE_LOG` | Tracing filter (default `info`) |

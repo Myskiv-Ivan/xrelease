@@ -27,7 +27,7 @@ pub struct SourceSummary {
     pub routing_tag: Option<String>,
     /// Cron expression gating notification delivery (UTC), when configured.
     pub notify_schedule: Option<String>,
-    /// Owning organization (`[[organizations]]` id). `None` = legacy single-document.
+    /// Owning organization (`[[organizations]]` id). `None` = single-document mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<String>,
 }
@@ -119,7 +119,7 @@ impl Runtime {
         // the running config did not come from it, and claiming otherwise
         // would mislabel `desired_source` and wrongly block `/api/v1/reload`.
         // Multi-org instances have one revision per ORGANIZATION stream, not a
-        // single global one — a leftover legacy (NULL-stream) row from a
+        // single global one — a leftover NULL-stream row from a
         // pre-[[organizations]] life must not masquerade as the boot identity.
         let effective_revision =
             if bootstrap.config_api.ledger_is_bootable() && bootstrap.organizations.is_empty() {

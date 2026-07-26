@@ -23,12 +23,8 @@ pub mod slack;
 pub mod smtp;
 pub mod telegram;
 pub mod webhook;
-
-#[cfg(feature = "kafka")]
 pub mod kafka;
-#[cfg(feature = "nats")]
 pub mod nats;
-#[cfg(feature = "rabbitmq")]
 pub mod rabbitmq;
 
 pub use apprise::AppriseNotifier;
@@ -104,8 +100,9 @@ impl Notifier for LogNotifier {
 /// One configured delivery backend. Static dispatch over a closed set of sinks
 /// (Best Practices Ch. 6) — the same pattern as [`crate::sources::Provider`].
 ///
-/// Message-broker variants are compiled only when their cargo feature is enabled
-/// so the default binary stays lean (no C `librdkafka`, no broker clients).
+/// Every documented sink kind (including Kafka / NATS / RabbitMQ) is always
+/// compiled into the binary — one product surface for local builds, GHCR, and
+/// GitHub Release archives.
 #[derive(Clone)]
 pub enum Sink {
     /// Apprise HTTP API server (fan-out to 100+ channels).
@@ -123,13 +120,10 @@ pub enum Sink {
     /// Direct SMTP email delivery.
     Smtp(SmtpNotifier),
     /// Kafka topic producer.
-    #[cfg(feature = "kafka")]
     Kafka(kafka::KafkaNotifier),
     /// NATS subject publisher.
-    #[cfg(feature = "nats")]
     Nats(nats::NatsNotifier),
     /// RabbitMQ (AMQP) exchange publisher.
-    #[cfg(feature = "rabbitmq")]
     RabbitMq(rabbitmq::RabbitMqNotifier),
 }
 
@@ -145,11 +139,8 @@ impl Sink {
             Self::Slack(_) => "slack",
             Self::Telegram(_) => "telegram",
             Self::Smtp(_) => "smtp",
-            #[cfg(feature = "kafka")]
             Self::Kafka(_) => "kafka",
-            #[cfg(feature = "nats")]
             Self::Nats(_) => "nats",
-            #[cfg(feature = "rabbitmq")]
             Self::RabbitMq(_) => "rabbitmq",
         }
     }
@@ -165,11 +156,8 @@ impl Sink {
             Self::Slack(n) => Some(n.name()),
             Self::Telegram(n) => Some(n.name()),
             Self::Smtp(n) => Some(n.name()),
-            #[cfg(feature = "kafka")]
             Self::Kafka(n) => Some(n.name()),
-            #[cfg(feature = "nats")]
             Self::Nats(n) => Some(n.name()),
-            #[cfg(feature = "rabbitmq")]
             Self::RabbitMq(n) => Some(n.name()),
         };
         named
@@ -192,13 +180,10 @@ impl Sink {
             | Self::Novu(_)
             | Self::Slack(_)
             | Self::Telegram(_)
-            | Self::Smtp(_) => true,
-            #[cfg(feature = "kafka")]
-            Self::Kafka(_) => true,
-            #[cfg(feature = "nats")]
-            Self::Nats(_) => true,
-            #[cfg(feature = "rabbitmq")]
-            Self::RabbitMq(_) => true,
+            | Self::Smtp(_)
+            | Self::Kafka(_)
+            | Self::Nats(_)
+            | Self::RabbitMq(_) => true,
         }
     }
 }
@@ -213,11 +198,8 @@ impl Notifier for Sink {
             Self::Slack(n) => n.notify(event).await,
             Self::Telegram(n) => n.notify(event).await,
             Self::Smtp(n) => n.notify(event).await,
-            #[cfg(feature = "kafka")]
             Self::Kafka(n) => n.notify(event).await,
-            #[cfg(feature = "nats")]
             Self::Nats(n) => n.notify(event).await,
-            #[cfg(feature = "rabbitmq")]
             Self::RabbitMq(n) => n.notify(event).await,
         }
     }

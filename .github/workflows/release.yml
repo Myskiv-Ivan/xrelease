@@ -110,6 +110,12 @@ jobs:
         with:
           key: release-${{ matrix.target }}
 
+      - name: Install build deps (librdkafka / OpenSSL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake pkg-config libssl-dev libsasl2-dev zlib1g-dev
+
       - name: Install cross toolchain (arm64)
         if: matrix.cross
         run: |
@@ -118,10 +124,8 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
       - name: Build xrelease (backend) + xrctl (CLI)
-        # Whole workspace: the backend keeps its lean default features (release
-        # binaries carry no Kafka/NATS/RabbitMQ), and the same pass produces the
-        # standalone `xrctl` client, which depends on neither the backend lib nor
-        # any server-side crate.
+        # Whole workspace: backend ships every notifier sink (including brokers);
+        # the same pass produces the standalone `xrctl` client.
         run: cargo build --release --locked --workspace --target "${{ matrix.target }}"
 
       - name: Package archives
@@ -166,18 +170,15 @@ jobs:
             context: .
             file: ./docker/Dockerfile
             image_suffix: ""
-            build_args: ""
           - component: cli
             context: .
             file: ./docker/Dockerfile.cli
             image_suffix: "-cli"
-            build_args: ""
           - component: ui
             context: ./front
             file: ./docker/Dockerfile.ui
             image_suffix: "-ui"
-            build_args: |
-              VITE_AUTH_MODE=local
+            # Auth is runtime (/ui-config.js); Dockerfile defaults VITE_AUTH_MODE=local
     steps:
       - uses: actions/checkout@v7
         with:
@@ -222,7 +223,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.build_args }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=release-${{ matrix.component }}
@@ -303,7 +303,7 @@ jobs:
             echo "## Binary archives"
             echo
             echo "Two archives per platform: \`xrelease\` (the backend) and \`xrctl\` (the management CLI)."
-            echo "The backend binary is lean (no Kafka/NATS/RabbitMQ); container images include broker sinks."
+            echo "The backend binary includes Apprise/Novu/Slack/Telegram/SMTP/webhook and broker sinks (Kafka/NATS/RabbitMQ)."
             echo "\`xrctl\` is a pure HTTP client for a running instance — it needs no database or config file, so it runs from a laptop or CI on its own (binary or \`${IMAGE}-cli\` image)."
             echo
             echo '```bash'

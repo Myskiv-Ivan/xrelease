@@ -1,9 +1,9 @@
 apiVersion: v2
 name: xrelease
-description: Watch software release sources and notify via Apprise, SMTP, webhooks, and more
+description: Self-hosted release notifier — Apprise, Novu, Slack, Telegram, SMTP, webhooks, and brokers
 type: application
-version: 0.1.1
-appVersion: "0.1.1"
+version: 0.1.2
+appVersion: "0.1.2"
 keywords:
   - releases
   - notifications

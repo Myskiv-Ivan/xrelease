@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "xrelease API",
-    "description": "Self-hosted release notifier — management API and inbound webhooks.\n\nStarted with `xrelease serve`. Polling continues in the background; webhooks provide low-latency push for GitHub, GitLab, Gitea, Codeberg, Bitbucket, and Docker Hub.\n\nConfiguration is split: `bootstrap.toml` (infra) + `app/releases.yaml` (sources/teams/notifiers). Source kinds (`type` in app config): `github`, `codeberg`, `gitea`, `gitlab`, `bitbucket`, `docker`, `ghcr`, `quay`, `ecr`, `feed`, `pypi`, `npm`, `yarn`, `cargo`, `maven`, `nuget`, `hex`, `rubygems`, `packagist`, `cpan`, `artifacthub`.",
-    "version": "0.1.1",
+    "description": "Self-hosted release notifier — management API and inbound webhooks.\n\nStarted with `xrelease serve`. Polling continues in the background; webhooks provide low-latency push for GitHub, GitLab, Gitea, Codeberg, Bitbucket, and Docker Hub.\n\nConfiguration is split: `bootstrap.toml` (infra) + desired state (sources / teams / notifiers via file, API ledger, or UI Apply). Notifiers include Apprise, Novu, Slack, Telegram, SMTP, webhooks, eXpress, and optional brokers.\n\nSource kinds (`type`): `github`, `codeberg`, `gitea`, `gitlab`, `bitbucket`, `docker`, `ghcr`, `quay`, `ecr`, `feed`, `pypi`, `npm`, `yarn`, `cargo`, `maven`, `nuget`, `hex`, `rubygems`, `packagist`, `cpan`, `artifacthub`.",
+    "version": "0.1.2",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
@@ -1534,7 +1534,7 @@
           "observability"
         ],
         "summary": "What the desired-state config accepts (for UI controls)",
-        "description": "Machine-readable option lists so a UI can render selects, a sink picker, a team-tag multi-select and a schedule widget instead of a raw config text box. Deployment/build specific: `sink_kinds[].available` (cargo features), `team_tags` / `preset_names` (running config), and `config_authority` (`[config_api].source`). `readonly_sections` are bootstrap-only and rejected in any pushed document. `template_placeholders` documents the notifier Mustache dialect.",
+        "description": "Machine-readable option lists so a UI can render selects, a sink picker, a team-tag multi-select and a schedule widget instead of a raw config text box. Includes `sink_kinds` (every sink is available), `team_tags` / `preset_names` (running config), and `config_authority` (`[config_api].source`). `readonly_sections` are bootstrap-only and rejected in any pushed document. `template_placeholders` documents the notifier Mustache dialect.",
         "operationId": "getConfigSchema",
         "security": [
           {
@@ -2185,7 +2185,7 @@
           "organization_id": {
             "type": "string",
             "nullable": true,
-            "description": "Owning organization id when multi-org; null in legacy single-document mode."
+            "description": "Owning organization id when multi-org; null in single-document mode."
           }
         },
         "required": [
@@ -3239,7 +3239,7 @@
           "organization_id": {
             "type": "string",
             "nullable": true,
-            "description": "Ledger stream: absent/null = legacy single-document stream, else the [[organizations]] id."
+            "description": "Ledger stream: absent/null = single-document stream, else the [[organizations]] id."
           }
         },
         "required": [
@@ -3312,11 +3312,12 @@
                 },
                 "available": {
                   "type": "boolean",
-                  "description": "False when the sink needs a cargo feature this build lacks"
+                  "description": "Whether this binary can build the sink (always true — every sink kind is compiled in)"
                 },
                 "requires_feature": {
                   "type": "string",
-                  "nullable": true
+                  "nullable": true,
+                  "description": "Reserved; always null — sinks are not feature-gated"
                 }
               },
               "required": [

@@ -6,13 +6,12 @@
 //! without the frontend hardcoding option lists that silently drift from the
 //! Rust enums (it already had 50 lines of them).
 //!
-//! Two things only the server can know make this a server concern rather than
-//! a frontend constant:
+//! Team tags and the running authoring mode are deployment data only the
+//! server knows — that is why this schema is served, not hardcoded in the UI.
 //!
-//! - **Broker sinks are feature-gated.** `kafka` / `nats` / `rabbitmq` compile
-//!   in only with their cargo feature, so which sinks are *offerable* depends
-//!   on the running binary, not on the schema.
-//! - **Team tags are deployment data**, read from the running config.
+//! Source and sink kind tables are drift-checked against serde's variant lists
+//! (see tests below). Every sink kind is always available in the binary
+//! (ADR-0001: all notifiers always on).
 
 use serde::Serialize;
 
@@ -25,17 +24,25 @@ pub struct SchemaOption {
     pub label: &'static str,
 }
 
-/// A notification sink kind and whether this binary can actually build it.
+/// A notification sink kind offered by this binary.
 #[derive(Debug, Clone, Serialize)]
 pub struct SinkOption {
     pub value: &'static str,
     pub label: &'static str,
-    /// False when the sink needs a cargo feature this build lacks — the UI
-    /// must not offer it, and validation would reject it at apply time.
+    /// Always `true` — every documented sink kind is compiled into the binary.
     pub available: bool,
-    /// Cargo feature required, when the sink is feature-gated.
+    /// Reserved for forward compatibility; always `None` (no cargo feature gates).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_feature: Option<&'static str>,
+}
+
+fn sink(value: &'static str, label: &'static str) -> SinkOption {
+    SinkOption {
+        value,
+        label,
+        available: true,
+        requires_feature: None,
+    }
 }
 
 /// Every `[[sources]]` `type` value the config accepts.
@@ -158,70 +165,20 @@ pub const WEBHOOK_METHODS: &[SchemaOption] = &[
     },
 ];
 
-/// Notification sink kinds, with build availability resolved for this binary.
+/// Notification sink kinds exposed to UI / OpenAPI (always all compiled kinds).
 #[must_use]
 pub fn sink_kinds() -> Vec<SinkOption> {
     vec![
-        SinkOption {
-            value: "apprise",
-            label: "Apprise",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "webhook",
-            label: "Webhook",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "express",
-            label: "eXpress (BotX)",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "novu",
-            label: "Novu",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "slack",
-            label: "Slack",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "telegram",
-            label: "Telegram",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "smtp",
-            label: "SMTP e-mail",
-            available: true,
-            requires_feature: None,
-        },
-        SinkOption {
-            value: "kafka",
-            label: "Kafka",
-            available: cfg!(feature = "kafka"),
-            requires_feature: Some("kafka"),
-        },
-        SinkOption {
-            value: "nats",
-            label: "NATS",
-            available: cfg!(feature = "nats"),
-            requires_feature: Some("nats"),
-        },
-        SinkOption {
-            value: "rabbitmq",
-            label: "RabbitMQ",
-            available: cfg!(feature = "rabbitmq"),
-            requires_feature: Some("rabbitmq"),
-        },
+        sink("apprise", "Apprise"),
+        sink("webhook", "Webhook"),
+        sink("express", "eXpress (BotX)"),
+        sink("novu", "Novu"),
+        sink("slack", "Slack"),
+        sink("telegram", "Telegram"),
+        sink("smtp", "SMTP e-mail"),
+        sink("kafka", "Kafka"),
+        sink("nats", "NATS"),
+        sink("rabbitmq", "RabbitMQ"),
     ]
 }
 
@@ -269,16 +226,50 @@ mod tests {
     }
 
     #[test]
-    fn sink_kinds_should_mark_uncompiled_brokers_unavailable() {
-        let kinds = sink_kinds();
-        let kafka = kinds.iter().find(|k| k.value == "kafka").expect("kafka");
-        assert_eq!(kafka.available, cfg!(feature = "kafka"));
-        assert_eq!(kafka.requires_feature, Some("kafka"));
+    fn sink_kinds_should_match_serde_variants() {
+        let err = toml::from_str::<Config>(
+            r#"
+            [[notifiers]]
+            type = "definitely-not-a-sink"
+        "#,
+        )
+        .expect_err("unknown sink kind must fail to parse")
+        .to_string();
 
-        let apprise = kinds
-            .iter()
-            .find(|k| k.value == "apprise")
-            .expect("apprise");
-        assert!(apprise.available, "core sinks are always available");
+        let expected: std::collections::BTreeSet<String> = err
+            .split('`')
+            .skip(1)
+            .step_by(2)
+            .filter(|token| *token != "definitely-not-a-sink")
+            .map(str::to_owned)
+            .collect();
+        assert!(
+            !expected.is_empty(),
+            "could not extract variants from serde error: {err}"
+        );
+
+        let listed: std::collections::BTreeSet<String> =
+            sink_kinds().iter().map(|k| k.value.to_owned()).collect();
+        assert_eq!(
+            listed, expected,
+            "sink_kinds() is out of sync with the NotifierConfig variants"
+        );
+    }
+
+    #[test]
+    fn sink_kinds_should_mark_every_sink_available() {
+        let kinds = sink_kinds();
+        for kind in &kinds {
+            assert!(
+                kind.available,
+                "{} must be available in every binary",
+                kind.value
+            );
+            assert!(
+                kind.requires_feature.is_none(),
+                "{} must not require a cargo feature",
+                kind.value
+            );
+        }
     }
 }

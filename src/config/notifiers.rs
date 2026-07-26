@@ -1,10 +1,8 @@
 //! Notification sink configuration (`[[notifiers]]`).
 //!
 //! Each `[[notifiers]]` entry is a tagged enum ([`NotifierConfig`]) mapping
-//! onto one [`crate::notify::Sink`] variant. Feature-gated brokers (Kafka /
-//! NATS / RabbitMQ) fail loudly at build time (not parse time) when their
-//! cargo feature isn't compiled in, so a config referencing them is still
-//! valid TOML — it just can't be *used* without the matching `--features`.
+//! onto one [`crate::notify::Sink`] variant. Every sink kind — including
+//! Kafka / NATS / RabbitMQ — is always available in the binary.
 
 use std::collections::HashMap;
 
@@ -476,11 +474,11 @@ pub enum NotifierConfig {
     Telegram(TelegramCfg),
     /// Direct SMTP email delivery.
     Smtp(SmtpCfg),
-    /// Kafka topic producer (requires `--features kafka`).
+    /// Kafka topic producer.
     Kafka(KafkaCfg),
-    /// NATS subject publisher (requires `--features nats`).
+    /// NATS subject publisher.
     Nats(NatsCfg),
-    /// RabbitMQ exchange publisher (requires `--features rabbitmq`).
+    /// RabbitMQ exchange publisher.
     Rabbitmq(RabbitmqCfg),
 }
 
@@ -683,7 +681,6 @@ impl NotifierConfig {
     }
 }
 
-#[cfg(feature = "kafka")]
 fn build_kafka_sink(cfg: &KafkaCfg) -> anyhow::Result<Sink> {
     let name = cfg.name.clone().unwrap_or_else(|| cfg.topic.clone());
     let notifier = crate::notify::kafka::KafkaNotifier::new(
@@ -696,12 +693,6 @@ fn build_kafka_sink(cfg: &KafkaCfg) -> anyhow::Result<Sink> {
     Ok(Sink::Kafka(notifier))
 }
 
-#[cfg(not(feature = "kafka"))]
-fn build_kafka_sink(_cfg: &KafkaCfg) -> anyhow::Result<Sink> {
-    anyhow::bail!("notifier `type = \"kafka\"` requires building xrelease with `--features kafka`")
-}
-
-#[cfg(feature = "nats")]
 fn build_nats_sink(cfg: &NatsCfg) -> anyhow::Result<Sink> {
     let url = resolve_secret(&cfg.url, cfg.url_env.as_deref(), "XRELEASE_NATS_URL");
     let name = cfg.name.clone().unwrap_or_else(|| cfg.subject.clone());
@@ -714,12 +705,6 @@ fn build_nats_sink(cfg: &NatsCfg) -> anyhow::Result<Sink> {
     Ok(Sink::Nats(notifier))
 }
 
-#[cfg(not(feature = "nats"))]
-fn build_nats_sink(_cfg: &NatsCfg) -> anyhow::Result<Sink> {
-    anyhow::bail!("notifier `type = \"nats\"` requires building xrelease with `--features nats`")
-}
-
-#[cfg(feature = "rabbitmq")]
 fn build_rabbitmq_sink(cfg: &RabbitmqCfg) -> anyhow::Result<Sink> {
     let url = resolve_secret(&cfg.url, cfg.url_env.as_deref(), "XRELEASE_RABBITMQ_URL");
     let name = cfg.name.clone().unwrap_or_else(|| cfg.routing_key.clone());
@@ -731,13 +716,6 @@ fn build_rabbitmq_sink(cfg: &RabbitmqCfg) -> anyhow::Result<Sink> {
         cfg.template.clone(),
     )?;
     Ok(Sink::RabbitMq(notifier))
-}
-
-#[cfg(not(feature = "rabbitmq"))]
-fn build_rabbitmq_sink(_cfg: &RabbitmqCfg) -> anyhow::Result<Sink> {
-    anyhow::bail!(
-        "notifier `type = \"rabbitmq\"` requires building xrelease with `--features rabbitmq`"
-    )
 }
 
 /// Resolve a notifier secret from (in order): an inline value, a per-notifier
@@ -880,6 +858,9 @@ mod tests {
             r#"
             [database]
             postgres_url = "postgres://xrelease:xrelease@127.0.0.1/xrelease"
+
+            [api]
+            require_auth = false
 
             [config_api]
             api_config = true

@@ -20,7 +20,7 @@
 
 * [Configuration overview](configuration/overview.md)
 * [Sources reference](configuration/sources.md)
-* [Notifications](configuration/apprise.md)
+* [Notifications (Apprise, Novu, …)](configuration/apprise.md)
 * [HTTP API settings](configuration/api.md)
 
 ## API
@@ -44,3 +44,4 @@
 
 * [Comparison with alternatives](project/comparison.md)
 * [Changelog](project/changelog.md)
+* [Architecture decisions (ADRs)](adr/README.md)

@@ -620,7 +620,7 @@ export interface paths {
         };
         /**
          * What the desired-state config accepts (for UI controls)
-         * @description Machine-readable option lists so a UI can render selects, a sink picker, a team-tag multi-select and a schedule widget instead of a raw config text box. Deployment/build specific: `sink_kinds[].available` (cargo features), `team_tags` / `preset_names` (running config), and `config_authority` (`[config_api].source`). `readonly_sections` are bootstrap-only and rejected in any pushed document. `template_placeholders` documents the notifier Mustache dialect.
+         * @description Machine-readable option lists so a UI can render selects, a sink picker, a team-tag multi-select and a schedule widget instead of a raw config text box. Includes `sink_kinds` (every sink is available), `team_tags` / `preset_names` (running config), and `config_authority` (`[config_api].source`). `readonly_sections` are bootstrap-only and rejected in any pushed document. `template_placeholders` documents the notifier Mustache dialect.
          */
         get: operations["getConfigSchema"];
         put?: never;
@@ -783,7 +783,7 @@ export interface components {
              * @example 0 9 * * MON-FRI
              */
             notify_schedule: string | null;
-            /** @description Owning organization id when multi-org; null in legacy single-document mode. */
+            /** @description Owning organization id when multi-org; null in single-document mode. */
             organization_id?: string | null;
         };
         SourceMetricsView: {
@@ -1127,7 +1127,7 @@ export interface components {
             /** @enum {string} */
             status: "applied" | "rejected";
             error?: string | null;
-            /** @description Ledger stream: absent/null = legacy single-document stream, else the [[organizations]] id. */
+            /** @description Ledger stream: absent/null = single-document stream, else the [[organizations]] id. */
             organization_id?: string | null;
         };
         ConfigRevisionsResponse: {

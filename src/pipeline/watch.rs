@@ -28,6 +28,6 @@ pub struct Watch {
     /// When set, notifications are held in the outbox until the next moment
     /// matching this cron expression (calendar-gated delivery).
     pub notify_schedule: Option<NotifySchedule>,
-    /// Owning organization (`[[organizations]]` id). `None` = legacy single-file mode.
+    /// Owning organization (`[[organizations]]` id). `None` = single-document mode.
     pub organization_id: Option<String>,
 }

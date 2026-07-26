@@ -61,7 +61,7 @@ export interface AuthProfile {
 	method: 'local' | 'api_key' | 'oidc' | 'hybrid';
 	oidcProfile?: OidcProfile;
 	localUsername?: string;
-	/** Instance-wide role (legacy alias for `resolved.global`). */
+	/** Instance-wide role (`resolved.global`). */
 	appRole: AppRole;
 	/** Per-org OIDC grants; empty for local / api-key. */
 	organizationRoles: Record<string, AppRole>;

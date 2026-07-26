@@ -18,6 +18,15 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ## [Unreleased]
 
+### Changed
+
+- Kafka, NATS, and RabbitMQ notifier sinks are always compiled into the
+  `xrelease` binary (no cargo features / `all-notifiers`). Local builds, GHCR
+  images, and GitHub Release archives share one notifier surface — see
+  [`docs/adr/0001-all-notifiers-always-on.md`](docs/adr/0001-all-notifiers-always-on.md).
+- TLS guides document mounted certificate files (Compose) and Ingress TLS
+  Secrets (Kubernetes).
+
 ### Fixed
 
 - UI OIDC role mapping calls `toLowerCase()` / `trim()` correctly, so IdP
@@ -34,8 +43,3 @@ Schema upgrades run automatically on startup. Lab resets remain
 - Kubernetes Ingress TLS overlay:
   [`deploy/k8s/values-tls.example.yaml`](deploy/k8s/values-tls.example.yaml)
   (`kubectl create secret tls --cert/--key`).
-
-### Changed
-
-- TLS guides document mounted certificate files (Compose) and Ingress TLS
-  Secrets (Kubernetes).

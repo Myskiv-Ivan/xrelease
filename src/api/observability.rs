@@ -127,7 +127,7 @@ pub async fn get_status(
     let outbox = state.engine.store.outbox_counts()?;
     let breakers = state.engine.notifier_snapshot().await.breaker_states();
     // Across every stream: a multi-org admin's status banner must surface any
-    // organization's failed push, not only the legacy single-document stream.
+    // organization's failed push, not only the single-document stream.
     let rejected = state.engine.store.latest_rejected_config_revision_any()?;
     let multi_org = !state.bootstrap.organizations.is_empty();
     let (revision, sources_configured) = {

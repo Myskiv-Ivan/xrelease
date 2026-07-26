@@ -120,9 +120,7 @@ ui_config = true
 api_config = false   # or source = "local"
 ```
 
-Do not use old names `enabled` / `ui_editing`, or `source` values `file` /
-`ledger` / `auto` — they are rejected. Use only `api_config`, `ui_config`, and
-`source = "local" | "api"`.
+Valid flags: `api_config`, `ui_config`, and `source = "local" | "api"` only.
 
 Listen / auth / HMAC / `apply_scope`: [HTTP API settings](api.md).
 Runtime / install: [Runtime deployment](../operations/deployment.md).

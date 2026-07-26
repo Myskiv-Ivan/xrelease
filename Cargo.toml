@@ -1,15 +1,10 @@
-# Two crates: the `xrelease` backend (this package) and the `xrelease-cli`
-# remote-management client (`cli/`, binary `xrctl`). The CLI does NOT depend on
-# this package, so `cargo build -p xrelease-cli` never compiles postgres,
-# vendored OpenSSL, lettre, feed-rs, or the broker clients
+# Workspace: backend package here; CLI crate in `cli/` (binary `xrctl`).
 [workspace]
 members = ["cli"]
-# Inferred as "2" today because the root is also an edition-2021 package, but
-# pin it so removing that package can't silently drop the resolver back to "1".
 resolver = "2"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.96"
 license = "Apache-2.0"
@@ -39,13 +34,13 @@ name = "xrelease"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Watch software release sources and notify via Apprise, webhooks, Kafka, NATS, or RabbitMQ"
+description = "Self-hosted release notifier — watch upstream sources and notify via Apprise, Novu, Slack, Telegram, SMTP, webhooks, and brokers"
 license.workspace = true
 readme = "README.md"
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-keywords = ["releases", "notifications", "apprise", "self-hosted", "gitops"]
+keywords = ["releases", "notifications", "apprise", "novu", "self-hosted"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
@@ -99,21 +94,11 @@ argon2 = { version = "0.5", features = ["std"] }
 password-hash = { version = "0.5", features = ["getrandom"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport"] }
 
-# Optional message-broker sinks. Each is gated behind a cargo feature so the
-# default binary stays lean (no C `librdkafka`, no broker client crates).
-rdkafka = { version = "0.36", optional = true }
-async-nats = { version = "0.50", optional = true }
-lapin = { version = "4", optional = true }
+# Message-broker sinks — always compiled (same surface as GHCR / release binaries).
+rdkafka = "0.36"
+async-nats = "0.50"
+lapin = "4"
 cron = "0.17.0"
-
-[features]
-default = []
-# Generic outgoing webhook is always available (pure reqwest); these add brokers.
-kafka = ["dep:rdkafka"]
-nats = ["dep:async-nats"]
-rabbitmq = ["dep:lapin"]
-# Convenience: enable every broker sink at once.
-all-notifiers = ["kafka", "nats", "rabbitmq"]
 
 [dev-dependencies]
 wiremock = "0.6"

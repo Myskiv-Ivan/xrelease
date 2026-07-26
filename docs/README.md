@@ -18,8 +18,8 @@ Published docs: **https://myskiv-ivan.github.io/xrelease/**
 
 Teams pin many third-party components (GitHub releases, container images, PyPI,
 npm, …). xrelease watches those sources, remembers what was already seen in
-**PostgreSQL**, and notifies via Apprise / Slack / Telegram / SMTP / webhooks /
-optional brokers — routed by team tags.
+**PostgreSQL**, and notifies via Apprise, Novu, Slack, Telegram, SMTP,
+webhooks, or optional brokers — routed by team tags.
 
 | Binary | Role |
 |---|---|
@@ -56,10 +56,10 @@ Samples: [`deploy/examples/`](https://github.com/Myskiv-Ivan/xrelease/tree/main/
 |---|---|
 | **Getting started** | Quick start, Docker, Kubernetes |
 | **Concepts** | Architecture, pipeline, provider categories |
-| **Configuration** | Authoring, sources (21), notifications, `[api]` / `[config_api]` |
+| **Configuration** | Authoring, sources (21), notifications (Apprise, Novu, …), `[api]` / `[config_api]` |
 | **API** | HTTP endpoints, `xrctl`, webhooks, OpenAPI |
 | **Operations** | Auth, OIDC, CI apply, deploy, TLS & Ingress, Postgres, scaling |
-| **Project** | Comparison with alternatives, changelog |
+| **Project** | Comparison with alternatives, changelog, [ADRs](adr/README.md) |
 
 OpenAPI at runtime: Compose UI `http://127.0.0.1:3000/openapi.json` · native
 `http://127.0.0.1:8080/openapi.json` — [OpenAPI page](api/openapi.md).

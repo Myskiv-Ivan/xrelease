@@ -1,36 +1,39 @@
-# Notifications (Apprise and other sinks)
+# Notifications
 
-Integrations for **where to send** release events.
+Integrations for **where to send** release events — Apprise, Novu, Slack,
+Telegram, SMTP, webhooks, eXpress, and optional brokers.
 
-**Authoring rule:** Apprise **targets** (`urls` / `config_key`) live only in the
-**desired document** — Git YAML, dashboard **Delivery channels**, or
-`xrctl apply` / `POST /api/v1/config/apply`. There is no
-`XRELEASE_APPRISE_URLS` / `XRELEASE_APPRISE_CONFIG_KEY` env overlay.
+**Authoring rule:** destinations (`urls`, `config_key`, Novu workflow / topic,
+chat ids, …) live only in the **desired document** — Git YAML, dashboard
+**Delivery channels**, or `xrctl apply` / `POST /api/v1/config/apply`.
 
-**Env** is for secrets and infra only (API key, BotX Bearer, SMTP password, and
-optionally `XRELEASE_APPRISE_ENDPOINT` so Compose/Helm can point at the Apprise
-sidecar).
+**Env** is for secrets and infra only (API keys, BotX Bearer, SMTP password,
+`XRELEASE_NOVU_API_KEY`, and optionally `XRELEASE_APPRISE_ENDPOINT` so
+Compose/Helm can point at the Apprise sidecar).
 
-Prefer the `notifiers:` list. A top-level `apprise:` / `[apprise]` block is a
-**hard error** — migrate it to `notifiers: [{ type: apprise, … }]`.
+Declare sinks under `notifiers:` (for example
+`{ type: apprise, … }` or `{ type: novu, … }`).
 
 ## Sink kinds
 
-| `type` | Integration | Always available? |
-|---|---|---|
-| `apprise` | [Apprise](https://github.com/caronc/apprise) HTTP API — Telegram, Slack, Discord, email, … (80+ URL schemes) | Yes |
-| `webhook` | Custom HTTP `POST` / `PUT` | Yes |
-| `smtp` | Direct e-mail (STARTTLS / TLS / plain) | Yes |
-| `slack` | Slack Incoming Webhook **or** Bot `chat.postMessage` | Yes |
-| `telegram` | Telegram Bot API `sendMessage` | Yes |
-| `express` | eXpress BotX chat | Yes |
-| `novu` | [Novu](https://github.com/novuhq/novu) workflow trigger (email / SMS / Slack / in-app / …) | Yes |
-| `kafka` | Apache Kafka topic producer | Yes (published images) |
-| `nats` | NATS subject publisher | Yes (published images) |
-| `rabbitmq` | RabbitMQ exchange publisher | Yes (published images) |
+| `type` | Integration |
+|---|---|
+| `apprise` | [Apprise](https://github.com/caronc/apprise) HTTP API — Telegram, Slack, Discord, email, … (80+ URL schemes) |
+| `webhook` | Custom HTTP `POST` / `PUT` |
+| `smtp` | Direct e-mail (STARTTLS / TLS / plain) |
+| `slack` | Slack Incoming Webhook **or** Bot `chat.postMessage` |
+| `telegram` | Telegram Bot API `sendMessage` |
+| `express` | eXpress BotX chat |
+| `novu` | [Novu](https://github.com/novuhq/novu) workflow trigger (email / SMS / Slack / in-app / …) |
+| `kafka` | Apache Kafka topic producer |
+| `nats` | NATS subject publisher |
+| `rabbitmq` | RabbitMQ exchange publisher |
+
+Every sink kind is compiled into the binary (local `cargo build`, GHCR images,
+and GitHub Release archives).
 
 ```yaml
-# Preferred: destinations in the document; secrets via *_env → process env
+# Destinations in the document; secrets via *_env → process env
 notifiers:
   - type: apprise
     endpoint: http://apprise:8000
@@ -73,7 +76,6 @@ notifiers:
     to: [ops@example.com]
     username: xrelease
     password_env: XRELEASE_SMTP_PASSWORD
-  # Brokers need --features kafka / rabbitmq (or all-notifiers):
   # - type: kafka
   #   brokers: ["kafka:9092"]
   #   topic: xrelease.events
@@ -308,8 +310,8 @@ notifier = broadcast (every event); non-empty = only matching `routing_tag`.
 ## Slack, Telegram, SMTP, Kafka, NATS, RabbitMQ
 
 First-class sinks share the same outbox, team `tags`, Mustache templates, and
-secret resolution (`inline → *_env → XRELEASE_*`). Prefer these over Apprise URL
-schemes when you only need one channel.
+secret resolution (`inline → *_env → XRELEASE_*`). Use these when you only need
+one channel instead of an Apprise URL scheme.
 
 ### Slack
 
@@ -355,9 +357,6 @@ Set **either** webhook **or** bot+channel — not both.
 ```
 
 ### Kafka / NATS / RabbitMQ
-
-Build with `--features kafka` / `nats` / `rabbitmq` (or `all-notifiers`).
-Unavailable features are rejected at validate/build with a clear error.
 
 ```yaml
 - type: kafka

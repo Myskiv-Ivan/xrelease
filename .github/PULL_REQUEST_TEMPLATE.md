@@ -8,8 +8,8 @@
 
 ## Checklist
 
-- [ ] `cargo fmt --all` and `cargo clippy --all-targets --all-features -- -D warnings`
-- [ ] `cargo test --all-features`
+- [ ] `cargo fmt --all` and `cargo clippy --all-targets -- -D warnings`
+- [ ] `cargo test`
 - [ ] `cd front && npm run check && npm run build` (if UI changed)
 - [ ] `python3 scripts/bump-version.py --check`
 - [ ] Docs / `bootstrap.toml` / `app/releases.yaml` / `.env.example` updated if behaviour changed

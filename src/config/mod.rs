@@ -104,10 +104,10 @@ pub struct Config {
     /// Fallback schedule applied to sources that don't override it.
     #[serde(default)]
     pub defaults: Defaults,
-    /// Apprise delivery settings — **deprecated on the wire**. Desired documents
-    /// must leave this at defaults and declare Apprise via `[[notifiers]]`
-    /// (`type = "apprise"`). Kept on [`Config`] only so leftover top-level
-    /// blocks fail loudly in [`crate::config::resolve::ensure_desired_only`].
+    /// Apprise delivery settings — **not used as desired-state authority**.
+    /// Desired documents must leave this at defaults and declare Apprise via
+    /// `[[notifiers]]` (`type = "apprise"`). Kept on [`Config`] only so leftover
+    /// top-level blocks fail loudly in [`crate::config::resolve::ensure_desired_only`].
     #[serde(default)]
     pub apprise: AppriseConfig,
     /// State database settings.
@@ -260,7 +260,7 @@ impl Config {
     ///
     /// # Errors
     /// Returns an error if a configured sink fails to build (invalid webhook
-    /// URL/headers, broker feature not compiled in, …).
+    /// URL/headers, misconfigured broker/SMTP credentials, …).
     pub fn build_notifiers(&self, http: reqwest::Client) -> anyhow::Result<CompositeNotifier> {
         let mut sinks: Vec<RoutedSink> = Vec::new();
         let apprise_endpoint_override = std::env::var("XRELEASE_APPRISE_ENDPOINT")

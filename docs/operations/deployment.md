@@ -35,7 +35,7 @@ flowchart TB
       APP[desired state\nfile / ledger / UI]
       PIPE[poll → diff → notify]
       STORE[(PostgreSQL)]
-      APPRISE[Apprise]
+      SINKS[notifiers]
     end
 
     subgraph serve [Backend]
@@ -57,7 +57,7 @@ flowchart TB
     BOOT --> SRV
     APP --> SRV
     PIPE --> STORE
-    PIPE --> APPRISE
+    PIPE --> SINKS
 ```
 
 ### Serve (backend: API + poller)

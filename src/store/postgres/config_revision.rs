@@ -15,7 +15,7 @@ use crate::store::{
 impl PostgresStore {
     /// Newest revision with `status` at `offset` within one ledger stream.
     ///
-    /// The stream key is `organization_id` (`None` = the legacy single-document
+    /// The stream key is `organization_id` (`None` = the single-document
     /// stream): idempotency, rollback, and boot resolution must never
     /// cross streams, so every single-row lookup filters
     /// `organization_id IS NOT DISTINCT FROM $2`.
@@ -58,7 +58,7 @@ impl PostgresStore {
 
     /// Latest rejected apply attempt across EVERY stream (status banner: a
     /// multi-org admin wants to see any org's failed push, not just the
-    /// legacy stream's).
+    /// single-document stream's).
     pub fn latest_rejected_config_revision_any(
         &self,
     ) -> Result<Option<ConfigRevisionRecord>, StoreError> {

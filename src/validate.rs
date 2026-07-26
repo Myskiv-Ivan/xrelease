@@ -352,7 +352,6 @@ fn validate_notifier_entry(
             }
         }
         NotifierConfig::Kafka(cfg) => {
-            require_feature("kafka", cfg!(feature = "kafka"), &prefix, report);
             if cfg.brokers.is_empty() {
                 report.error(format!("{prefix} (kafka): `brokers` must not be empty"));
             }
@@ -361,7 +360,6 @@ fn validate_notifier_entry(
             }
         }
         NotifierConfig::Nats(cfg) => {
-            require_feature("nats", cfg!(feature = "nats"), &prefix, report);
             if !secret_configured(&cfg.url, cfg.url_env.as_deref(), "XRELEASE_NATS_URL") {
                 report.error(format!(
                     "{prefix} (nats): set `url` or `url_env` (or `XRELEASE_NATS_URL`)"
@@ -372,7 +370,6 @@ fn validate_notifier_entry(
             }
         }
         NotifierConfig::Rabbitmq(cfg) => {
-            require_feature("rabbitmq", cfg!(feature = "rabbitmq"), &prefix, report);
             if !secret_configured(&cfg.url, cfg.url_env.as_deref(), "XRELEASE_RABBITMQ_URL") {
                 report.error(format!(
                     "{prefix} (rabbitmq): set `url` or `url_env` (or `XRELEASE_RABBITMQ_URL`)"
@@ -404,14 +401,6 @@ fn secret_configured(inline: &str, named: Option<&str>, global: &str) -> bool {
     secret_present(inline)
         || secret_env_named(named)
         || (!global.is_empty() && crate::config::env_token(global).is_some())
-}
-
-fn require_feature(name: &str, enabled: bool, prefix: &str, report: &mut ValidationReport) {
-    if !enabled {
-        report.error(format!(
-            "{prefix} ({name}): this binary was built without `--features {name}`"
-        ));
-    }
 }
 
 fn validate_database(config: &Config, report: &mut ValidationReport) {

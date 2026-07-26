@@ -142,7 +142,7 @@ pub struct ConfigRevisionRecord {
     pub source_addr: Option<String>,
     pub status: ConfigRevisionStatus,
     pub error: Option<String>,
-    /// Ledger stream: `None` = legacy single-document, else the org slug.
+    /// Ledger stream: `None` = single-document mode, else the org slug.
     pub organization_id: Option<String>,
 }
 
@@ -165,7 +165,7 @@ pub struct ConfigRevisionSummary {
     pub source_addr: Option<String>,
     pub status: ConfigRevisionStatus,
     pub error: Option<String>,
-    /// Ledger stream: `None` = legacy single-document, else the org slug.
+    /// Ledger stream: `None` = single-document mode, else the org slug.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<String>,
 }
@@ -180,7 +180,7 @@ pub struct ConfigRevisionInsert<'a> {
     pub source_addr: Option<&'a str>,
     pub status: ConfigRevisionStatus,
     pub error: Option<&'a str>,
-    /// Ledger stream: `None` = legacy single-document, else the org slug.
+    /// Ledger stream: `None` = single-document mode, else the org slug.
     pub organization_id: Option<&'a str>,
 }
 
@@ -662,7 +662,7 @@ impl Store {
         )
     }
 
-    /// Whether every tracked sink row is `sent` (or no rows exist — legacy outbox).
+    /// Whether every tracked sink row is `sent` (or no rows exist — pre-sink-ledger outbox).
     pub fn sinks_delivery_complete(&self, outbox_id: i64) -> Result<bool, StoreError> {
         delegate!(self, sinks_delivery_complete(outbox_id))
     }
@@ -691,7 +691,7 @@ impl Store {
     }
 
     /// Latest successfully applied config revision in one ledger stream
-    /// (`None` = the legacy single-document stream).
+    /// (`None` = the single-document stream).
     pub fn latest_applied_config_revision(
         &self,
         organization: Option<&str>,
