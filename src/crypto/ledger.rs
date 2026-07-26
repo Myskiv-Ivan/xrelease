@@ -134,10 +134,10 @@ impl LedgerCipher {
         let mut nonce_bytes = [0_u8; NONCE_LEN];
         getrandom(&mut nonce_bytes)
             .map_err(|err| StoreError::Other(format!("ledger nonce: {err}")))?;
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
         let ciphertext = self
             .cipher
-            .encrypt(nonce, plaintext.as_bytes())
+            .encrypt(&nonce, plaintext.as_bytes())
             .map_err(|err| StoreError::Other(format!("ledger encrypt: {err}")))?;
         let mut packed = Vec::with_capacity(NONCE_LEN + ciphertext.len());
         packed.extend_from_slice(&nonce_bytes);
@@ -164,8 +164,11 @@ impl LedgerCipher {
             ));
         }
         let (nonce_bytes, ciphertext) = packed.split_at(NONCE_LEN);
-        let nonce = Nonce::from_slice(nonce_bytes);
-        let plain = self.cipher.decrypt(nonce, ciphertext).map_err(|_| {
+        let nonce_arr: [u8; NONCE_LEN] = nonce_bytes
+            .try_into()
+            .map_err(|_| StoreError::Other("ledger ciphertext truncated (nonce length)".into()))?;
+        let nonce = Nonce::from(nonce_arr);
+        let plain = self.cipher.decrypt(&nonce, ciphertext).map_err(|_| {
             StoreError::Other(format!(
                 "ledger decrypt failed — wrong {ENCRYPTION_KEY_ENV} or corrupt secret"
             ))

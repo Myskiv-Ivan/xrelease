@@ -549,13 +549,11 @@ async fn webhook_should_fan_out_to_every_org_watching_the_repo() {
     // enqueued. Expecting exactly 2 POSTs also proves the platform org's
     // catch-all sink hears its TAGGED source (`routing_tag: core`) — the
     // namespacing regression this suite guards against.
+    //
+    // Mount the `expect(2)` mock *after* confirming Postgres is available:
+    // an early skip must not leave a MockServer that panics on Drop when
+    // zero requests arrived.
     let apprise = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/notify"))
-        .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
-        .expect(2)
-        .mount(&apprise)
-        .await;
 
     let fixture =
         OrgFixture::create_with_apprise("fanout", &test_postgres_url(), "api", &apprise.uri());
@@ -563,6 +561,13 @@ async fn webhook_should_fan_out_to_every_org_watching_the_repo() {
         eprintln!("skipping organizations e2e (postgres unavailable)");
         return;
     };
+
+    Mock::given(method("POST"))
+        .and(path("/notify"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+        .expect(2)
+        .mount(&apprise)
+        .await;
 
     // A source's FIRST observation records a silent baseline (no history
     // flood) — that applies per org-namespaced id. Mark both initialized so

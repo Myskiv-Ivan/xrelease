@@ -15,7 +15,7 @@ authors = ["xrelease contributors"]
 # Dependency versions shared by the backend and the CLI so they cannot drift.
 [workspace.dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signal"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "gzip", "query"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
@@ -59,7 +59,8 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = "0.9"
-serde_yaml = "0.9"
+# Official YAML-org fork of archived `serde_yaml` (drop-in via package rename).
+serde_yaml = { package = "yaml_serde", version = "0.10" }
 feed-rs = "2"
 semver = "1"
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
@@ -78,7 +79,7 @@ rand = "0.9"
 regex = "1"
 axum = { version = "0.8", features = ["json", "macros"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["trace", "cors"] }
+tower-http = { version = "0.7", features = ["trace", "cors"] }
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
@@ -89,13 +90,13 @@ base64 = { version = "0.22", features = ["std"] }
 getrandom = "0.2"
 zeroize = { version = "1", features = ["derive"] }
 governor = "0.10"
-jsonwebtoken = { version = "9", default-features = false, features = ["use_pem"] }
+jsonwebtoken = { version = "11", default-features = false, features = ["use_pem", "rust_crypto"] }
 argon2 = { version = "0.5", features = ["std"] }
 password-hash = { version = "0.5", features = ["getrandom"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport"] }
 
 # Message-broker sinks — always compiled (same surface as GHCR / release binaries).
-rdkafka = "0.36"
+rdkafka = "0.39"
 async-nats = "0.50"
 lapin = "4"
 cron = "0.17.0"
