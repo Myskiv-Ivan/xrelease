@@ -273,10 +273,7 @@ impl Engine {
     }
 
     /// Drain pending notification outbox rows (startup + background retry).
-    pub async fn flush_outbox(
-        &self,
-        limit: usize,
-    ) -> Result<usize, crate::error::PipelineError> {
+    pub async fn flush_outbox(&self, limit: usize) -> Result<usize, crate::error::PipelineError> {
         crate::pipeline::flush_notification_outbox(self, limit).await
     }
 

@@ -165,10 +165,7 @@ pub async fn start_shared_background(engine: Arc<Engine>) -> BackgroundTasks {
 /// Pass `Some(watches)` to also spawn per-source poll loops (integration tests).
 /// Production uses [`start_shared_background`] (`watches = None`) and
 /// [`WatchSupervisor`] for hot-swappable loops.
-pub async fn start_background(
-    engine: Arc<Engine>,
-    watches: Option<Vec<Watch>>,
-) -> BackgroundTasks {
+pub async fn start_background(engine: Arc<Engine>, watches: Option<Vec<Watch>>) -> BackgroundTasks {
     startup_outbox_recovery(&engine).await;
     let shutdown = Arc::new(AtomicBool::new(false));
     let watchers = match watches {
