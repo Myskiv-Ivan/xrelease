@@ -538,18 +538,18 @@ mod tests {
     fn normalize_should_move_inline_secrets_to_env_refs() {
         let raw = r#"
 notifiers:
- - type: telegram
- bot_token: secret-bot
- chat_id: "-100"
- - type: smtp
- host: smtp.example.com
- from: a@b.c
- to: ["c@d.e"]
- password: smtp-pass
+  - type: telegram
+    bot_token: secret-bot
+    chat_id: "-100"
+  - type: smtp
+    host: smtp.example.com
+    from: a@b.c
+    to: ["c@d.e"]
+    password: smtp-pass
 sources:
- - type: github
- repo: org/app
- token: ghp_test
+  - type: github
+    repo: org/app
+    token: ghp_test
 "#;
         let (content, writes) = normalize_document_for_storage(raw, None).expect("normalize");
         assert!(!content.contains("secret-bot"));

@@ -62,9 +62,13 @@ impl PruneSettings {
 /// freshly-swapped notifier paired with the stale `outbox_flush_concurrency`.
 /// One lock makes a hot-swap atomic: every field changes together, or a
 /// reader sees the fully-old set.
+///
+/// The notifier sits behind [`Arc`] so [`Engine::notifier_snapshot`] is a
+/// pointer clone: delivery keeps a stable sink-index view for one attempt
+/// without cloning the sink vector on every flush row.
 #[derive(Clone)]
 struct EngineRuntime {
-    notifier: CompositeNotifier,
+    notifier: Arc<CompositeNotifier>,
     upstream_limiter: Option<Arc<UpstreamLimiter>>,
     outbox_flush_concurrency: usize,
     outbox_retry_backoff_max_secs: u32,
@@ -102,7 +106,7 @@ impl Engine {
             tracing::info!(sinks = ?notifier.kinds(), "notification sinks configured");
         }
         let runtime = EngineRuntime {
-            notifier,
+            notifier: Arc::new(notifier),
             upstream_limiter: build_upstream_limiter(config.defaults.upstream_requests_per_minute),
             outbox_flush_concurrency: config.defaults.outbox_flush_concurrency.clamp(1, 64),
             outbox_retry_backoff_max_secs: config
@@ -194,7 +198,7 @@ impl Engine {
             .filter(|tag| !tag.is_empty());
 
         let mut runtime = self.runtime.write().await;
-        runtime.notifier = notifier;
+        runtime.notifier = Arc::new(notifier);
         runtime.upstream_limiter = upstream_limiter;
         runtime.outbox_flush_concurrency = outbox_flush_concurrency;
         runtime.outbox_retry_backoff_max_secs = outbox_retry_backoff_max_secs;
@@ -212,13 +216,12 @@ impl Engine {
     /// (`notification_sink_delivery`) is keyed by *index* into the sink
     /// list — an index computed against one snapshot and used against a
     /// later, different one can target the wrong sink, or one that no
-    /// longer exists, permanently stalling that ledger row. Cloning
-    /// [`CompositeNotifier`] is cheap (small `Vec` of sink wrappers plus
-    /// `Arc`-shared circuit-breaker state, which stays shared across
-    /// clones — breaker health is process-wide, not per-snapshot), so
-    /// snapshotting per attempt is not a real cost.
-    pub async fn notifier_snapshot(&self) -> CompositeNotifier {
-        self.runtime.read().await.notifier.clone()
+    /// longer exists, permanently stalling that ledger row.
+    ///
+    /// Returning [`Arc`] keeps that stable view as a pointer clone (breaker
+    /// state is already shared inside [`CompositeNotifier`]).
+    pub async fn notifier_snapshot(&self) -> Arc<CompositeNotifier> {
+        Arc::clone(&self.runtime.read().await.notifier)
     }
 
     /// Deliver an ops meta-alert via configured sinks (not the outbox).
@@ -231,7 +234,7 @@ impl Engine {
             let Some(tag) = runtime.ops_routing_tag.clone() else {
                 return;
             };
-            (tag, runtime.notifier.clone())
+            (tag, Arc::clone(&runtime.notifier))
         };
         let event = crate::notify::Event {
             source_id: "xrelease:ops".into(),
@@ -241,7 +244,7 @@ impl Engine {
             url: None,
             routing_tag: Some(tag),
         };
-        if let Err(err) = crate::notify::Notifier::notify(&notifier, &event).await {
+        if let Err(err) = crate::notify::Notifier::notify(notifier.as_ref(), &event).await {
             tracing::warn!(error = %err, title, "ops meta-alert delivery failed");
         } else {
             tracing::info!(title, "ops meta-alert delivered");
@@ -270,7 +273,10 @@ impl Engine {
     }
 
     /// Drain pending notification outbox rows (startup + background retry).
-    pub async fn flush_outbox(&self, limit: usize) -> anyhow::Result<usize> {
+    pub async fn flush_outbox(
+        &self,
+        limit: usize,
+    ) -> Result<usize, crate::error::PipelineError> {
         crate::pipeline::flush_notification_outbox(self, limit).await
     }
 

@@ -96,15 +96,15 @@ impl OrgFixture {
             format!(
                 r#"
 notifiers:
- - type: apprise
- endpoint: {apprise_endpoint}
- urls: ["mailto://platform@example.com"]
+  - type: apprise
+    endpoint: {apprise_endpoint}
+    urls: ["mailto://platform@example.com"]
 teams:
- - tag: core
+  - tag: core
 sources:
- - type: github
- repo: shared/upstream
- routing_tag: core
+  - type: github
+    repo: shared/upstream
+    routing_tag: core
 "#
             ),
         )
@@ -115,12 +115,12 @@ sources:
             format!(
                 r#"
 notifiers:
- - type: apprise
- endpoint: {apprise_endpoint}
- urls: ["mailto://security@example.com"]
+  - type: apprise
+    endpoint: {apprise_endpoint}
+    urls: ["mailto://security@example.com"]
 sources:
- - type: github
- repo: shared/upstream
+  - type: github
+    repo: shared/upstream
 "#
             ),
         )
@@ -181,24 +181,24 @@ async fn json_body(response: axum::response::Response) -> serde_json::Value {
 
 const PLATFORM_V2: &str = r#"
 notifiers:
- - type: apprise
- endpoint: http://127.0.0.1:9
- urls: ["mailto://platform@example.com"]
+  - type: apprise
+    endpoint: http://127.0.0.1:9
+    urls: ["mailto://platform@example.com"]
 sources:
- - type: github
- repo: shared/upstream
- - type: github
- repo: org/platform-extra
+  - type: github
+    repo: shared/upstream
+  - type: github
+    repo: org/platform-extra
 "#;
 
 const PLATFORM_V3: &str = r#"
 notifiers:
- - type: apprise
- endpoint: http://127.0.0.1:9
- urls: ["mailto://platform@example.com"]
+  - type: apprise
+    endpoint: http://127.0.0.1:9
+    urls: ["mailto://platform@example.com"]
 sources:
- - type: github
- repo: org/platform-only
+  - type: github
+    repo: org/platform-only
 "#;
 
 #[tokio::test]

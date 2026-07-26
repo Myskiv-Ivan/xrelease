@@ -153,25 +153,32 @@ impl BackgroundTasks {
 }
 
 /// Startup recovery plus shared background tasks (outbox + maintenance).
+///
+/// Production `serve` drives poll loops via [`WatchSupervisor`]; this entry
+/// point only starts the process-wide outbox flush and DB maintenance tasks.
 pub async fn start_shared_background(engine: Arc<Engine>) -> BackgroundTasks {
-    startup_outbox_recovery(&engine).await;
-    let shutdown = Arc::new(AtomicBool::new(false));
-    BackgroundTasks {
-        maintenance: spawn_maintenance(Arc::clone(&engine), Arc::clone(&shutdown)),
-        outbox: spawn_outbox_flush(Arc::clone(&engine), Arc::clone(&shutdown)),
-        watchers: Vec::new(),
-        shutdown,
-    }
+    start_background(engine, None).await
 }
 
-/// Startup recovery plus all background poller tasks.
-pub async fn start_background(engine: Arc<Engine>, watches: Vec<Watch>) -> BackgroundTasks {
+/// Startup recovery plus optional poller tasks.
+///
+/// Pass `Some(watches)` to also spawn per-source poll loops (integration tests).
+/// Production uses [`start_shared_background`] (`watches = None`) and
+/// [`WatchSupervisor`] for hot-swappable loops.
+pub async fn start_background(
+    engine: Arc<Engine>,
+    watches: Option<Vec<Watch>>,
+) -> BackgroundTasks {
     startup_outbox_recovery(&engine).await;
     let shutdown = Arc::new(AtomicBool::new(false));
+    let watchers = match watches {
+        Some(watches) => spawn_watchers(Arc::clone(&engine), watches, Arc::clone(&shutdown)),
+        None => Vec::new(),
+    };
     BackgroundTasks {
         maintenance: spawn_maintenance(Arc::clone(&engine), Arc::clone(&shutdown)),
-        outbox: spawn_outbox_flush(Arc::clone(&engine), Arc::clone(&shutdown)),
-        watchers: spawn_watchers(engine, watches, Arc::clone(&shutdown)),
+        outbox: spawn_outbox_flush(engine, Arc::clone(&shutdown)),
+        watchers,
         shutdown,
     }
 }
@@ -434,7 +441,7 @@ mod tests {
             eprintln!("skipping scheduler bg test (postgres unavailable)");
             return;
         };
-        let tasks = start_background(engine, Vec::new()).await;
+        let tasks = start_background(engine, None).await;
         tasks.abort_all();
     }
 
@@ -468,7 +475,7 @@ mod tests {
             eprintln!("skipping graceful shutdown test (postgres unavailable)");
             return;
         };
-        let tasks = start_background(Arc::clone(&engine), Vec::new()).await;
+        let tasks = start_background(Arc::clone(&engine), None).await;
         tasks.graceful_shutdown(&engine).await;
     }
 }

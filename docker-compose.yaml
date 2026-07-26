@@ -88,7 +88,7 @@ services:
       xrelease:
         condition: service_healthy
     ports:
-      - "127.0.0.1:3000:80"
+      - "127.0.0.1:3000:8080"
 
   apprise:
     image: caronc/apprise:1.5.1

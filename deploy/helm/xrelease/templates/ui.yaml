@@ -14,7 +14,7 @@ data:
     }
 
     server {
-        listen 80;
+        listen 8080;
         server_name _;
         root /usr/share/nginx/html;
         index index.html;
@@ -115,7 +115,12 @@ spec:
           imagePullPolicy: {{ .Values.ui.image.pullPolicy | default .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           {{- with .Values.ui.env }}
           env:
             {{- range $key, $value := . }}

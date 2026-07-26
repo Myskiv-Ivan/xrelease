@@ -75,6 +75,9 @@ COPY --from=build --chown=65532:65532 /app/xrctl /usr/local/bin/xrctl
 
 WORKDIR /data
 
+# Distroless :nonroot already defaults to UID 65532; declare USER for scanners (DS-0002).
+USER nonroot
+
 # Set XRELEASE_DATABASE_URL at runtime (e.g. postgres://user:pass@host:5432/db).
 # Do NOT bake XRELEASE_APP_CONFIG: multi-org UI/API boots from [[organizations]] +
 # ledger; single-doc mounts set --app / XRELEASE_APP_CONFIG explicitly.

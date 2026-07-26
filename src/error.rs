@@ -104,3 +104,28 @@ pub enum StoreError {
     #[error("{0}")]
     Other(String),
 }
+
+/// Failure in the poll → diff → outbox → notify pipeline.
+///
+/// Typed boundary for [`crate::pipeline`] so HTTP handlers can map
+/// [`SourceError`] / [`StoreError`] without flattening everything through
+/// `anyhow` first. The binary still lifts these into `anyhow::Error` at
+/// `main` when needed.
+#[derive(Debug, thiserror::Error)]
+pub enum PipelineError {
+    /// Upstream fetch / parse failure.
+    #[error(transparent)]
+    Source(#[from] SourceError),
+
+    /// PostgreSQL / state-store failure.
+    #[error(transparent)]
+    Store(#[from] StoreError),
+
+    /// Sink delivery failure that escaped the outbox retry path.
+    #[error(transparent)]
+    Notify(#[from] NotifyError),
+
+    /// Pipeline-level failure that does not fit the variants above.
+    #[error("{0}")]
+    Other(String),
+}

@@ -8,7 +8,7 @@ use std::time::Instant;
 use tracing::{debug, info};
 
 use crate::engine::Engine;
-use crate::error::StoreError;
+use crate::error::{PipelineError, StoreError};
 use crate::metrics::PollOutcome;
 use crate::model::Release;
 use crate::notify::Event;
@@ -72,7 +72,11 @@ pub(crate) fn should_deliver_cached(
 ///
 /// When `force_fetch` is true (manual API poll), conditional requests are skipped so
 /// upstream metadata such as `published_at` can be refreshed even if the etag is unchanged.
-pub async fn poll_once(engine: &Engine, watch: &Watch, force_fetch: bool) -> anyhow::Result<usize> {
+pub async fn poll_once(
+    engine: &Engine,
+    watch: &Watch,
+    force_fetch: bool,
+) -> Result<usize, PipelineError> {
     let started = Instant::now();
     let result = poll_once_inner(engine, watch, force_fetch).await;
     engine.metrics.record_poll_duration(started.elapsed());
@@ -83,7 +87,7 @@ pub(crate) async fn poll_once_inner(
     engine: &Engine,
     watch: &Watch,
     force_fetch: bool,
-) -> anyhow::Result<usize> {
+) -> Result<usize, PipelineError> {
     let source_id = watch.provider.id();
     let stored_etag = if force_fetch {
         None
@@ -140,7 +144,7 @@ pub async fn deliver_new_releases(
     watch: &Watch,
     releases: Vec<Release>,
     engine: &Engine,
-) -> anyhow::Result<usize> {
+) -> Result<usize, PipelineError> {
     let source_id = watch.provider.id();
     let filtered: Vec<Release> = releases
         .into_iter()
@@ -237,7 +241,10 @@ pub async fn deliver_new_releases(
 }
 
 /// Re-fetch upstream without etag and merge `published_at` / `url` into existing rows.
-pub(crate) async fn refresh_seen_metadata(watch: &Watch, engine: &Engine) -> anyhow::Result<()> {
+pub(crate) async fn refresh_seen_metadata(
+    watch: &Watch,
+    engine: &Engine,
+) -> Result<(), PipelineError> {
     let source_id = watch.provider.id();
     engine.acquire_upstream().await;
     let outcome = watch.provider.fetch(&engine.http, None).await?;
@@ -302,19 +309,15 @@ pub(crate) fn build_event(provider: &Provider, release: &Release) -> Event {
     // GitHub REST and GitLab API both return Markdown; Docker/Atom do not.
     if let Some(notes) = &release.body {
         body.push_str("\n---\n\n");
-        // Truncate very long changelogs to stay within typical notification size limits.
+        // Truncate by Unicode scalar values (not bytes) so emoji/CJK do not
+        // overshoot the intended notification size limit.
         const MAX_BODY_CHARS: usize = 3_000;
-        if notes.len() > MAX_BODY_CHARS {
-            let truncated = &notes[..notes
-                .char_indices()
-                .map(|(i, _)| i)
-                .take(MAX_BODY_CHARS)
-                .last()
-                .unwrap_or(0)];
-            body.push_str(truncated);
-            body.push_str("\n\n*…changelog truncated…*");
-        } else {
-            body.push_str(notes);
+        match notes.char_indices().nth(MAX_BODY_CHARS) {
+            Some((idx, _)) => {
+                body.push_str(&notes[..idx]);
+                body.push_str("\n\n*…changelog truncated…*");
+            }
+            None => body.push_str(notes),
         }
     }
 

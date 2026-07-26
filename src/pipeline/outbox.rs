@@ -8,7 +8,7 @@ use futures_util::future::join_all;
 use tracing::{debug, info, warn};
 
 use crate::engine::Engine;
-use crate::error::{NotifyError, StoreError};
+use crate::error::{NotifyError, PipelineError, StoreError};
 use crate::metrics::SinkDeliveryResult;
 use crate::notify::{CompositeNotifier, Event};
 use crate::store::{OutboxRecord, SeenUpsert, OUTBOX_LEASE_SECS};
@@ -113,7 +113,10 @@ async fn sync_outbox_status_alert(
 /// the same instant, so a row in a late wave could sit leased through several
 /// waves of slow/retrying sinks ahead of it and risk lease expiry (and a
 /// concurrent re-claim by another worker).
-pub async fn flush_notification_outbox(engine: &Engine, limit: usize) -> anyhow::Result<usize> {
+pub async fn flush_notification_outbox(
+    engine: &Engine,
+    limit: usize,
+) -> Result<usize, PipelineError> {
     let started = Instant::now();
     let result = flush_notification_outbox_inner(engine, limit).await;
     engine
@@ -125,10 +128,10 @@ pub async fn flush_notification_outbox(engine: &Engine, limit: usize) -> anyhow:
 pub(crate) async fn flush_notification_outbox_inner(
     engine: &Engine,
     limit: usize,
-) -> anyhow::Result<usize> {
+) -> Result<usize, PipelineError> {
     let concurrency = engine.outbox_flush_concurrency().await.max(1);
     let mut sent = 0usize;
-    let mut first_err: Option<anyhow::Error> = None;
+    let mut first_err: Option<PipelineError> = None;
     let mut claimed_total = 0usize;
 
     while claimed_total < limit {
@@ -152,7 +155,7 @@ pub(crate) async fn flush_notification_outbox_inner(
                 DeliveryUnit::Single(row) => {
                     let source_id = row.source_id.clone();
                     let delivered = deliver_claimed_outbox_row(engine, *row).await?;
-                    Ok::<_, anyhow::Error>(vec![(source_id, delivered)])
+                    Ok::<_, PipelineError>(vec![(source_id, delivered)])
                 }
                 DeliveryUnit::Digest(group) => deliver_claimed_outbox_digest(engine, group).await,
             }
@@ -199,7 +202,7 @@ pub(crate) async fn flush_notification_outbox_inner(
 pub(crate) async fn deliver_claimed_outbox_row(
     engine: &Engine,
     row: OutboxRecord,
-) -> anyhow::Result<bool> {
+) -> Result<bool, PipelineError> {
     let event = row.to_event();
     let seen = seen_upsert_for(&row);
     let attempts_before = i32::try_from(row.attempts).unwrap_or(i32::MAX);
@@ -345,7 +348,7 @@ pub(crate) async fn attempt_notification_delivery(
     event: &Event,
     source_id: &str,
     seen: &SeenUpsert<'_>,
-) -> anyhow::Result<bool> {
+) -> Result<bool, PipelineError> {
     let started = Instant::now();
     let outcome = deliver_to_pending_sinks(engine, outbox_id, event, source_id, seen).await;
     engine.metrics.record_notify_duration(started.elapsed());
@@ -369,7 +372,7 @@ pub(crate) async fn deliver_to_pending_sinks(
     event: &Event,
     source_id: &str,
     seen: &SeenUpsert<'_>,
-) -> anyhow::Result<bool> {
+) -> Result<bool, PipelineError> {
     // One snapshot for the whole attempt — see `Engine::notifier_snapshot`.
     // `ensure_sink_deliveries`/`list_pending_sink_indices`/etc. below are real
     // DB round-trips; re-reading the live notifier after any of them could
@@ -522,7 +525,7 @@ pub(crate) async fn deliver_to_pending_sinks(
 pub(crate) async fn deliver_claimed_outbox_digest(
     engine: &Engine,
     group: Vec<OutboxRecord>,
-) -> anyhow::Result<Vec<(String, bool)>> {
+) -> Result<Vec<(String, bool)>, PipelineError> {
     let event = build_digest_event(&group);
     let outcomes = deliver_digest_to_pending_sinks(engine, &event, &group).await?;
 
@@ -559,7 +562,7 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
     engine: &Engine,
     event: &Event,
     group: &[OutboxRecord],
-) -> anyhow::Result<Vec<bool>> {
+) -> Result<Vec<bool>, PipelineError> {
     // One snapshot for the whole digest attempt — see `Engine::notifier_snapshot`.
     let notifier = engine.notifier_snapshot().await;
     let matching = notifier.matching_indices(event);

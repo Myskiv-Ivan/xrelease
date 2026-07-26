@@ -1094,12 +1094,12 @@ mod tests {
     fn user_preset_should_override_builtin_by_name() {
         let yaml = r#"
 presets:
- semver-v:
- pattern: '^custom-\d+$'
+  semver-v:
+    pattern: '^custom-\d+$'
 sources:
- - type: github
- repo: org/a
- preset: semver-v
+  - type: github
+    repo: org/a
+    preset: semver-v
 "#;
         let config = crate::config::parse_desired_document(yaml).expect("parse");
         let watches = config.into_watches().expect("watches");
@@ -1115,18 +1115,18 @@ sources:
     fn preset_should_apply_shared_fields_with_source_override() {
         let yaml = r#"
 presets:
- security:
- routing_tag: security-team
- interval_secs: 3600
- pattern: '^v?\d+\.\d+\.\d+$'
+  security:
+    routing_tag: security-team
+    interval_secs: 3600
+    pattern: '^v?\d+\.\d+\.\d+$'
 sources:
- - type: github
- repo: org/a
- preset: security
- - type: github
- repo: org/b
- preset: security
- interval_secs: 900
+  - type: github
+    repo: org/a
+    preset: security
+  - type: github
+    repo: org/b
+    preset: security
+    interval_secs: 900
 "#;
         let config = crate::config::parse_desired_document(yaml).expect("parse");
         let watches = config.into_watches().expect("watches");

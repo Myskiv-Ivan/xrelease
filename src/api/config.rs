@@ -467,8 +467,25 @@ impl ConfigSwapper for AppState {
 
     async fn apply_runtime(&self, config: &crate::config::Config) -> anyhow::Result<()> {
         let watches = config.to_watches()?;
+        // Snapshot previous desired so a failed supervisor replace can roll the
+        // engine notifier/tuning back — otherwise sinks would already be the
+        // new set while poll loops (and `desired.index`) stay on the old one.
+        let previous = self.current_config().await;
         self.engine.apply_runtime_config(config).await?;
-        self.supervisor.replace(watches.clone()).await?;
+        if let Err(err) = self.supervisor.replace(watches.clone()).await {
+            tracing::error!(
+                error = %err,
+                "watch supervisor replace failed after notifier hot-swap; reverting engine runtime"
+            );
+            if let Err(revert_err) = self.engine.apply_runtime_config(&previous).await {
+                tracing::error!(
+                    error = %revert_err,
+                    "failed to revert engine runtime after supervisor replace failure — \
+                     process may need a restart to restore consistency"
+                );
+            }
+            return Err(err);
+        }
         let mut desired = self.desired.write().await;
         desired.index = crate::watch_lookup::WatchIndex::new(watches);
         desired.teams.clone_from(&config.teams);

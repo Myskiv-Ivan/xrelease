@@ -3,16 +3,16 @@
 //! builders that used to be duplicated across `handlers.rs`, `webhook.rs`,
 //! and `auth.rs`.
 //!
-//! Domain errors ([`crate::error::StoreError`], [`crate::error::SourceError`])
-//! stay HTTP-agnostic; this module is the one place that decides which of
-//! them becomes a 404 vs a 502 vs a 500.
+//! Domain errors ([`crate::error::StoreError`], [`crate::error::SourceError`],
+//! [`crate::error::PipelineError`]) stay HTTP-agnostic; this module is the one
+//! place that decides which of them becomes a 404 vs a 502 vs a 500.
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
 
-use crate::error::{SourceError, StoreError};
+use crate::error::{PipelineError, SourceError, StoreError};
 
 /// Every error an API handler or webhook handler can return.
 #[derive(Debug, thiserror::Error)]
@@ -51,6 +51,9 @@ pub enum ApiError {
     /// 502 — an upstream registry or forge returned an error.
     #[error("{0}")]
     BadGateway(String),
+    /// 503 — dependency temporarily unavailable (e.g. database pool exhausted).
+    #[error("{0}")]
+    ServiceUnavailable(String),
     /// 500 — store failure, notifier failure, or anything unexpected.
     #[error("{0}")]
     Internal(String),
@@ -83,6 +86,7 @@ impl ApiError {
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::PreconditionFailed(_) => StatusCode::PRECONDITION_FAILED,
             Self::BadGateway(_) => StatusCode::BAD_GATEWAY,
+            Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -110,7 +114,11 @@ impl IntoResponse for ApiError {
 
 impl From<StoreError> for ApiError {
     fn from(err: StoreError) -> Self {
-        Self::internal(err)
+        match &err {
+            StoreError::PollerBusy => Self::Conflict(err.to_string()),
+            StoreError::Pool(_) => Self::ServiceUnavailable(err.to_string()),
+            StoreError::Postgres(_) | StoreError::Other(_) => Self::internal(err),
+        }
     }
 }
 
@@ -129,14 +137,30 @@ impl From<SourceError> for ApiError {
     }
 }
 
+impl From<PipelineError> for ApiError {
+    fn from(err: PipelineError) -> Self {
+        match err {
+            PipelineError::Source(err) => err.into(),
+            PipelineError::Store(err) => err.into(),
+            PipelineError::Notify(err) => Self::BadGateway(err.to_string()),
+            PipelineError::Other(message) => Self::internal(message),
+        }
+    }
+}
+
 impl From<anyhow::Error> for ApiError {
-    /// `poll_once`/pipeline errors are `anyhow`; downcast to the richer
-    /// [`SourceError`] mapping when possible instead of flattening
-    /// everything to 500.
+    /// Pipeline / config-apply paths may still surface `anyhow`; downcast to
+    /// the richer typed mappings when possible instead of flattening to 500.
     fn from(err: anyhow::Error) -> Self {
-        match err.downcast::<SourceError>() {
-            Ok(source_err) => source_err.into(),
-            Err(err) => Self::internal(err),
+        match err.downcast::<PipelineError>() {
+            Ok(pipeline) => pipeline.into(),
+            Err(err) => match err.downcast::<SourceError>() {
+                Ok(source_err) => source_err.into(),
+                Err(err) => match err.downcast::<StoreError>() {
+                    Ok(store_err) => store_err.into(),
+                    Err(err) => Self::internal(err),
+                },
+            },
         }
     }
 }
@@ -189,6 +213,23 @@ mod tests {
     }
 
     #[test]
+    fn store_error_poller_busy_should_map_to_conflict() {
+        assert_eq!(
+            ApiError::from(StoreError::PollerBusy).status(),
+            StatusCode::CONFLICT
+        );
+    }
+
+    #[test]
+    fn pipeline_source_error_should_preserve_registry_mapping() {
+        let err = PipelineError::Source(SourceError::Registry {
+            status: 404,
+            url: "https://example.test".into(),
+        });
+        assert_eq!(ApiError::from(err).status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
     fn anyhow_wrapping_source_error_should_use_source_error_mapping() {
         let err: anyhow::Error = SourceError::Registry {
             status: 404,
@@ -196,6 +237,18 @@ mod tests {
         }
         .into();
         assert_eq!(ApiError::from(err).status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn anyhow_wrapping_store_error_should_use_store_mapping() {
+        let err: anyhow::Error = StoreError::PollerBusy.into();
+        assert_eq!(ApiError::from(err).status(), StatusCode::CONFLICT);
+    }
+
+    #[test]
+    fn anyhow_wrapping_pipeline_error_should_use_pipeline_mapping() {
+        let err: anyhow::Error = PipelineError::Store(StoreError::PollerBusy).into();
+        assert_eq!(ApiError::from(err).status(), StatusCode::CONFLICT);
     }
 
     #[test]

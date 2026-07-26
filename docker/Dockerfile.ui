@@ -2,6 +2,7 @@
 #
 # Build context: front/ (see compose.yml). Multi-stage static UI + nginx.
 # Runtime: VITE_* env vars → /ui-config.js via docker-entrypoint.d (no rebuild).
+# Unprivileged nginx listens on 8080 (non-root USER) — map host :3000 → :8080.
 
 FROM node:26-alpine3.24 AS build
 WORKDIR /app
@@ -40,10 +41,12 @@ COPY . .
 RUN npm run build \
     && rm -rf node_modules
 
-# Stable nginx on Alpine 3.24; -slim drops extra modules unused for static+proxy.
-FROM nginx:1.31-alpine3.24-slim
+# Non-root nginx (UID 101). Listens on 8080 — see front/nginx.conf.
+FROM nginxinc/nginx-unprivileged:1.31-alpine3.24-slim
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/build /usr/share/nginx/html
-COPY scripts/docker-ui-config.sh /docker-entrypoint.d/40-xrelease-ui-config.sh
+COPY --from=build --chown=nginx:nginx /app/build /usr/share/nginx/html
+COPY --chown=nginx:nginx scripts/docker-ui-config.sh /docker-entrypoint.d/40-xrelease-ui-config.sh
 RUN chmod +x /docker-entrypoint.d/40-xrelease-ui-config.sh
-EXPOSE 80
+# Explicit for DS-0002 (base image already defaults to nginx).
+USER nginx
+EXPOSE 8080

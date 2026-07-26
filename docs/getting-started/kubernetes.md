@@ -30,7 +30,7 @@ the UI Service. UI nginx proxies API and probes to the backend:
 
 | Path | Destination |
 |---|---|
-| `/` (dashboard) | UI `:80` |
+| `/` (dashboard) | UI `:8080` (Service often `:80` → pod) |
 | `/api/…`, `/ready`, `/health`, `/openapi.json`, `/metrics` | UI → backend `:8080` |
 
 Leave `ui.env.VITE_API_URL` **empty** (same-origin `/api`).

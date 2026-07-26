@@ -7,8 +7,9 @@
 //! notify** pipeline. A [`scheduler`] drives one independent loop per configured
 //! [`pipeline::Watch`]. Each loop asks a [`sources::Provider`] for the current
 //! list of [`model::Release`]s, the [`store::Store`] decides which of them are
-//! new (it has never seen the identity before), and every newcomer is delivered
-//! through a [`notify::Notifier`] (Apprise, Express, webhook, SMTP, brokers).
+//! new (it has never seen the identity before), and every newcomer is enqueued
+//! in the transactional outbox and delivered through a [`notify::Notifier`]
+//! (Apprise, Express, webhook, SMTP, brokers).
 //!
 //! # Binaries
 //!
@@ -30,7 +31,8 @@
 //! - [`notify`] — the [`notify::Notifier`] trait, Apprise, webhooks, and
 //!   optional message-broker sinks (Kafka / NATS / RabbitMQ) behind
 //!   [`CompositeNotifier`] fan-out.
-//! - [`pipeline`] — the single-source poll/diff/notify step, unit-testable.
+//! - [`pipeline`] — the single-source poll/diff/notify step, unit-testable;
+//!   fallible steps return [`error::PipelineError`].
 //! - [`scheduler`]— spawns and supervises one polling loop per source.
 //! - [`runtime`] — `serve` over the same pipeline.
 //! - [`engine`] — shared store, HTTP client, notifier, metrics wiring.
@@ -38,6 +40,8 @@
 //! - [`validate`] — static config validation (`xrelease validate`).
 //! - [`watch_lookup`] — O(1) source resolution for webhooks and API.
 //! - [`api`] — HTTP API, webhooks, OpenAPI (`xrelease serve`).
+//! - [`error`] — subsystem `thiserror` enums (`SourceError`, `NotifyError`,
+//!   `StoreError`, `PipelineError`).
 
 #![forbid(unsafe_code)]
 

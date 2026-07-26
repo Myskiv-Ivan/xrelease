@@ -210,14 +210,14 @@ mod tests {
         let mut config: crate::config::Config = serde_yaml::from_str(
             r#"
 notifiers:
- - type: apprise
- urls: ["mailto://a@b.c"]
+  - type: apprise
+    urls: ["mailto://a@b.c"]
 sources:
- - type: github
- repo: org/tagged
- routing_tag: core
- - type: github
- repo: org/untagged
+  - type: github
+    repo: org/tagged
+    routing_tag: core
+  - type: github
+    repo: org/untagged
 "#,
         )
         .expect("parse");
@@ -234,15 +234,15 @@ sources:
         let mut config: crate::config::Config = serde_yaml::from_str(
             r#"
 presets:
- mine:
- pattern: "^v"
+  mine:
+    pattern: "^v"
 sources:
- - type: github
- repo: org/a
- preset: mine
- - type: github
- repo: org/b
- preset: major-only
+  - type: github
+    repo: org/a
+    preset: mine
+  - type: github
+    repo: org/b
+    preset: major-only
 "#,
         )
         .expect("parse");
@@ -271,13 +271,13 @@ sources:
         let mut config: crate::config::Config = serde_yaml::from_str(
             r#"
 notifiers:
- - type: apprise
- urls: ["mailto://a@b.c"]
- tags: [core]
+  - type: apprise
+    urls: ["mailto://a@b.c"]
+    tags: [core]
 sources:
- - type: github
- repo: org/tagged
- routing_tag: core
+  - type: github
+    repo: org/tagged
+    routing_tag: core
 "#,
         )
         .expect("parse");
@@ -295,16 +295,16 @@ sources:
         let mut config: crate::config::Config = serde_yaml::from_str(
             r#"
 defaults:
- ops_routing_tag: ops
+  ops_routing_tag: ops
 notifiers:
- - type: apprise
- urls: ["mailto://a@b.c"]
+  - type: apprise
+    urls: ["mailto://a@b.c"]
 teams:
- - tag: ops
+  - tag: ops
 sources:
- - type: github
- repo: org/app
- routing_tag: core
+  - type: github
+    repo: org/app
+    routing_tag: core
 "#,
         )
         .expect("parse");
