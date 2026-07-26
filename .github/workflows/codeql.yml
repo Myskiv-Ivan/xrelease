@@ -1,3 +1,9 @@
+# CodeQL — advanced setup (SARIF → Security → Code scanning)
+#
+# Private repos: Code Scanning needs GitHub Advanced Security. Until that is on,
+# this workflow no-ops successfully (set CODE_SCANNING_ENABLED=true after enable).
+# Public repos: runs automatically (free Code Scanning).
+
 name: codeql
 
 on:
@@ -7,37 +13,78 @@ on:
     branches: [main]
   schedule:
     - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # Keeps required-check green when scanning cannot upload (private, no GHAS).
+  gate:
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - id: decide
+        env:
+          IS_PRIVATE: ${{ github.event.repository.private }}
+          ENABLED: ${{ vars.CODE_SCANNING_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [ "$IS_PRIVATE" = "true" ] && [ "$ENABLED" != "true" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### CodeQL skipped"
+              echo "Repo is **private** and \`CODE_SCANNING_ENABLED\` is not \`true\`."
+              echo
+              echo "1. Org/repo: enable **GitHub Advanced Security → Code scanning**"
+              echo "2. Settings → Secrets and variables → Actions → variable"
+              echo "   \`CODE_SCANNING_ENABLED\` = \`true\`"
+              echo "3. Re-run this workflow"
+              echo
+              echo "Public repos do not need the variable."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   analyze:
     name: analyze (${{ matrix.language }})
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
-      # analyze reads workflow run metadata (required on private repos)
       actions: read
       contents: read
+      pull-requests: read
       security-events: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Rust: build-mode none (rust-analyzer extract; no cargo build / autobuild)
           - language: rust
             build-mode: none
           - language: javascript-typescript
             build-mode: none
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      # rust-analyzer / CodeQL Rust need a toolchain on the runner
       - uses: dtolnay/rust-toolchain@1.96
         if: matrix.language == 'rust'
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          config: |
+            paths-ignore:
+              - "**/tests/**"
+              - "**/*_e2e.rs"
+              - "front/node_modules/**"
+              - "front/build/**"
+              - "target/**"
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"

@@ -57,7 +57,23 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 | Packages | Actions can write to GHCR |
 | Optional secret `RELEASE_TOKEN` | Tag → release cascade |
 | Optional variable `ACTIONS_RUNS_ON` | Runner labels (below) |
-| Code scanning | On (workflow already has `actions: read`) |
+| Optional variable `CODE_SCANNING_ENABLED=true` | Required for CodeQL on **private** repos (needs GHAS) |
+| Code scanning | Settings → Code security → Code scanning (GHAS if private) |
+| Pages → Source | GitHub Actions |
+| Workflow permissions | Read and write (Actions → General) |
+
+### Workflow triggers (rules)
+
+| Workflow | When it runs |
+|---|---|
+| `ci.yml` | Every PR + push to `main` |
+| `docs.yml` | Changes under `docs/**` (or manual); deploy only on `main` push / dispatch |
+| `codeql.yml` | PR + push `main` + weekly Mon; **skipped** on private until `CODE_SCANNING_ENABLED` |
+| `version-bump.yml` | Manual, only if ref is `main` |
+| `release.yml` | Tag `v*.*.*` or manual with existing tag |
+
+Do **not** make `codeql` a required status check while the repo is private without GHAS —
+the analyze job is skipped and only `gate` succeeds.
 
 ## Runners: GitHub-hosted vs self-hosted
 

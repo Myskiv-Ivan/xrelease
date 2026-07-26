@@ -789,7 +789,8 @@ sources:
         platform_yaml: &str,
         security_yaml: &str,
     ) -> (std::path::PathBuf, ConfigPaths) {
-        let base = std::env::temp_dir().join(format!("xrelease-compose-{tag}-{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("xrelease-compose-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(base.join("app/platform")).expect("platform dir");
         std::fs::create_dir_all(base.join("app/security")).expect("security dir");
@@ -963,7 +964,8 @@ sources:
 
     #[test]
     fn api_org_without_app_should_boot_empty() {
-        let base = std::env::temp_dir().join(format!("xrelease-api-org-empty-{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("xrelease-api-org-empty-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).expect("dir");
         std::fs::write(

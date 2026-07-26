@@ -52,7 +52,8 @@ impl OrgFixture {
         source: &str,
         apprise_endpoint: &str,
     ) -> Self {
-        let base = std::env::temp_dir().join(format!("xrelease-org-e2e-{tag}-{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("xrelease-org-e2e-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(base.join("app/platform")).expect("platform dir");
         std::fs::create_dir_all(base.join("app/security")).expect("security dir");
