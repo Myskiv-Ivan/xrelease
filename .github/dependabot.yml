@@ -22,6 +22,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   # Backend image (docker/Dockerfile) + UI image (docker/Dockerfile.ui)
   - package-ecosystem: docker

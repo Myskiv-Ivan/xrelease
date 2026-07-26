@@ -102,8 +102,8 @@ lettre = { version = "0.11", default-features = false, features = ["tokio1-rustl
 # Optional message-broker sinks. Each is gated behind a cargo feature so the
 # default binary stays lean (no C `librdkafka`, no broker client crates).
 rdkafka = { version = "0.36", optional = true }
-async-nats = { version = "0.38", optional = true }
-lapin = { version = "2", optional = true }
+async-nats = { version = "0.50", optional = true }
+lapin = { version = "4", optional = true }
 cron = "0.17.0"
 
 [features]

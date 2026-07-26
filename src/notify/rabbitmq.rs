@@ -135,8 +135,8 @@ impl Notifier for RabbitMqNotifier {
             let publish = async {
                 channel
                     .basic_publish(
-                        &exchange,
-                        &routing_key,
+                        exchange.into(),
+                        routing_key.into(),
                         BasicPublishOptions::default(),
                         payload.as_bytes(),
                         BasicProperties::default(),

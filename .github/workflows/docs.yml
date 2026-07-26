@@ -46,7 +46,7 @@ jobs:
       - name: Setup Pages
         id: pages
         if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
         with:
           # Create/enable Pages (GitHub Actions source) if not configured yet
           enablement: true
@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/book
 
