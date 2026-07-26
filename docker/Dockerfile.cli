@@ -53,7 +53,7 @@ RUN touch cli/src/main.rs \
 # ---- Runtime ---------------------------------------------------------------
 # Alpine: shell + CA certs so GitLab/Jenkins can use this image as the job
 # image (`script: xrctl …`). Distroless would force DinD just to wrap docker run.
-FROM alpine:3.22 AS runtime
+FROM alpine:3.24 AS runtime
 
 RUN apk add --no-cache ca-certificates \
     && adduser -D -u 65532 -h /work -s /sbin/nologin nonroot
