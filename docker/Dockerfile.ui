@@ -3,7 +3,7 @@
 # Build context: front/ (see compose.yml). Multi-stage static UI + nginx.
 # Runtime: VITE_* env vars → /ui-config.js via docker-entrypoint.d (no rebuild).
 
-FROM node:24-alpine3.24 AS build
+FROM node:26-alpine3.24 AS build
 WORKDIR /app
 
 # Optional bake-time defaults (overridden at container start by ui-config.js).
