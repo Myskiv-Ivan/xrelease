@@ -1,0 +1,14 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v1.2.3",
+    "html_url": "https://github.com/tokio-rs/tokio/releases/tag/v1.2.3",
+    "body": "## What's Changed\n\nBug fixes.",
+    "prerelease": false,
+    "draft": false,
+    "published_at": "2025-06-01T12:00:00Z"
+  },
+  "repository": {
+    "full_name": "tokio-rs/tokio"
+  }
+}

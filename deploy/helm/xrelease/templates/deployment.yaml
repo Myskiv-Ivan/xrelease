@@ -1,0 +1,175 @@
+{{- include "xrelease.validate" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xrelease.fullname" . }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "xrelease.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Restart when inline ConfigMap changes (bootstrap / app seed).
+        # Constant when config.existingConfigMap is set — use Reloader or a manual rollout.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        # Restart when chart-managed Secret values change (api key, session, admin, …).
+        checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "xrelease.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "xrelease.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.enabled }}
+      initContainers:
+        - name: wait-postgresql
+          image: {{ .Values.postgresql.image | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "xrelease.postgresqlName" . }} -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}; do
+                echo "waiting for postgresql..."
+                sleep 2
+              done
+      {{- end }}
+      containers:
+        - name: xrelease
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["xrelease"]
+          args:
+            - "--config"
+            - "/etc/xrelease/bootstrap.toml"
+            - "--app"
+            - "/etc/xrelease/app/releases.yaml"
+            - {{ index .Values.command 0 | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+          env:
+            - name: XRELEASE_CONFIG
+              value: /etc/xrelease/bootstrap.toml
+            - name: XRELEASE_APP_CONFIG
+              value: /etc/xrelease/app/releases.yaml
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.apprise.enabled }}
+            - name: XRELEASE_APPRISE_ENDPOINT
+              value: http://{{ include "xrelease.fullname" . }}-apprise:{{ .Values.apprise.service.port }}
+            {{- end }}
+            {{- if .Values.postgresql.enabled }}
+            # Wins over bootstrap.toml postgres_url and over envFrom DATABASE_URL.
+            - name: XRELEASE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (include "xrelease.postgresqlName" .) }}
+                  key: connection-url
+            {{- else if and (eq (include "xrelease.createSecret" .) "true") .Values.secrets.databaseUrl }}
+            - name: XRELEASE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_DATABASE_URL
+            {{- else if and (not .Values.secrets.existingSecret) .Values.database.url }}
+            - name: XRELEASE_DATABASE_URL
+              value: {{ .Values.database.url | quote }}
+            {{- end }}
+            {{- if eq (include "xrelease.createSecret" .) "true" }}
+            {{- if .Values.secrets.apiKey }}
+            - name: XRELEASE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_API_KEY
+            {{- end }}
+            {{- if .Values.secrets.webhookSecret }}
+            - name: XRELEASE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_WEBHOOK_SECRET
+            {{- end }}
+            {{- if .Values.secrets.expressAccessToken }}
+            - name: XRELEASE_EXPRESS_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_EXPRESS_ACCESS_TOKEN
+            {{- end }}
+            {{- if .Values.secrets.configEncryptionKey }}
+            - name: XRELEASE_CONFIG_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_CONFIG_ENCRYPTION_KEY
+            {{- end }}
+            {{- if .Values.secrets.sessionSecret }}
+            - name: XRELEASE_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_SESSION_SECRET
+            {{- end }}
+            {{- if .Values.secrets.adminUser }}
+            - name: XRELEASE_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_ADMIN_USER
+            {{- end }}
+            {{- if .Values.secrets.adminPassword }}
+            - name: XRELEASE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.secretsName" . }}
+                  key: XRELEASE_ADMIN_PASSWORD
+            {{- end }}
+            {{- end }}
+          {{- if .Values.secrets.existingSecret }}
+          # Inject ALL keys from the Secret as env vars — covers arbitrary
+          # per-team secrets (e.g. XRELEASE_EXPRESS_TOKEN_<TEAM>) without
+          # enumerating each one in the chart.
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secrets.existingSecret }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/xrelease
+              readOnly: true
+          {{- if eq (index .Values.command 0) "serve" }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: {{ .Values.livenessProbe.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 60
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: {{ .Values.readinessProbe.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.config.existingConfigMap | default (printf "%s-config" (include "xrelease.fullname" .)) }}
+            items:
+              - key: bootstrap.toml
+                path: bootstrap.toml
+              - key: releases.yaml
+                path: app/releases.yaml

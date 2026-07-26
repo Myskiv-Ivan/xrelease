@@ -1,0 +1,55 @@
+# GitOps / production overlay example (no secrets inline).
+# Pair with an existing ConfigMap + Secret, then:
+#
+#   kubectl apply -f deploy/k8s/secret.example.yaml
+#   helm upgrade --install xrelease ./deploy/helm/xrelease \
+#     --namespace xrelease --create-namespace \
+#     -f deploy/k8s/values-gitops.example.yaml
+#
+# Copy and adjust (image.tag, ingress host, ui/OIDC) for your cluster.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/myskiv-ivan/xrelease
+  tag: "0.1.0"
+  pullPolicy: Always
+
+command:
+  - serve
+
+config:
+  existingConfigMap: xrelease-config
+
+postgresql:
+  enabled: false
+
+secrets:
+  existingSecret: xrelease-secrets
+
+apprise:
+  enabled: true
+
+ui:
+  enabled: true
+  image:
+    repository: ghcr.io/myskiv-ivan/xrelease-ui
+    tag: ""
+  env:
+    VITE_API_URL: ""
+    VITE_AUTH_MODE: local
+    VITE_API_KEY_DEFAULT_ROLE: admin
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: xrelease.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  XRELEASE_LOG: info

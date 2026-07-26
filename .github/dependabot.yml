@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      rust-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /front
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      npm-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Backend image (docker/Dockerfile) + UI image (docker/Dockerfile.ui)
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly

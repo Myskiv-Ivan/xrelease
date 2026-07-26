@@ -1,0 +1,63 @@
+# Sample desired-state document — copy into UI Apply (per org) or use as
+# single-doc `app/releases.yaml` when [[organizations]] is removed from bootstrap.
+#
+# Built-in presets: semver, semver-v, numeric, prerelease, stable.
+
+defaults:
+  interval_secs: 86400
+  jitter_secs: 3600
+  upstream_requests_per_minute: 60
+  poll_on_startup: true
+
+notifiers:
+  - type: apprise
+    endpoint: http://apprise:8000
+    urls:
+      - mailto://xrelease:local@localhost
+    format: markdown
+
+teams:
+  - tag: platform-team
+    name: Platform Engineering
+  - tag: security-team
+    name: Security Operations
+
+sources:
+  - id: wazuh-stable
+    type: github
+    repo: wazuh/wazuh
+    preset: semver-v
+    routing_tag: security-team
+
+  - id: wazuh-prerelease
+    type: github
+    repo: wazuh/wazuh
+    preset: prerelease
+    routing_tag: security-team
+
+  - id: dotnet-runtime
+    type: github
+    repo: dotnet/runtime
+    preset: semver-v
+    routing_tag: platform-team
+
+  - id: tokio
+    type: github
+    repo: tokio-rs/tokio
+    pattern: '^tokio-\d'
+    routing_tag: platform-team
+
+  - type: gitlab
+    project: gitlab-org/gitlab-runner
+    preset: semver
+    routing_tag: platform-team
+
+  - type: docker
+    image: library/nginx
+    preset: numeric
+    routing_tag: platform-team
+
+  - type: pypi
+    name: requests
+    preset: numeric
+    routing_tag: platform-team

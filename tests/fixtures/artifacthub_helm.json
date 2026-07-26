@@ -1,0 +1,22 @@
+{
+  "packageId": "test-id",
+  "name": "nginx",
+  "normalizedName": "nginx",
+  "version": "15.3.4",
+  "availableVersions": [
+    {
+      "version": "15.3.4",
+      "prerelease": false,
+      "ts": 1717243200
+    },
+    {
+      "version": "15.3.3",
+      "prerelease": false,
+      "ts": 1717156800
+    }
+  ],
+  "repository": {
+    "name": "bitnami",
+    "url": "https://charts.bitnami.com/bitnami"
+  }
+}

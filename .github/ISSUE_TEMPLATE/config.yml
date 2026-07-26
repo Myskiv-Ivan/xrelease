@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Myskiv-Ivan/xrelease/security/advisories
+    about: Please report security issues privately — see SECURITY.md, not public issues.
+  - name: Question / discussion
+    url: https://github.com/Myskiv-Ivan/xrelease/discussions
+    about: Ask usage questions in Discussions.

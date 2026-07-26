@@ -1,0 +1,22 @@
+# Multi-team infra — restart to apply. Application: app/releases.yaml
+
+[database]
+postgres_url = "postgres://xrelease:xrelease@postgres:5432/xrelease"
+prune_seen_after_days = 365
+prune_webhooks_after_days = 30
+prune_outbox_sent_after_days = 90
+prune_interval_hours = 24
+
+[log]
+level = "info"
+
+[api]
+listen = "0.0.0.0:8080"
+require_auth = true
+rate_limit_per_minute = 120
+# Secrets via repo-root .env — see .env.example
+
+[config_api]
+api_config = false
+source = "local"
+ui_config = false

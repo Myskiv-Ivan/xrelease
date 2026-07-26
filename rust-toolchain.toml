@@ -1,0 +1,5 @@
+# Pin the toolchain so every contributor and the Docker build agree.
+# RPITIT (`-> impl Future + Send` in traits) used by the notifier requires >= 1.75.
+[toolchain]
+channel = "1.96"
+components = ["rustfmt", "clippy"]

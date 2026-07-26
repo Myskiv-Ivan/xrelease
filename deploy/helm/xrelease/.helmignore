@@ -1,0 +1,5 @@
+# Paths to ignore when packaging the Helm chart.
+.DS_Store
+*.md
+charts/
+tmp/

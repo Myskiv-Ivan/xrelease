@@ -1,0 +1,14 @@
+[book]
+title = "xrelease"
+description = "Self-hosted release notifier — watch upstream releases and notify your teams"
+language = "en"
+src = "."
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/Myskiv-Ivan/xrelease"
+edit-url-template = "https://github.com/Myskiv-Ivan/xrelease/edit/main/docs/{path}"
+# Project Pages path; workflow may override via MDBOOK_OUTPUT__HTML__SITE_URL.
+site-url = "/xrelease/"

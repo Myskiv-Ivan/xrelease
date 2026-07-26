@@ -1,0 +1,17 @@
+# Optional OIDC overlay — copy and adjust, then:
+#
+#   helm upgrade --install xrelease ./deploy/helm/xrelease \
+#     --namespace xrelease --create-namespace \
+#     -f deploy/k8s/values.secrets.yaml \
+#     -f deploy/k8s/values-oidc.example.yaml
+#
+# Also put XRELEASE_OIDC_* into the backend Secret (secret.example.yaml).
+
+ui:
+  env:
+    VITE_AUTH_MODE: oidc
+    VITE_OIDC_ISSUER: "https://auth.example.com/realms/xrelease"
+    VITE_OIDC_CLIENT_ID: "xrelease-ui"
+    # VITE_OIDC_REDIRECT_URI: ""   # default: https://<host>/login/callback
+    # VITE_OIDC_SCOPES: "openid,profile,email,groups"
+    # VITE_OIDC_ROLE_CLAIM: "groups"

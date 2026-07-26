@@ -1,0 +1,23 @@
+{
+  "push": {
+    "changes": [
+      {
+        "new": {
+          "type": "tag",
+          "name": "1.2.3",
+          "target": {
+            "links": {
+              "html": {
+                "href": "https://bitbucket.org/atlassian/python-bitbucket/commits/tag/1.2.3"
+              }
+            }
+          }
+        },
+        "old": null
+      }
+    ]
+  },
+  "repository": {
+    "full_name": "atlassian/python-bitbucket"
+  }
+}

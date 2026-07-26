@@ -1,0 +1,22 @@
+# Infrastructure config — mount on the host / pod; restart to apply changes.
+# Application config (sources, teams, …) lives in app/releases.yaml or PostgreSQL ledger.
+
+[database]
+postgres_url = "postgres://xrelease:xrelease@postgres:5432/xrelease"
+
+[log]
+level = "info"
+
+[api]
+listen = "0.0.0.0:8080"
+rate_limit_per_minute = 120
+require_auth = true
+# Secrets via repo-root .env — see .env.example (XRELEASE_API_KEY / XRELEASE_OIDC_*)
+# Inbound: XRELEASE_WEBHOOK_SECRET for POST /api/v1/webhooks/* (docs/api/webhooks.md)
+# Outbound HTTP: app document [[notifiers]] type=webhook — see deploy/examples/webhooks/
+
+[config_api]
+api_config = true
+source = "api"
+ui_config = false
+# XRELEASE_CONFIG_APPLY_SECRET for HMAC on POST /api/v1/config/apply

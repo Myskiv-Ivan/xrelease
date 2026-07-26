@@ -1,0 +1,33 @@
+/target
+**/*.rs.bk
+Cargo.lock.orig
+
+# Local runtime state
+*.db
+*.db-wal
+*.db-shm
+/data
+
+# Local secrets — never commit real Apprise URLs or tokens
+config.local.toml
+.env
+deploy/k8s/values.secrets.yaml
+deploy/k8s/values-lab.secrets.yaml
+deploy/k8s/values-*.local.yaml
+docker/certs/*.pem
+!docker/certs/*.pem.example
+!docker/certs/README.md
+
+# Editor / agent tooling
+.cursor/
+.claude/
+.codegraph/
+.DS_Store
+
+# Internal engineering docs & shipped archive
+internal/
+done/
+node_modules/
+
+# mdBook build output (published via GitHub Pages Actions)
+/docs/book/

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: xrelease
+description: Watch software release sources and notify via Apprise, SMTP, webhooks, and more
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - releases
+  - notifications
+  - gitops
+home: https://github.com/Myskiv-Ivan/xrelease
+sources:
+  - https://github.com/Myskiv-Ivan/xrelease
+maintainers: []

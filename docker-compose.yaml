@@ -1,0 +1,105 @@
+# xrelease — published GHCR images (no local build)
+#
+#   cp .env.example .env
+#   docker compose up -d
+#   → http://127.0.0.1:3000
+#
+# Needs: .env + bootstrap.toml at repo root. Tags bump with each release.
+# OIDC: your IdP — docs/operations/oidc.md
+# TLS:  docker compose -f docker-compose.yaml -f docker/compose.tls.yaml up -d
+#       (UI nginx + cert.pem/key.pem — .env: XRELEASE_TLS_*)
+#       docs/operations/tls.md
+
+name: xrelease
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xrelease}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xrelease}
+      POSTGRES_DB: ${POSTGRES_DB:-xrelease}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xrelease} -d ${POSTGRES_DB:-xrelease}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  xrelease:
+    image: ghcr.io/myskiv-ivan/xrelease:0.1.0
+    pull_policy: always
+    restart: unless-stopped
+    command: ["serve"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      apprise:
+        condition: service_started
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      XRELEASE_CONFIG: /etc/xrelease/bootstrap.toml
+      XRELEASE_DATABASE_URL: ${XRELEASE_DATABASE_URL:-postgres://xrelease:xrelease@postgres:5432/xrelease}
+      XRELEASE_APPRISE_ENDPOINT: http://apprise:8000
+      XRELEASE_API_LISTEN: ${XRELEASE_API_LISTEN:-0.0.0.0:8080}
+      XRELEASE_LOG: ${XRELEASE_LOG:-info}
+    volumes:
+      - ./bootstrap.toml:/etc/xrelease/bootstrap.toml:ro
+      # Single-doc / GitOps mounts (optional):
+      # - ./app/releases.yaml:/etc/xrelease/app/releases.yaml:ro
+      # - ./deploy/examples/multi-org/app:/etc/xrelease/app:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "xrelease",
+          "--config",
+          "/etc/xrelease/bootstrap.toml",
+          "health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ui:
+    image: ghcr.io/myskiv-ivan/xrelease-ui:0.1.0
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-}
+      VITE_AUTH_MODE: ${VITE_AUTH_MODE:-local}
+      VITE_API_KEY_DEFAULT_ROLE: ${VITE_API_KEY_DEFAULT_ROLE:-admin}
+      VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-}
+      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
+      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+      VITE_OIDC_SCOPES: ${VITE_OIDC_SCOPES:-openid,profile,email,groups}
+      VITE_OIDC_ROLE_CLAIM: ${VITE_OIDC_ROLE_CLAIM:-groups}
+      VITE_OIDC_ROLE_ADMIN: ${VITE_OIDC_ROLE_ADMIN:-xrelease-admin,admin}
+      VITE_OIDC_ROLE_OPERATOR: ${VITE_OIDC_ROLE_OPERATOR:-xrelease-operator,operator}
+      VITE_OIDC_ROLE_VIEWER: ${VITE_OIDC_ROLE_VIEWER:-xrelease-viewer,viewer}
+      VITE_GRAFANA_EMBED_URL: ${VITE_GRAFANA_EMBED_URL:-}
+    depends_on:
+      xrelease:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:80"
+
+  apprise:
+    image: caronc/apprise:1.5.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APPRISE_STATELESS_URLS: ""
+    volumes:
+      - apprise-config:/config
+
+volumes:
+  postgres-data:
+  apprise-config:

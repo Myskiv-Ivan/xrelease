@@ -1,0 +1,78 @@
+# Build mdBook docs and publish to GitHub Pages (*.github.io/xrelease/).
+#
+# Repo settings: Settings → Pages → Source = GitHub Actions
+
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # Pin for reproducible builds (binary install — no cargo compile).
+  MDBOOK_VERSION: "0.5.4"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mdBook
+        run: |
+          set -euo pipefail
+          archive="mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSL "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/${archive}" \
+            | tar -xz -C /usr/local/bin mdbook
+          mdbook --version
+
+      - name: Setup Pages
+        id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Build book
+        run: |
+          set -euo pipefail
+          # On Pages deploys, prefer configure-pages base_path ("" = site root).
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            base="${{ steps.pages.outputs.base_path }}"
+            export MDBOOK_OUTPUT__HTML__SITE_URL="${base%/}/"
+          fi
+          mdbook build docs
+          touch docs/book/.nojekyll
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a problem with xrelease
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and the expected behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. bootstrap.toml / app/releases.yaml with …
+        2. run `xrelease …`
+        3. observe …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: xrelease version / image tag / commit
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Docker Compose
+        - Binary
+        - Kubernetes / Helm
+        - Source build
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant logs (`XRELEASE_LOG=debug`). Redact secrets.
+      render: shell

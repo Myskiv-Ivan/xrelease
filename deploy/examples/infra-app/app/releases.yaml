@@ -1,0 +1,24 @@
+# Application config — version in Git; apply via CI (POST /api/v1/config/apply).
+# Native YAML: no yaml→toml conversion required.
+
+defaults:
+  interval_secs: 86400
+  jitter_secs: 3600
+  poll_on_startup: true
+
+notifiers:
+  - type: apprise
+    endpoint: http://apprise:8000
+    urls:
+      - mailto://xrelease:local@localhost
+    format: markdown
+
+teams:
+  - tag: platform-team
+    name: Platform Engineering
+
+sources:
+  - type: github
+    repo: tokio-rs/tokio
+    pattern: '^tokio-\d'
+    routing_tag: platform-team

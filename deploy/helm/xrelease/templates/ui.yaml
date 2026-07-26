@@ -1,0 +1,146 @@
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xrelease.fullname" . }}-ui-nginx
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+data:
+  default.conf: |
+    map $http_x_forwarded_proto $xrelease_forwarded_proto {
+        default $http_x_forwarded_proto;
+        ""      $scheme;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+        client_max_body_size 10m;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location = /ui-config.js {
+            add_header Cache-Control "no-store";
+        }
+
+        location /api/ {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_read_timeout 120s;
+        }
+
+        location = /health {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/health;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location = /ready {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/ready;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location = /metrics {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/metrics;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location = /openapi.json {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/openapi.json;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "xrelease.fullname" . }}-ui
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  type: {{ .Values.ui.service.type }}
+  ports:
+    - port: {{ .Values.ui.service.port }}
+      targetPort: http
+      name: http
+  selector:
+    {{- include "xrelease.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xrelease.fullname" . }}-ui
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "xrelease.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ui
+  template:
+    metadata:
+      annotations:
+        # Restart UI when nginx proxy target or runtime VITE_* change so
+        # docker-entrypoint regenerates /ui-config.js (no image rebuild).
+        checksum/ui-nginx: {{ printf "%v-%v" .Values.service.port .Values.ui.service.port | sha256sum }}
+        checksum/ui-env: {{ .Values.ui.env | toYaml | sha256sum }}
+      labels:
+        {{- include "xrelease.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ui
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ui
+          image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag | default .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.ui.image.pullPolicy | default .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+          {{- with .Values.ui.env }}
+          env:
+            {{- range $key, $value := . }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "xrelease.fullname" . }}-ui-nginx
+{{- end }}

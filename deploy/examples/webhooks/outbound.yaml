@@ -1,0 +1,31 @@
+# Example desired document (YAML) with an outbound webhook notifier.
+# Inbound forge webhooks are NOT configured here — only in bootstrap/.env:
+#   XRELEASE_WEBHOOK_SECRET + matching [[sources]] (see docs/api/webhooks.md).
+
+defaults:
+  interval_secs: 86400
+  poll_on_startup: true
+
+teams:
+  - tag: platform-team
+    name: Platform Engineering
+
+sources:
+  # Forge → POST /api/v1/webhooks/github maps repository.full_name → repo
+  - type: github
+    repo: tokio-rs/tokio
+    preset: semver-v
+    routing_tag: platform-team
+
+notifiers:
+  # xrelease → your HTTP endpoint (UI: Add channel → Webhook)
+  - type: webhook
+    name: ops-hooks
+    url: https://hooks.example.com/xrelease
+    method: POST
+    tags: [platform-team]
+    headers:
+      Authorization: Bearer replace-me
+      X-Team: platform
+    secret_env: XRELEASE_OUTBOUND_WEBHOOK_SECRET
+    signature_header: X-Signature-256

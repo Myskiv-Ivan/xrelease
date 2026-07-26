@@ -1,0 +1,295 @@
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing git tag to release (vX.Y.Z)
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+    steps:
+      - name: Resolve tag / version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v*.*.*) ;;
+            *) echo "expected tag like v1.2.3, got: $TAG" >&2; exit 1 ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ver.outputs.tag }}
+
+      - name: Tag matches repo versions
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          python3 scripts/bump-version.py --check
+          CARGO_VERSION="$(grep -m1 '^version' Cargo.toml | sed -E 's/^version = "([^"]+)".*/\1/')"
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "Tag v$VERSION does not match Cargo.toml version $CARGO_VERSION" >&2
+            echo "Run the version-bump workflow on main first." >&2
+            exit 1
+          fi
+
+  binaries:
+    name: binary (${{ matrix.name }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            name: linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            name: linux-arm64
+            cross: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@1.96
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Install cross toolchain (arm64)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build xrelease (backend) + xrctl (CLI)
+        # Whole workspace: the backend keeps its lean default features (release
+        # binaries carry no Kafka/NATS/RabbitMQ), and the same pass produces the
+        # standalone `xrctl` client, which depends on neither the backend lib nor
+        # any server-side crate.
+        run: cargo build --release --locked --workspace --target "${{ matrix.target }}"
+
+      - name: Package archives
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          REL="target/${{ matrix.target }}/release"
+          # Per-target checksum file: both matrix targets used to write the
+          # same `xrelease-${VERSION}-checksums.sha256`, which collide under the
+          # release job's `merge-multiple` download and silently drop a target.
+          CHECKSUMS="checksums-${VERSION}-${{ matrix.name }}.sha256"
+
+          DAEMON="xrelease-${VERSION}-${{ matrix.name }}.tar.gz"
+          tar -C "${REL}" -czf "${DAEMON}" xrelease
+          sha256sum "${DAEMON}" >> "${CHECKSUMS}"
+
+          CLI="xrctl-${VERSION}-${{ matrix.name }}.tar.gz"
+          tar -C "${REL}" -czf "${CLI}" xrctl
+          sha256sum "${CLI}" >> "${CHECKSUMS}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrelease-${{ matrix.name }}
+          path: |
+            xrelease-*.tar.gz
+            xrctl-*.tar.gz
+            checksums-*.sha256
+
+  docker:
+    name: docker (${{ matrix.component }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # keyless cosign signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: .
+            file: ./docker/Dockerfile
+            image_suffix: ""
+            build_args: ""
+          - component: cli
+            context: .
+            file: ./docker/Dockerfile.cli
+            image_suffix: "-cli"
+            build_args: ""
+          - component: ui
+            context: ./front
+            file: ./docker/Dockerfile.ui
+            image_suffix: "-ui"
+            build_args: |
+              VITE_AUTH_MODE=local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.tag }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: sigstore/cosign-installer@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR requires lowercase owner/repo; github.repository may contain capitals
+      # (e.g. Myskiv-Ivan/xrelease). Compose/Helm already pin ghcr.io/myskiv-ivan/…
+      - name: Image repository (lowercase)
+        id: image
+        run: |
+          owner_repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "name=${{ env.REGISTRY }}/${owner_repo}${{ matrix.image_suffix }}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.preflight.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.preflight.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ needs.preflight.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=release-${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.component }}
+
+      - name: Sign image (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  github-release:
+    name: GitHub Release
+    needs: [preflight, binaries, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: xrelease-*
+          merge-multiple: true
+
+      - name: Merge checksums
+        run: |
+          find dist -name 'checksums-*.sha256' -exec cat {} \; | sort -u > dist/checksums.sha256
+          find dist -name 'checksums-*.sha256' -delete
+
+      - name: Release notes body
+        id: notes
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          IMAGE="${REGISTRY}/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "## Docker images"
+            echo
+            echo '```bash'
+            echo "docker pull ${IMAGE}:${VERSION}"
+            echo "docker pull ${IMAGE}-cli:${VERSION}"
+            echo "docker pull ${IMAGE}-ui:${VERSION}"
+            echo '```'
+            echo
+            echo "Images are tagged \`${VERSION}\`, \`$(echo "$VERSION" | cut -d. -f1-2)\`, \`$(echo "$VERSION" | cut -d. -f1)\`, and \`latest\` (cosign-signed + SBOM)."
+            echo
+            echo "\`xrelease-cli\` is the lean \`xrctl\` image for CI/CD (HTTP client only — no Postgres)."
+            echo
+            echo '```bash'
+            echo "docker run --rm \\"
+            echo "  -v \"\$PWD:/work\" -w /work \\"
+            echo "  ${IMAGE}-cli:${VERSION} \\"
+            echo "  xrctl --api-url https://xrelease.example.com \\"
+            echo "  --api-key \"\$XRELEASE_API_KEY\" \\"
+            echo "  apply app/releases.yaml --if-match none --label \"\$CI_COMMIT_SHA\""
+            echo '```'
+            echo
+            echo "Or set the job image to \`${IMAGE}-cli\` and run \`xrctl\` in \`script:\` (no DinD)."
+            echo
+            echo "UI auth mode is runtime (\`VITE_*\` → \`/ui-config.js\`); default \`local\`."
+            echo "OIDC: set \`VITE_AUTH_MODE\` / \`VITE_OIDC_*\` on the UI container and restart — no rebuild."
+            echo
+            echo "Compose (published images — no build):"
+            echo
+            echo '```bash'
+            echo "cp .env.example .env"
+            echo "docker compose up -d"
+            echo '```'
+            echo
+            echo "Helm (chart defaults + secrets overlay):"
+            echo
+            echo '```bash'
+            echo "cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml"
+            echo "# image.tag optional in values.secrets.yaml → Chart.AppVersion (${VERSION})"
+            echo "helm upgrade --install xrelease ./deploy/helm/xrelease \\"
+            echo "  --namespace xrelease --create-namespace \\"
+            echo "  -f deploy/k8s/values.secrets.yaml"
+            echo '```'
+            echo
+            echo "## Binary archives"
+            echo
+            echo "Two archives per platform: \`xrelease\` (the backend) and \`xrctl\` (the management CLI)."
+            echo "The backend binary is lean (no Kafka/NATS/RabbitMQ); container images include broker sinks."
+            echo "\`xrctl\` is a pure HTTP client for a running instance — it needs no database or config file, so it runs from a laptop or CI on its own (binary or \`${IMAGE}-cli\` image)."
+            echo
+            echo '```bash'
+            echo "tar xzf xrelease-*-linux-amd64.tar.gz && ./xrelease --help"
+            echo "tar xzf xrctl-*-linux-amd64.tar.gz && ./xrctl --help"
+            echo '```'
+            echo
+            echo "Verify with \`checksums.sha256\`."
+            echo
+            echo "CI apply guide: docs/operations/ci-cd.md"
+          } > release-body.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.preflight.outputs.tag }}
+          generate_release_notes: true
+          files: dist/*
+          body_path: release-body.md

@@ -1,0 +1,3870 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+ "title": "xrelease API",
+ "description": "Self-hosted release notifier — management API and inbound webhooks.\n\nStarted with `xrelease serve`. Polling continues in the background; webhooks provide low-latency push for GitHub, GitLab, Gitea, Codeberg, Bitbucket, and Docker Hub.\n\nConfiguration is split: `bootstrap.toml` (infra) + `app/releases.yaml` (sources/teams/notifiers). Source kinds (`type` in app config): `github`, `codeberg`, `gitea`, `gitlab`, `bitbucket`, `docker`, `ghcr`, `quay`, `ecr`, `feed`, `pypi`, `npm`, `yarn`, `cargo`, `maven`, `nuget`, `hex`, `rubygems`, `packagist`, `cpan`, `artifacthub`.",
+ "version": "0.1.0",
+ "license": {
+ "name": "Apache-2.0",
+ "url": "https://www.apache.org/licenses/LICENSE-2.0"
+ }
+ },
+ "servers": [
+ {
+ "url": "http://127.0.0.1:8080",
+ "description": "Default local bind (`[api].listen`)"
+ }
+ ],
+ "tags": [
+ {
+ "name": "system",
+ "description": "Health and schema"
+ },
+ {
+ "name": "management",
+ "description": "Operator endpoints (require API key when configured)"
+ },
+ {
+ "name": "observability",
+ "description": "Read-only dashboard data for UI clients"
+ },
+ {
+ "name": "webhooks",
+ "description": "Inbound release events from Git forges and registries"
+ },
+ {
+ "name": "auth",
+ "description": "Local login, OIDC user sync, session introspection"
+ }
+ ],
+ "paths": {
+ "/health": {
+ "get": {
+ "tags": [
+ "system"
+ ],
+ "summary": "Liveness probe (process up)",
+ "operationId": "getHealth",
+ "responses": {
+ "200": {
+ "description": "Process is up",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/HealthResponse"
+ }
+ }
+ }
+ }
+ },
+ "description": "Returns 200 while the process is running. Outbox counters are best-effort when PostgreSQL is reachable; dependency readiness belongs on `/ready`."
+ }
+ },
+ "/ready": {
+ "get": {
+ "tags": [
+ "system"
+ ],
+ "summary": "Readiness probe (PostgreSQL + Apprise reachable)",
+ "operationId": "getReady",
+ "responses": {
+ "200": {
+ "description": "All dependencies ready",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ReadyResponse"
+ }
+ }
+ }
+ },
+ "503": {
+ "description": "Database or Apprise unreachable",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ReadyResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/auth/methods": {
+ "get": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Which login methods are available",
+ "operationId": "getAuthMethods",
+ "responses": {
+ "200": {
+ "description": "Local / OIDC / API key flags",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthMethodsResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/auth/login": {
+ "post": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Local username/password login",
+ "operationId": "postAuthLogin",
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthLoginRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Session JWT",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthLoginResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/auth/oidc/sync": {
+ "post": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Upsert OIDC user and assign role from claims",
+ "operationId": "postAuthOidcSync",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Persisted user profile",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/auth/me": {
+ "get": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Current authenticated principal",
+ "operationId": "getAuthMe",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Principal + optional user",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthMeResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/auth/logout": {
+ "post": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Revoke the caller's live sessions (bumps session_version)",
+ "operationId": "logout",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "revoked (true for a local session, false otherwise)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "type": "object",
+ "properties": {
+ "revoked": {
+ "type": "boolean"
+ }
+ }
+ }
+ }
+ }
+ },
+ "401": {
+ "description": "Missing/invalid or revoked bearer",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/auth/users": {
+ "get": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "List application users (local + OIDC)",
+ "description": "Admin-only directory of persisted identities. OIDC rows appear after the first successful `/auth/oidc/sync`.",
+ "operationId": "listAuthUsers",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "User directory",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthUserListResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "$ref": "#/components/responses/Forbidden"
+ }
+ }
+ },
+ "post": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Create a local username/password user",
+ "description": "Admin-only. Requires local auth to be enabled. OIDC users appear via `/auth/oidc/sync` (auto-links matching local email) or admin `POST …/users/{id}/oidc`.",
+ "operationId": "createAuthUser",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthCreateUserRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Created user",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ }
+ }
+ },
+ "400": {
+ "$ref": "#/components/responses/BadRequest"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "$ref": "#/components/responses/Forbidden"
+ },
+ "409": {
+ "$ref": "#/components/responses/Conflict"
+ }
+ }
+ }
+ },
+ "/api/v1/auth/users/{id}/oidc": {
+ "post": {
+ "tags": [
+ "auth"
+ ],
+ "summary": "Link or unlink an OIDC subject on a local user",
+ "description": "Admin-only. Attaches `oidc_sub` to an existing local (password) user so the same row can sign in via SSO. `auth_source` stays `local`. Pass a blank/null `oidc_sub` to unlink. Auto-link also happens on `/auth/oidc/sync` when emails match.",
+ "operationId": "linkAuthUserOidc",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "integer",
+ "format": "int64"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthLinkOidcRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Updated user",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ }
+ }
+ },
+ "400": {
+ "$ref": "#/components/responses/BadRequest"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "$ref": "#/components/responses/Forbidden"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ },
+ "409": {
+ "$ref": "#/components/responses/Conflict"
+ }
+ }
+ }
+ },
+ "/metrics": {
+ "get": {
+ "tags": [
+ "system"
+ ],
+ "summary": "Prometheus metrics",
+ "operationId": "getMetrics",
+ "responses": {
+ "200": {
+ "description": "Prometheus text exposition format",
+ "content": {
+ "text/plain": {
+ "schema": {
+ "type": "string"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/openapi.json": {
+ "get": {
+ "tags": [
+ "system"
+ ],
+ "summary": "OpenAPI 3 specification (this document)",
+ "operationId": "getOpenApiSpec",
+ "responses": {
+ "200": {
+ "description": "OpenAPI JSON document",
+ "content": {
+ "application/json": {
+ "schema": {
+ "type": "object"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/status": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Process overview for dashboard UI",
+ "operationId": "getStatus",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Uptime, metrics snapshot, outbox depth",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/StatusResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/config": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Effective running config (secrets redacted)",
+ "operationId": "getConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Merged bootstrap + desired state with provenance",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigView"
+ }
+ }
+ },
+ "headers": {
+ "ETag": {
+ "description": "SHA-256 of the running desired document; send back as If-Match on apply",
+ "schema": {
+ "type": "string"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/config/validate": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Dry-run config apply (no persistence)",
+ "operationId": "validateConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/toml": {
+ "schema": {
+ "type": "string"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Validation report",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigValidateResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/config/apply": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Apply desired-state TOML with hot-swap",
+ "description": "Requires `[config_api].api_config = true` and `source = api`. Optional HMAC via `X-Config-Signature: sha256=…` when `XRELEASE_CONFIG_APPLY_SECRET` is set.",
+ "operationId": "applyConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "X-Config-Revision",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Git commit / pipeline label stored in the ledger"
+ },
+ {
+ "name": "X-Config-Signature",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "HMAC-SHA256 of the raw body (`sha256=<hex>`)"
+ },
+ {
+ "name": "If-Match",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Optimistic concurrency: the ETag read from GET /api/v1/config. Omit for an unconditional apply (CI pushing committed state). `*` requires that some config is already applied."
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/toml": {
+ "schema": {
+ "type": "string"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Apply succeeded or was idempotent (same sha)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigApplyResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "description": "Body is not a parseable desired-state document"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Config apply API disabled (`[config_api].api_config = false`)"
+ },
+ "409": {
+ "description": "config_api.source = \"local\": the app file is authoritative, pushes refused"
+ },
+ "412": {
+ "description": "If-Match precondition failed — config changed since it was read"
+ },
+ "422": {
+ "description": "Validation failed — previous config keeps running"
+ }
+ }
+ }
+ },
+ "/api/v1/config/rollback": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Re-apply the previous ledger revision",
+ "operationId": "rollbackConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Rollback applied",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigApplyResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Config apply API disabled"
+ },
+ "409": {
+ "description": "No previous applied revision to roll back to, or the instance is local-file authoritative (source = local)"
+ }
+ }
+ }
+ },
+ "/api/v1/sources": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "List configured sources with live runtime state",
+ "operationId": "listSources",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Config + poll state + per-source metrics",
+ "content": {
+ "application/json": {
+ "schema": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/SourceDetail"
+ }
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ },
+ "parameters": [
+ {
+ "name": "organization",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Limit results to one organization (namespaced ids/tags). Requires Viewer on that org."
+ }
+ ]
+ }
+ },
+ "/api/v1/sources/{id}": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Get one source with runtime state",
+ "operationId": "getSource",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string",
+ "example": "github:tokio-rs/tokio"
+ }
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Source detail",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/SourceDetail"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/outbox": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Pending/failed notification outbox",
+ "operationId": "listOutbox",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "limit",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "integer",
+ "minimum": 1,
+ "maximum": 200,
+ "default": 50
+ }
+ },
+ {
+ "name": "organization",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Limit results to one organization (namespaced ids/tags). Requires Viewer on that org."
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Outbox entries (no message body)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/OutboxListResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/outbox/requeue": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Requeue dead-letter outbox notifications",
+ "description": "Revive rows in `dead` status back to `pending` (same as CLI `xrelease outbox requeue`). Rate-limited with other mutating management routes.",
+ "operationId": "requeueOutbox",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Number of rows revived",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/OutboxRequeueResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "500": {
+ "$ref": "#/components/responses/InternalError"
+ }
+ }
+ }
+ },
+ "/api/v1/teams": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Team routing catalogue with per-team source counts",
+ "operationId": "listTeams",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Configured teams (`[[teams]]`) merged with source counts",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/TeamListResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ },
+ "parameters": [
+ {
+ "name": "organization",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Limit results to one organization (namespaced ids/tags). Requires Viewer on that org."
+ }
+ ]
+ }
+ },
+ "/api/v1/notifiers": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "List configured notification sinks",
+ "description": "Runtime snapshot of delivery channels (Apprise, SMTP, eXpress, webhooks, …) with index, kind, name, and routing tags.",
+ "operationId": "listNotifiers",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Configured sinks",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/NotifierListResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/notifiers/test": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Send a test notification through live sinks",
+ "description": "Force-delivers a synthetic event to one sink (by index) or every configured sink. Bypasses team-tag routing so operators can verify Apprise / SMTP / eXpress / webhook delivery after config changes.",
+ "operationId": "testNotifiers",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "requestBody": {
+ "required": false,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/NotifierTestRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Per-sink delivery results",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/NotifierTestResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ },
+ "500": {
+ "$ref": "#/components/responses/InternalError"
+ }
+ }
+ }
+ },
+ "/api/v1/check": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Trigger a one-shot poll of all sources",
+ "operationId": "triggerCheck",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "requestBody": {
+ "required": false,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/CheckRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Poll completed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/CheckResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "500": {
+ "$ref": "#/components/responses/InternalError"
+ }
+ }
+ }
+ },
+ "/api/v1/check/{id}": {
+ "post": {
+ "tags": [
+ "management"
+ ],
+ "summary": "Trigger a one-shot poll of one configured source",
+ "operationId": "triggerCheckSource",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "description": "Configured source id (e.g. `github:org/repo`)",
+ "schema": {
+ "type": "string"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": false,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/CheckRequest"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Poll completed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/CheckResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ },
+ "500": {
+ "$ref": "#/components/responses/InternalError"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/github": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "GitHub release webhook",
+ "description": "Accepts GitHub `release` events with `action=published`. Maps `repository.full_name` to a configured `type=github` source.",
+ "operationId": "webhookGithub",
+ "parameters": [
+ {
+ "name": "X-Hub-Signature-256",
+ "in": "header",
+ "required": false,
+ "description": "HMAC SHA-256 signature when `[api].webhook_secret` is set",
+ "schema": {
+ "type": "string",
+ "example": "sha256=abc123."
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/GithubWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "$ref": "#/components/responses/BadRequest"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/gitlab": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "GitLab release webhook",
+ "operationId": "webhookGitlab",
+ "parameters": [
+ {
+ "name": "X-Gitlab-Token",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/GitlabWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "$ref": "#/components/responses/BadRequest"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/gitea": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "Gitea / Forgejo release webhook",
+ "description": "GitHub-compatible release payload. Authenticated via `X-Webhook-Secret` or `Authorization: Bearer`.",
+ "operationId": "webhookGitea",
+ "parameters": [
+ {
+ "name": "X-Webhook-Secret",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/GithubWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/bitbucket": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "Bitbucket tag push webhook",
+ "description": "Accepts Bitbucket `repo:push` events with a new tag in `push.changes`. Maps `repository.full_name` to a configured `type=bitbucket` source. Authenticated via `X-Hub-Signature` (HMAC-SHA256 hex) when `[api].webhook_secret` is set.",
+ "operationId": "webhookBitbucket",
+ "parameters": [
+ {
+ "name": "X-Event-Key",
+ "in": "header",
+ "required": false,
+ "description": "Must be `repo:push` for tag events",
+ "schema": {
+ "type": "string",
+ "example": "repo:push"
+ }
+ },
+ {
+ "name": "X-Hub-Signature",
+ "in": "header",
+ "required": false,
+ "description": "HMAC SHA-256 hex digest of the raw body",
+ "schema": {
+ "type": "string"
+ }
+ },
+ {
+ "name": "X-Request-UUID",
+ "in": "header",
+ "required": false,
+ "description": "Idempotency key for duplicate delivery suppression",
+ "schema": {
+ "type": "string"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/BitbucketPushWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "$ref": "#/components/responses/BadRequest"
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/docker": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "Docker Hub registry push webhook",
+ "description": "Docker Hub automated build / push payload (`push_data.tag`, `repository.repo_name`). Matches `docker`, `ghcr`, or `quay` sources by image path.",
+ "operationId": "webhookDocker",
+ "parameters": [
+ {
+ "name": "X-Webhook-Secret",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ }
+ },
+ {
+ "name": "Idempotency-Key",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ }
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/DockerPushWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/webhooks/generic": {
+ "post": {
+ "tags": [
+ "webhooks"
+ ],
+ "summary": "Generic release push webhook",
+ "description": "Custom integrations — specify `source_id` and `tag` explicitly.",
+ "operationId": "webhookGeneric",
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/GenericWebhook"
+ }
+ }
+ }
+ },
+ "responses": {
+ "200": {
+ "description": "Webhook processed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/WebhookResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ },
+ "404": {
+ "$ref": "#/components/responses/NotFound"
+ }
+ }
+ }
+ },
+ "/api/v1/reload": {
+ "post": {
+ "summary": "Re-read the app config file and hot-swap it",
+ "description": "File-mode counterpart of /api/v1/config/apply: takes no body and re-reads the configured app config file (--app / XRELEASE_APP_CONFIG), validates it, and hot-swaps sources, notifiers, and teams. Returns 409 when a config ledger revision is authoritative (use /api/v1/config/apply instead) and 400 when no app config file is configured. Also triggered by SIGHUP.",
+ "operationId": "reloadConfig",
+ "tags": [
+ "config"
+ ],
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Reload evaluated (applied=false when unchanged)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigReloadResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "description": "No app config file configured"
+ },
+ "401": {
+ "description": "Missing or invalid credentials"
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "409": {
+ "description": "Config ledger is authoritative"
+ },
+ "422": {
+ "description": "Config file failed validation"
+ }
+ }
+ }
+ },
+ "/api/v1/config/revisions": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "Config apply/reject audit history (paginated)",
+ "description": "Newest-first page of the config revision ledger. Returns metadata only — revision bodies are deliberately omitted so this endpoint cannot bypass the secret redaction applied by GET /api/v1/config. Includes rejected apply attempts and their errors. `applied_by` is the server-verified principal (`api_key`, `oidc:<sub>`), optionally annotated with a client-supplied X-Config-Applied-By label in parentheses.",
+ "operationId": "getConfigRevisions",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "limit",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "integer",
+ "format": "int64",
+ "default": 50,
+ "maximum": 200
+ },
+ "description": "Page size (clamped to 1.200)"
+ },
+ {
+ "name": "offset",
+ "in": "query",
+ "required": false,
+ "schema": {
+ "type": "integer",
+ "format": "int64",
+ "default": 0
+ },
+ "description": "Rows to skip (newest-first ordering)"
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Revision history page",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigRevisionsResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/config/schema": {
+ "get": {
+ "tags": [
+ "observability"
+ ],
+ "summary": "What the desired-state config accepts (for UI controls)",
+ "description": "Machine-readable option lists so a UI can render selects, a sink picker, a team-tag multi-select and a schedule widget instead of a raw config text box. Deployment/build specific: `sink_kinds[].available` (cargo features), `team_tags` / `preset_names` (running config), and `config_authority` (`[config_api].source`). `readonly_sections` are bootstrap-only and rejected in any pushed document. `template_placeholders` documents the notifier Mustache dialect.",
+ "operationId": "getConfigSchema",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Config schema for editors",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigSchema"
+ }
+ }
+ }
+ },
+ "401": {
+ "$ref": "#/components/responses/Unauthorized"
+ }
+ }
+ }
+ },
+ "/api/v1/organizations": {
+ "get": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "Organization catalogue ([[organizations]] in bootstrap.toml)",
+ "operationId": "listOrganizations",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Catalogue with live per-org source counts",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/OrganizationListResponse"
+ }
+ }
+ }
+ },
+ "401": {
+ "description": "Missing/invalid bearer token",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/organizations/{id}/config": {
+ "get": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "One organization's desired document from its authority (redacted)",
+ "operationId": "getOrganizationConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Organization id ([[organizations]].id)."
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Desired document; ETag header carries content_sha256 for If-Match",
+ "headers": {
+ "ETag": {
+ "schema": {
+ "type": "string"
+ },
+ "description": "Quoted content_sha256 of the raw document."
+ }
+ },
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/OrganizationConfigView"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Unknown organization (or single-document instance)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/organizations/{id}/config/revisions": {
+ "get": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "This organization's ledger stream (metadata only)",
+ "operationId": "listOrganizationRevisions",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Organization id ([[organizations]].id)."
+ },
+ {
+ "name": "limit",
+ "in": "query",
+ "schema": {
+ "type": "integer",
+ "minimum": 1,
+ "maximum": 200
+ }
+ },
+ {
+ "name": "offset",
+ "in": "query",
+ "schema": {
+ "type": "integer",
+ "minimum": 0
+ }
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Page of this org's apply/reject history",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/OrganizationRevisionsResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Unknown organization",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/organizations/{id}/config/validate": {
+ "post": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "Dry-run one organization's candidate document against the composed runtime",
+ "operationId": "validateOrganizationConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Organization id ([[organizations]].id)."
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/yaml": {
+ "schema": {
+ "type": "string"
+ }
+ },
+ "application/toml": {
+ "schema": {
+ "type": "string"
+ }
+ }
+ },
+ "description": "Complete desired-state document for this organization (YAML or TOML)."
+ },
+ "responses": {
+ "200": {
+ "description": "Validation report (valid may be false)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigValidateResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "description": "Document does not parse / carries infra sections",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Unknown organization",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/organizations/{id}/config/apply": {
+ "post": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "Replace one organization's desired document (hot-swap + org ledger stream)",
+ "description": "Requires [config_api].api_config = true and source = \"api\". If-Match compares against this organization's current authority sha (ETag of GET./config).",
+ "operationId": "applyOrganizationConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Organization id ([[organizations]].id)."
+ },
+ {
+ "name": "If-Match",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Optimistic concurrency against this org's current document sha."
+ },
+ {
+ "name": "X-Config-Revision",
+ "in": "header",
+ "required": false,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Audit label (e.g. a git SHA)."
+ }
+ ],
+ "requestBody": {
+ "required": true,
+ "content": {
+ "application/yaml": {
+ "schema": {
+ "type": "string"
+ }
+ },
+ "application/toml": {
+ "schema": {
+ "type": "string"
+ }
+ }
+ },
+ "description": "Complete desired-state document for this organization (YAML or TOML)."
+ },
+ "responses": {
+ "200": {
+ "description": "Applied (or idempotent no-op)",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigApplyResponse"
+ }
+ }
+ }
+ },
+ "400": {
+ "description": "Document does not parse / carries forbidden sections",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Unknown organization, or [config_api].api_config is off",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "409": {
+ "description": "source = \"local\" pins desired state to Git",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "412": {
+ "description": "If-Match precondition failed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "422": {
+ "description": "Document parsed but the composed runtime failed validation",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "/api/v1/organizations/{id}/config/rollback": {
+ "post": {
+ "tags": [
+ "organizations"
+ ],
+ "summary": "Re-apply the previous applied revision of this organization's stream",
+ "operationId": "rollbackOrganizationConfig",
+ "security": [
+ {
+ "bearerAuth": []
+ }
+ ],
+ "parameters": [
+ {
+ "name": "id",
+ "in": "path",
+ "required": true,
+ "schema": {
+ "type": "string"
+ },
+ "description": "Organization id ([[organizations]].id)."
+ }
+ ],
+ "responses": {
+ "200": {
+ "description": "Rolled back",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ConfigApplyResponse"
+ }
+ }
+ }
+ },
+ "403": {
+ "description": "Authenticated but the principal's role is insufficient (RBAC).",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "404": {
+ "description": "Unknown organization, or [config_api].api_config is off",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "409": {
+ "description": "No earlier applied revision in this stream, or source = \"local\"",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "components": {
+ "securitySchemes": {
+ "bearerAuth": {
+ "type": "http",
+ "scheme": "bearer",
+ "description": "Static API key (`[api].api_key` / `XRELEASE_API_KEY`) or OIDC access token JWT (`[api.oidc]` / `XRELEASE_OIDC_ISSUER`). Required when either auth method is configured."
+ }
+ },
+ "responses": {
+ "Unauthorized": {
+ "description": "Authentication failed",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "BadRequest": {
+ "description": "Invalid payload",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "Forbidden": {
+ "description": "Authenticated but insufficient role",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "Conflict": {
+ "description": "Request conflicts with current state",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "NotFound": {
+ "description": "No matching configured source",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ },
+ "InternalError": {
+ "description": "Internal error",
+ "content": {
+ "application/json": {
+ "schema": {
+ "$ref": "#/components/schemas/ErrorResponse"
+ }
+ }
+ }
+ }
+ },
+ "schemas": {
+ "HealthResponse": {
+ "type": "object",
+ "required": [
+ "status",
+ "sources",
+ "outbox_pending",
+ "outbox_dead"
+ ],
+ "properties": {
+ "status": {
+ "type": "string",
+ "enum": [
+ "ok",
+ "error"
+ ]
+ },
+ "sources": {
+ "type": "integer",
+ "minimum": 0
+ },
+ "outbox_pending": {
+ "type": "integer",
+ "minimum": 0
+ },
+ "outbox_dead": {
+ "type": "integer",
+ "minimum": 0
+ },
+ "uptime_secs": {
+ "type": "integer",
+ "format": "int64",
+ "description": "Seconds since process start"
+ }
+ }
+ },
+ "ReadyResponse": {
+ "type": "object",
+ "properties": {
+ "status": {
+ "type": "string",
+ "enum": [
+ "ready",
+ "not_ready"
+ ]
+ },
+ "database_ok": {
+ "type": "boolean"
+ },
+ "notifiers_ok": {
+ "type": "boolean",
+ "description": "Configured sinks report healthy. Apprise uses a live HTTP probe; other sinks (SMTP, webhook, brokers) are presence-based so transient blips do not flap readiness — delivery failures appear in the outbox metrics."
+ },
+ "outbox_pending": {
+ "type": "integer",
+ "minimum": 0
+ },
+ "outbox_dead": {
+ "type": "integer",
+ "minimum": 0
+ }
+ },
+ "required": [
+ "status",
+ "database_ok",
+ "notifiers_ok",
+ "outbox_pending",
+ "outbox_dead"
+ ]
+ },
+ "ErrorResponse": {
+ "type": "object",
+ "properties": {
+ "error": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "error"
+ ]
+ },
+ "SourceSummary": {
+ "type": "object",
+ "properties": {
+ "id": {
+ "type": "string",
+ "example": "github:tokio-rs/tokio"
+ },
+ "kind": {
+ "type": "string",
+ "example": "github",
+ "description": "Provider kind: github, codeberg, gitea, gitlab, bitbucket, docker, ghcr, quay, ecr, feed, pypi, npm, yarn, cargo, maven, nuget, hex, rubygems, packagist, cpan, artifacthub"
+ },
+ "kind_label": {
+ "type": "string"
+ },
+ "display_name": {
+ "type": "string"
+ },
+ "interval_secs": {
+ "type": "integer"
+ },
+ "jitter_secs": {
+ "type": "integer"
+ },
+ "routing_tag": {
+ "type": "string",
+ "nullable": true,
+ "description": "Team routing tag (matches notifier tags / [[teams]].tag)."
+ },
+ "notify_schedule": {
+ "type": "string",
+ "nullable": true,
+ "description": "Cron expression (UTC) gating notification delivery; null = deliver immediately",
+ "example": "0 9 * * MON-FRI"
+ },
+ "organization_id": {
+ "type": "string",
+ "nullable": true,
+ "description": "Owning organization id when multi-org; null in legacy single-document mode."
+ }
+ },
+ "required": [
+ "id",
+ "kind",
+ "kind_label",
+ "display_name",
+ "interval_secs",
+ "jitter_secs",
+ "routing_tag",
+ "notify_schedule"
+ ]
+ },
+ "SourceMetricsView": {
+ "type": "object",
+ "properties": {
+ "polls": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "polls_not_modified": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "poll_errors": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "notifications": {
+ "type": "integer",
+ "format": "int64"
+ }
+ },
+ "required": [
+ "polls",
+ "polls_not_modified",
+ "poll_errors",
+ "notifications"
+ ]
+ },
+ "SeenReleaseView": {
+ "type": "object",
+ "properties": {
+ "tag": {
+ "type": "string"
+ },
+ "published_at": {
+ "type": "string",
+ "nullable": true
+ },
+ "url": {
+ "type": "string",
+ "nullable": true,
+ "description": "Canonical upstream release page (stored at sync time or derived from provider template)"
+ },
+ "first_seen_at": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "tag",
+ "first_seen_at"
+ ]
+ },
+ "SourceDetail": {
+ "allOf": [
+ {
+ "$ref": "#/components/schemas/SourceSummary"
+ },
+ {
+ "type": "object",
+ "properties": {
+ "initialized": {
+ "type": "boolean"
+ },
+ "last_polled_at": {
+ "type": "string",
+ "nullable": true
+ },
+ "seen_count": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "latest_release_tag": {
+ "type": "string",
+ "nullable": true
+ },
+ "source_page_url": {
+ "type": "string",
+ "nullable": true,
+ "description": "Upstream catalog page (repo, package index, feed URL)"
+ },
+ "seen_releases": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/SeenReleaseView"
+ }
+ },
+ "polls": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "polls_not_modified": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "poll_errors": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "notifications": {
+ "type": "integer",
+ "format": "int64"
+ }
+ },
+ "required": [
+ "initialized",
+ "last_polled_at",
+ "seen_count",
+ "latest_release_tag",
+ "seen_releases",
+ "polls",
+ "polls_not_modified",
+ "poll_errors",
+ "notifications"
+ ]
+ }
+ ]
+ },
+ "MetricsSnapshot": {
+ "type": "object",
+ "properties": {
+ "polls_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "polls_not_modified": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "poll_errors": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "notifications_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "webhooks_accepted": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "webhooks_ignored": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "webhooks_duplicates": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "webhooks_errors": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "config_apply_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "config_apply_rejected_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "notify_breaker_skips": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "outbox_enqueued_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "outbox_delivery_failures_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "outbox_dead_lettered_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "outbox_requeued_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "http_rate_limited_total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "prune_deleted_total": {
+ "type": "integer",
+ "format": "int64"
+ }
+ },
+ "required": [
+ "polls_total",
+ "polls_not_modified",
+ "poll_errors",
+ "notifications_total",
+ "webhooks_accepted",
+ "webhooks_ignored",
+ "webhooks_duplicates",
+ "webhooks_errors",
+ "config_apply_total",
+ "config_apply_rejected_total",
+ "notify_breaker_skips",
+ "outbox_enqueued_total",
+ "outbox_delivery_failures_total",
+ "outbox_dead_lettered_total",
+ "outbox_requeued_total",
+ "http_rate_limited_total",
+ "prune_deleted_total"
+ ]
+ },
+ "StatusResponse": {
+ "type": "object",
+ "properties": {
+ "version": {
+ "type": "string"
+ },
+ "uptime_secs": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "database_ok": {
+ "type": "boolean"
+ },
+ "sources_configured": {
+ "type": "integer"
+ },
+ "outbox_pending": {
+ "type": "integer"
+ },
+ "outbox_dead": {
+ "type": "integer"
+ },
+ "metrics": {
+ "$ref": "#/components/schemas/MetricsSnapshot"
+ },
+ "config_apply": {
+ "$ref": "#/components/schemas/ConfigApplyStatus"
+ },
+ "outbox_deferred": {
+ "type": "integer",
+ "description": "Pending/failed rows held until deliver_after (notify_schedule)."
+ },
+ "breakers": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/BreakerOpenView"
+ }
+ }
+ },
+ "required": [
+ "version",
+ "uptime_secs",
+ "database_ok",
+ "sources_configured",
+ "outbox_pending",
+ "outbox_dead",
+ "metrics",
+ "config_apply",
+ "outbox_deferred",
+ "breakers"
+ ]
+ },
+ "ConfigApplyStatus": {
+ "type": "object",
+ "properties": {
+ "api_config_enabled": {
+ "type": "boolean",
+ "description": "Whether POST apply/rollback routes are mounted ([config_api].api_config)."
+ },
+ "ui_config_enabled": {
+ "type": "boolean",
+ "description": "Whether the dashboard form editor is on (ui_config + api_config + source=api)."
+ },
+ "config_source": {
+ "type": "string",
+ "enum": [
+ "local",
+ "api"
+ ],
+ "description": "Declared desired-state authority ([config_api].source)."
+ },
+ "hmac_configured": {
+ "type": "boolean"
+ },
+ "desired_source": {
+ "type": "string",
+ "enum": [
+ "ledger",
+ "app_file",
+ "empty"
+ ]
+ },
+ "bootstrap_path": {
+ "type": "string"
+ },
+ "revision": {
+ "type": "integer",
+ "format": "int64",
+ "nullable": true
+ },
+ "content_sha256": {
+ "type": "string",
+ "nullable": true
+ },
+ "revision_label": {
+ "type": "string",
+ "nullable": true
+ },
+ "applied_at": {
+ "type": "string",
+ "format": "date-time",
+ "nullable": true
+ },
+ "last_rejected_revision": {
+ "type": "integer",
+ "format": "int64",
+ "nullable": true
+ },
+ "last_rejected_error": {
+ "type": "string",
+ "nullable": true
+ }
+ },
+ "required": [
+ "api_config_enabled",
+ "ui_config_enabled",
+ "config_source",
+ "hmac_configured",
+ "desired_source",
+ "bootstrap_path"
+ ]
+ },
+ "ConfigView": {
+ "type": "object",
+ "properties": {
+ "content": {
+ "type": "string",
+ "description": "Redacted effective TOML (bootstrap + desired)"
+ },
+ "desired_content": {
+ "type": "string",
+ "nullable": true,
+ "description": "Redacted desired-state document only"
+ },
+ "desired_source": {
+ "type": "string",
+ "enum": [
+ "ledger",
+ "app_file",
+ "empty"
+ ]
+ },
+ "content_sha256": {
+ "type": "string",
+ "nullable": true
+ },
+ "revision": {
+ "type": "integer",
+ "format": "int64",
+ "nullable": true
+ },
+ "revision_label": {
+ "type": "string",
+ "nullable": true
+ },
+ "applied_at": {
+ "type": "string",
+ "nullable": true
+ },
+ "bootstrap_path": {
+ "type": "string"
+ },
+ "api_config_enabled": {
+ "type": "boolean",
+ "description": "Whether POST apply/rollback routes are mounted ([config_api].api_config)."
+ },
+ "bootstrap_sections": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "ui_config_enabled": {
+ "type": "boolean",
+ "description": "Whether the dashboard should offer a config editor ([config_api].ui_config, which also requires api_config and source=api)."
+ },
+ "config_source": {
+ "type": "string",
+ "enum": [
+ "local",
+ "api"
+ ],
+ "description": "Declared authority for desired state ([config_api].source). `local` refuses pushed config with 409."
+ }
+ },
+ "required": [
+ "content",
+ "desired_source",
+ "bootstrap_path",
+ "api_config_enabled",
+ "bootstrap_sections"
+ ]
+ },
+ "ConfigValidateResponse": {
+ "type": "object",
+ "properties": {
+ "valid": {
+ "type": "boolean"
+ },
+ "content_sha256": {
+ "type": "string"
+ },
+ "report": {
+ "type": "object"
+ }
+ },
+ "required": [
+ "valid",
+ "content_sha256",
+ "report"
+ ]
+ },
+ "ConfigApplyResponse": {
+ "type": "object",
+ "properties": {
+ "applied": {
+ "type": "boolean"
+ },
+ "content_sha256": {
+ "type": "string"
+ },
+ "revision": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "sources_added": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "sources_removed": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "sources_changed": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "warnings": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ }
+ },
+ "required": [
+ "applied",
+ "content_sha256",
+ "revision"
+ ]
+ },
+ "OutboxEntry": {
+ "type": "object",
+ "properties": {
+ "id": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "source_id": {
+ "type": "string"
+ },
+ "identity": {
+ "type": "string"
+ },
+ "status": {
+ "type": "string",
+ "enum": [
+ "pending",
+ "failed",
+ "dead"
+ ]
+ },
+ "attempts": {
+ "type": "integer"
+ },
+ "last_error": {
+ "type": "string",
+ "nullable": true
+ },
+ "created_at": {
+ "type": "string"
+ },
+ "title": {
+ "type": "string"
+ },
+ "url": {
+ "type": "string",
+ "nullable": true
+ },
+ "routing_tag": {
+ "type": "string",
+ "nullable": true,
+ "description": "Team routing tag carried on the event."
+ },
+ "deliver_after": {
+ "type": "string",
+ "format": "date-time",
+ "nullable": true,
+ "description": "Delivery is held until this moment (notify_schedule); null = deliver as soon as possible"
+ },
+ "organization_id": {
+ "type": "string",
+ "nullable": true,
+ "description": "Derived from namespaced source_id (org::…)."
+ }
+ },
+ "required": [
+ "id",
+ "source_id",
+ "identity",
+ "status",
+ "attempts",
+ "last_error",
+ "created_at",
+ "title",
+ "url",
+ "routing_tag",
+ "deliver_after"
+ ]
+ },
+ "OutboxListResponse": {
+ "type": "object",
+ "properties": {
+ "entries": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/OutboxEntry"
+ }
+ }
+ },
+ "required": [
+ "entries"
+ ]
+ },
+ "OutboxRequeueResponse": {
+ "type": "object",
+ "properties": {
+ "requeued": {
+ "type": "integer",
+ "minimum": 0,
+ "description": "Number of dead outbox rows reset to pending"
+ }
+ },
+ "required": [
+ "requeued"
+ ]
+ },
+ "TeamView": {
+ "type": "object",
+ "required": [
+ "tag",
+ "source_count"
+ ],
+ "properties": {
+ "tag": {
+ "type": "string",
+ "description": "Routing tag shared by sources (`routing_tag`) and notifiers (`tags`)"
+ },
+ "name": {
+ "type": "string",
+ "nullable": true,
+ "description": "Human-readable label from [[teams]].name"
+ },
+ "source_count": {
+ "type": "integer",
+ "description": "Number of configured sources routing to this tag"
+ }
+ }
+ },
+ "TeamListResponse": {
+ "type": "object",
+ "properties": {
+ "teams": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/TeamView"
+ }
+ }
+ },
+ "required": [
+ "teams"
+ ]
+ },
+ "CheckRequest": {
+ "type": "object",
+ "properties": {
+ "dry_run": {
+ "type": "boolean",
+ "default": false,
+ "description": "Fetch only — do not persist or notify"
+ }
+ }
+ },
+ "CheckResponse": {
+ "type": "object",
+ "properties": {
+ "notifications_sent": {
+ "type": "integer"
+ },
+ "sources_checked": {
+ "type": "integer"
+ }
+ },
+ "required": [
+ "notifications_sent",
+ "sources_checked"
+ ]
+ },
+ "NotifierView": {
+ "type": "object",
+ "properties": {
+ "index": {
+ "type": "integer",
+ "minimum": 0,
+ "description": "Stable index into the running CompositeNotifier"
+ },
+ "kind": {
+ "type": "string",
+ "description": "Backend kind (`apprise`, `smtp`, `express`, `webhook`, …)"
+ },
+ "name": {
+ "type": "string",
+ "description": "Config `name` when set, otherwise the kind"
+ },
+ "tags": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ },
+ "description": "Routing tags (empty = wildcard / all events)"
+ }
+ },
+ "required": [
+ "index",
+ "kind",
+ "name",
+ "tags"
+ ]
+ },
+ "NotifierListResponse": {
+ "type": "object",
+ "properties": {
+ "notifiers": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/NotifierView"
+ }
+ }
+ },
+ "required": [
+ "notifiers"
+ ]
+ },
+ "NotifierTestRequest": {
+ "type": "object",
+ "properties": {
+ "index": {
+ "type": "integer",
+ "minimum": 0,
+ "nullable": true,
+ "description": "When set, only this sink is probed; omit to test every sink"
+ },
+ "title": {
+ "type": "string",
+ "nullable": true,
+ "description": "Optional override for the synthetic event title"
+ },
+ "body": {
+ "type": "string",
+ "nullable": true,
+ "description": "Optional override for the synthetic event body"
+ }
+ }
+ },
+ "NotifierTestResult": {
+ "type": "object",
+ "properties": {
+ "index": {
+ "type": "integer",
+ "minimum": 0
+ },
+ "kind": {
+ "type": "string"
+ },
+ "name": {
+ "type": "string"
+ },
+ "ok": {
+ "type": "boolean"
+ },
+ "error": {
+ "type": "string",
+ "nullable": true,
+ "description": "Present when `ok` is false"
+ }
+ },
+ "required": [
+ "index",
+ "kind",
+ "name",
+ "ok"
+ ]
+ },
+ "NotifierTestResponse": {
+ "type": "object",
+ "properties": {
+ "results": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/NotifierTestResult"
+ }
+ }
+ },
+ "required": [
+ "results"
+ ]
+ },
+ "WebhookResponse": {
+ "type": "object",
+ "properties": {
+ "accepted": {
+ "type": "boolean"
+ },
+ "source_id": {
+ "type": "string",
+ "nullable": true
+ },
+ "tag": {
+ "type": "string",
+ "nullable": true
+ },
+ "notifications_sent": {
+ "type": "integer"
+ },
+ "message": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "accepted",
+ "source_id",
+ "tag",
+ "notifications_sent",
+ "message"
+ ]
+ },
+ "GithubWebhook": {
+ "type": "object",
+ "properties": {
+ "action": {
+ "type": "string",
+ "example": "published"
+ },
+ "release": {
+ "$ref": "#/components/schemas/GithubRelease"
+ },
+ "repository": {
+ "type": "object",
+ "properties": {
+ "full_name": {
+ "type": "string",
+ "example": "owner/repo"
+ }
+ }
+ }
+ }
+ },
+ "GithubRelease": {
+ "type": "object",
+ "properties": {
+ "tag_name": {
+ "type": "string"
+ },
+ "html_url": {
+ "type": "string",
+ "format": "uri"
+ },
+ "body": {
+ "type": "string"
+ },
+ "prerelease": {
+ "type": "boolean"
+ },
+ "draft": {
+ "type": "boolean"
+ },
+ "published_at": {
+ "type": "string",
+ "format": "date-time"
+ }
+ }
+ },
+ "GitlabWebhook": {
+ "type": "object",
+ "properties": {
+ "object_kind": {
+ "type": "string",
+ "example": "release"
+ },
+ "tag": {
+ "type": "string"
+ },
+ "name": {
+ "type": "string"
+ },
+ "description": {
+ "type": "string"
+ },
+ "url": {
+ "type": "string",
+ "format": "uri"
+ },
+ "released_at": {
+ "type": "string",
+ "format": "date-time"
+ },
+ "project": {
+ "type": "object",
+ "properties": {
+ "path_with_namespace": {
+ "type": "string"
+ },
+ "name": {
+ "type": "string"
+ }
+ }
+ }
+ }
+ },
+ "DockerPushWebhook": {
+ "type": "object",
+ "properties": {
+ "push_data": {
+ "type": "object",
+ "properties": {
+ "tag": {
+ "type": "string",
+ "example": "1.2.3"
+ }
+ }
+ },
+ "repository": {
+ "type": "object",
+ "properties": {
+ "repo_name": {
+ "type": "string",
+ "example": "library/nginx"
+ },
+ "name": {
+ "type": "string"
+ }
+ }
+ }
+ }
+ },
+ "BitbucketPushWebhook": {
+ "type": "object",
+ "properties": {
+ "push": {
+ "type": "object",
+ "properties": {
+ "changes": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "new": {
+ "type": "object",
+ "properties": {
+ "type": {
+ "type": "string",
+ "example": "tag"
+ },
+ "name": {
+ "type": "string",
+ "example": "1.2.3"
+ },
+ "target": {
+ "type": "object",
+ "properties": {
+ "links": {
+ "type": "object",
+ "properties": {
+ "html": {
+ "type": "object",
+ "properties": {
+ "href": {
+ "type": "string",
+ "format": "uri"
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ }
+ },
+ "repository": {
+ "type": "object",
+ "properties": {
+ "full_name": {
+ "type": "string",
+ "example": "workspace/repo"
+ }
+ }
+ }
+ }
+ },
+ "GenericWebhook": {
+ "type": "object",
+ "required": [
+ "source_id",
+ "tag"
+ ],
+ "properties": {
+ "source_id": {
+ "type": "string",
+ "example": "pypi:requests"
+ },
+ "tag": {
+ "type": "string",
+ "example": "2.32.0"
+ },
+ "url": {
+ "type": "string",
+ "format": "uri"
+ },
+ "body": {
+ "type": "string"
+ },
+ "prerelease": {
+ "type": "boolean",
+ "default": false
+ }
+ }
+ },
+ "ConfigReloadResponse": {
+ "type": "object",
+ "properties": {
+ "applied": {
+ "type": "boolean"
+ },
+ "content_sha256": {
+ "type": "string"
+ },
+ "source_path": {
+ "type": "string"
+ },
+ "sources_added": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "sources_removed": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "sources_changed": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "warnings": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ }
+ },
+ "required": [
+ "applied",
+ "content_sha256",
+ "source_path"
+ ]
+ },
+ "ConfigRevisionSummary": {
+ "type": "object",
+ "description": "One ledger row without its config body.",
+ "properties": {
+ "id": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "content_sha256": {
+ "type": "string"
+ },
+ "revision_label": {
+ "type": "string",
+ "nullable": true
+ },
+ "applied_at": {
+ "type": "string",
+ "format": "date-time"
+ },
+ "applied_by": {
+ "type": "string",
+ "nullable": true,
+ "description": "Server-verified principal, e.g. `api_key` or `oidc:<sub>`"
+ },
+ "source_addr": {
+ "type": "string",
+ "nullable": true
+ },
+ "status": {
+ "type": "string",
+ "enum": [
+ "applied",
+ "rejected"
+ ]
+ },
+ "error": {
+ "type": "string",
+ "nullable": true
+ },
+ "organization_id": {
+ "type": "string",
+ "nullable": true,
+ "description": "Ledger stream: absent/null = legacy single-document stream, else the [[organizations]] id."
+ }
+ },
+ "required": [
+ "id",
+ "content_sha256",
+ "applied_at",
+ "status"
+ ]
+ },
+ "ConfigRevisionsResponse": {
+ "type": "object",
+ "properties": {
+ "revisions": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/ConfigRevisionSummary"
+ }
+ },
+ "total": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "limit": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "offset": {
+ "type": "integer",
+ "format": "int64"
+ }
+ },
+ "required": [
+ "revisions",
+ "total",
+ "limit",
+ "offset"
+ ]
+ },
+ "ConfigSchema": {
+ "type": "object",
+ "properties": {
+ "source_kinds": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "value": {
+ "type": "string"
+ },
+ "label": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "value",
+ "label"
+ ]
+ }
+ },
+ "sink_kinds": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "value": {
+ "type": "string"
+ },
+ "label": {
+ "type": "string"
+ },
+ "available": {
+ "type": "boolean",
+ "description": "False when the sink needs a cargo feature this build lacks"
+ },
+ "requires_feature": {
+ "type": "string",
+ "nullable": true
+ }
+ },
+ "required": [
+ "value",
+ "label",
+ "available"
+ ]
+ }
+ },
+ "smtp_tls_modes": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "value": {
+ "type": "string"
+ },
+ "label": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "value",
+ "label"
+ ]
+ }
+ },
+ "webhook_methods": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "value": {
+ "type": "string"
+ },
+ "label": {
+ "type": "string"
+ }
+ },
+ "required": [
+ "value",
+ "label"
+ ]
+ }
+ },
+ "team_tags": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "preset_names": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ },
+ "description": "Effective preset names (built-ins + user `presets`)"
+ },
+ "builtin_presets": {
+ "type": "array",
+ "items": {
+ "type": "object",
+ "properties": {
+ "name": {
+ "type": "string"
+ },
+ "description": {
+ "type": "string"
+ },
+ "include_prerelease": {
+ "type": "boolean",
+ "nullable": true
+ },
+ "prerelease_tags": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ },
+ "nullable": true
+ },
+ "exclude_updated": {
+ "type": "boolean",
+ "nullable": true
+ },
+ "pattern": {
+ "type": "string",
+ "nullable": true
+ },
+ "exclude_pattern": {
+ "type": "string",
+ "nullable": true
+ }
+ },
+ "required": [
+ "name",
+ "description"
+ ]
+ },
+ "description": "Built-in source presets with filter fields (SSOT for UI templates)"
+ },
+ "source_common_fields": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ },
+ "description": "Shared fields accepted on every source (and inside `presets`)"
+ },
+ "template_placeholders": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ },
+ "description": "Mustache-style `{{name}}` placeholders for notifier body/subject/key templates"
+ },
+ "notify_schedule": {
+ "type": "object"
+ },
+ "limits": {
+ "type": "object"
+ },
+ "readonly_sections": {
+ "type": "array",
+ "items": {
+ "type": "string"
+ }
+ },
+ "config_authority": {
+ "type": "object",
+ "description": "Which store owns desired state (`[config_api].source`) and whether pushes are accepted",
+ "properties": {
+ "source": {
+ "type": "string",
+ "enum": [
+ "local",
+ "api"
+ ]
+ },
+ "routes_enabled": {
+ "type": "boolean"
+ },
+ "accepts_pushed_config": {
+ "type": "boolean"
+ }
+ },
+ "required": [
+ "source",
+ "routes_enabled",
+ "accepts_pushed_config"
+ ]
+ }
+ },
+ "required": [
+ "source_kinds",
+ "sink_kinds",
+ "team_tags",
+ "readonly_sections",
+ "preset_names",
+ "builtin_presets",
+ "source_common_fields",
+ "template_placeholders",
+ "config_authority"
+ ]
+ },
+ "OrganizationView": {
+ "type": "object",
+ "required": [
+ "id",
+ "name",
+ "source_count"
+ ],
+ "properties": {
+ "id": {
+ "type": "string",
+ "description": "Catalogue slug ([[organizations]].id)."
+ },
+ "name": {
+ "type": "string",
+ "description": "Display name (falls back to id)."
+ },
+ "source_count": {
+ "type": "integer",
+ "description": "Watches currently running for this organization."
+ }
+ }
+ },
+ "OrganizationListResponse": {
+ "type": "object",
+ "required": [
+ "organizations",
+ "config_source",
+ "api_config_enabled"
+ ],
+ "properties": {
+ "organizations": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/OrganizationView"
+ }
+ },
+ "config_source": {
+ "type": "string",
+ "enum": [
+ "local",
+ "api"
+ ],
+ "description": "Desired-state authority declared in [config_api]."
+ },
+ "api_config_enabled": {
+ "type": "boolean"
+ },
+ "ui_config_enabled": {
+ "type": "boolean",
+ "description": "Whether the dashboard form editor is on (ui_config + api_config + source=api)."
+ }
+ }
+ },
+ "OrganizationConfigView": {
+ "type": "object",
+ "required": [
+ "organization",
+ "name",
+ "desired_source",
+ "content_sha256"
+ ],
+ "properties": {
+ "organization": {
+ "type": "string"
+ },
+ "name": {
+ "type": "string"
+ },
+ "desired_source": {
+ "type": "string",
+ "enum": [
+ "ledger",
+ "app_file",
+ "empty"
+ ],
+ "description": "Authority the document was read from."
+ },
+ "content_sha256": {
+ "type": "string",
+ "description": "SHA-256 of the raw desired document; also sent as the ETag header for If-Match."
+ },
+ "desired_content": {
+ "type": "string",
+ "nullable": true,
+ "description": "Redacted desired document."
+ },
+ "app_path": {
+ "type": "string",
+ "nullable": true,
+ "description": "[[organizations]].app path (seed / GitOps authority). Null when omitted for API/UI-authored orgs."
+ },
+ "config_source": {
+ "type": "string",
+ "enum": [
+ "local",
+ "api"
+ ]
+ },
+ "accepts_pushed_config": {
+ "type": "boolean"
+ },
+ "api_config_enabled": {
+ "type": "boolean",
+ "description": "Whether POST apply/rollback routes are mounted ([config_api].api_config)."
+ },
+ "ui_config_enabled": {
+ "type": "boolean",
+ "description": "Whether the dashboard should offer the form editor ([config_api].ui_config)."
+ }
+ }
+ },
+ "OrganizationRevisionsResponse": {
+ "type": "object",
+ "required": [
+ "organization",
+ "revisions",
+ "total",
+ "limit",
+ "offset"
+ ],
+ "properties": {
+ "organization": {
+ "type": "string"
+ },
+ "revisions": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/ConfigRevisionSummary"
+ }
+ },
+ "total": {
+ "type": "integer"
+ },
+ "limit": {
+ "type": "integer"
+ },
+ "offset": {
+ "type": "integer"
+ }
+ }
+ },
+ "AppRole": {
+ "type": "string",
+ "enum": [
+ "admin",
+ "operator",
+ "viewer"
+ ]
+ },
+ "AuthLoginRequest": {
+ "type": "object",
+ "required": [
+ "username",
+ "password"
+ ],
+ "properties": {
+ "username": {
+ "type": "string"
+ },
+ "password": {
+ "type": "string",
+ "format": "password"
+ }
+ }
+ },
+ "AuthUserView": {
+ "type": "object",
+ "required": [
+ "id",
+ "role",
+ "auth_source",
+ "created_at"
+ ],
+ "properties": {
+ "id": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "username": {
+ "type": "string",
+ "nullable": true
+ },
+ "email": {
+ "type": "string",
+ "nullable": true
+ },
+ "display_name": {
+ "type": "string",
+ "nullable": true
+ },
+ "role": {
+ "$ref": "#/components/schemas/AppRole"
+ },
+ "auth_source": {
+ "type": "string",
+ "description": "`local` (password) or `oidc` (created/synced from IdP).",
+ "enum": [
+ "local",
+ "oidc"
+ ]
+ },
+ "oidc_sub": {
+ "type": "string",
+ "nullable": true,
+ "description": "OIDC subject (`sub`) when the user is linked to an IdP identity. Omitted when unset."
+ },
+ "created_at": {
+ "type": "string",
+ "format": "date-time"
+ },
+ "last_login_at": {
+ "type": "string",
+ "format": "date-time",
+ "nullable": true,
+ "description": "Last successful login. Omitted when the user has never signed in."
+ },
+ "organization_roles": {
+ "type": "object",
+ "description": "Per-organization role grants from OIDC scoped aliases (e.g. xrelease-admin:platform). Omitted when empty.",
+ "additionalProperties": {
+ "$ref": "#/components/schemas/AppRole"
+ }
+ }
+ }
+ },
+ "AuthUserListResponse": {
+ "type": "object",
+ "required": [
+ "users"
+ ],
+ "properties": {
+ "users": {
+ "type": "array",
+ "items": {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ }
+ }
+ },
+ "AuthCreateUserRequest": {
+ "type": "object",
+ "required": [
+ "username",
+ "password",
+ "role"
+ ],
+ "properties": {
+ "username": {
+ "type": "string",
+ "minLength": 1,
+ "maxLength": 64
+ },
+ "password": {
+ "type": "string",
+ "format": "password",
+ "minLength": 8
+ },
+ "role": {
+ "$ref": "#/components/schemas/AppRole"
+ },
+ "email": {
+ "type": "string",
+ "nullable": true
+ },
+ "display_name": {
+ "type": "string",
+ "nullable": true
+ }
+ }
+ },
+ "AuthLinkOidcRequest": {
+ "type": "object",
+ "properties": {
+ "oidc_sub": {
+ "type": "string",
+ "nullable": true,
+ "description": "IdP subject to attach. Null or blank unlinks SSO from the local user."
+ }
+ }
+ },
+ "AuthLoginResponse": {
+ "type": "object",
+ "required": [
+ "access_token",
+ "token_type",
+ "expires_in",
+ "role",
+ "user"
+ ],
+ "properties": {
+ "access_token": {
+ "type": "string"
+ },
+ "token_type": {
+ "type": "string"
+ },
+ "expires_in": {
+ "type": "integer",
+ "format": "int64"
+ },
+ "role": {
+ "$ref": "#/components/schemas/AppRole"
+ },
+ "user": {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ }
+ },
+ "AuthMethodsResponse": {
+ "type": "object",
+ "required": [
+ "local",
+ "oidc",
+ "api_key"
+ ],
+ "properties": {
+ "local": {
+ "type": "boolean"
+ },
+ "oidc": {
+ "type": "boolean"
+ },
+ "api_key": {
+ "type": "boolean"
+ }
+ }
+ },
+ "AuthMeResponse": {
+ "type": "object",
+ "required": [
+ "method",
+ "organization_roles"
+ ],
+ "properties": {
+ "method": {
+ "type": "string"
+ },
+ "role": {
+ "allOf": [
+ {
+ "$ref": "#/components/schemas/AppRole"
+ }
+ ],
+ "nullable": true,
+ "description": "Instance-wide role. Api-key principals are always admin."
+ },
+ "organization_roles": {
+ "type": "object",
+ "description": "Per-organization grants from OIDC scoped aliases (admin:platform). Empty for local and api-key.",
+ "additionalProperties": {
+ "$ref": "#/components/schemas/AppRole"
+ }
+ },
+ "user": {
+ "allOf": [
+ {
+ "$ref": "#/components/schemas/AuthUserView"
+ }
+ ],
+ "nullable": true
+ }
+ }
+ },
+ "BreakerOpenView": {
+ "type": "object",
+ "properties": {
+ "kind": {
+ "type": "string",
+ "description": "Backend kind (apprise, webhook, …)"
+ },
+ "label": {
+ "type": "string",
+ "description": "Operator-facing sink label"
+ },
+ "open": {
+ "type": "boolean",
+ "description": "True when the breaker is rejecting calls"
+ }
+ },
+ "required": [
+ "kind",
+ "label",
+ "open"
+ ]
+ }
+ }
+ }
+}

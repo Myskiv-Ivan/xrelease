@@ -1,0 +1,161 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Polls / min",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(xrelease_polls_total[5m]) * 60",
+          "legendFormat": "polls",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(xrelease_polls_errors_total[5m]) * 60",
+          "legendFormat": "errors",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(xrelease_polls_not_modified_total[5m]) * 60",
+          "legendFormat": "304",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Notifications / min",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(xrelease_notifications_total[5m]) * 60",
+          "legendFormat": "delivered",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Outbox depth",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "xrelease_outbox_pending",
+          "legendFormat": "pending",
+          "refId": "A"
+        },
+        {
+          "expr": "xrelease_outbox_failed",
+          "legendFormat": "failed",
+          "refId": "B"
+        },
+        {
+          "expr": "xrelease_outbox_dead",
+          "legendFormat": "dead",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Poll latency p50 / p95",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(xrelease_poll_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(xrelease_poll_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Notify latency p50 / p95",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(xrelease_notify_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(xrelease_notify_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Outbox flush latency p95",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(xrelease_outbox_flush_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(xrelease_outbox_flush_duration_seconds_count[5m])",
+          "legendFormat": "flushes/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Webhooks",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(xrelease_webhooks_accepted_total[5m]) * 60",
+          "legendFormat": "accepted",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(xrelease_webhooks_ignored_total[5m]) * 60",
+          "legendFormat": "ignored",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(xrelease_webhooks_duplicates_total[5m]) * 60",
+          "legendFormat": "duplicates",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(xrelease_webhooks_errors_total[5m]) * 60",
+          "legendFormat": "errors",
+          "refId": "D"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["xrelease"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "xrelease",
+  "uid": "xrelease-overview",
+  "version": 1
+}

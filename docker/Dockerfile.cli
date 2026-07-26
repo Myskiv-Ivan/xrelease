@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1
+#
+# Lean `xrctl` image for CI/CD and laptops — pure HTTP client, no Postgres,
+# no Apprise, no daemon. Point at a running `xrelease serve` via
+# `--api-url` / `--api-key` (see docs/api/cli.md).
+#
+# Alpine (not distroless): CI job images need a shell (`script:` / `run:`).
+# Use as the job image, or `docker run … xrctl …`.
+#
+#   docker build -f docker/Dockerfile.cli -t xrelease-cli .
+#   docker run --rm -v "$PWD:/work" -w /work xrelease-cli \
+#     xrctl --api-url https://xrelease.example.com --api-key "$KEY" \
+#     apply app/releases.yaml --if-match none --label "$CI_COMMIT_SHA"
+
+# ---- Build stage -----------------------------------------------------------
+FROM --platform=$BUILDPLATFORM rust:1.96-trixie AS build
+ARG TARGETARCH
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends binutils \
+    && if [ "${TARGETARCH}" = "arm64" ]; then \
+         apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu; \
+       fi \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+
+RUN case "${TARGETARCH}" in \
+      amd64) TRIPLE=x86_64-unknown-linux-gnu ;; \
+      arm64) TRIPLE=aarch64-unknown-linux-gnu ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && rustup target add "${TRIPLE}" \
+    && echo "${TRIPLE}" > /rust-target
+
+# Workspace root is also the daemon package; stub it so `cargo -p xrelease-cli`
+# resolves without compiling postgres / notifiers / OpenSSL.
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY cli/Cargo.toml ./cli/Cargo.toml
+RUN mkdir -p src cli/src \
+    && echo 'fn main() {}' > src/main.rs \
+    && echo '' > src/lib.rs \
+    && echo 'fn main() {}' > cli/src/main.rs \
+    && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease-cli || true
+
+COPY cli/src ./cli/src
+RUN touch cli/src/main.rs \
+    && cargo build --release --locked --target "$(cat /rust-target)" -p xrelease-cli \
+    && install -D "target/$(cat /rust-target)/release/xrctl" /app/xrctl \
+    && strip --strip-unneeded /app/xrctl
+
+# ---- Runtime ---------------------------------------------------------------
+# Alpine: shell + CA certs so GitLab/Jenkins can use this image as the job
+# image (`script: xrctl …`). Distroless would force DinD just to wrap docker run.
+FROM alpine:3.22 AS runtime
+
+RUN apk add --no-cache ca-certificates \
+    && adduser -D -u 65532 -h /work -s /sbin/nologin nonroot
+
+COPY --from=build --chown=65532:65532 /app/xrctl /usr/local/bin/xrctl
+
+USER nonroot
+WORKDIR /work
+
+# No ENTRYPOINT — CI shells invoke `xrctl` explicitly; docker run does the same.
+CMD ["xrctl", "--help"]

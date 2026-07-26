@@ -1,0 +1,11 @@
+{
+  "object_kind": "release",
+  "tag": "v15.0.0",
+  "description": "Release notes here.",
+  "url": "https://gitlab.com/gitlab-org/gitlab-runner/-/releases/v15.0.0",
+  "released_at": "2025-06-01T10:00:00Z",
+  "project": {
+    "path_with_namespace": "gitlab-org/gitlab-runner",
+    "name": "gitlab-runner"
+  }
+}

@@ -1,0 +1,25 @@
+# Organization: platform
+defaults:
+  interval_secs: 86400
+  jitter_secs: 3600
+
+teams:
+  - tag: core
+    name: Platform Core
+
+notifiers:
+  - type: apprise
+    endpoint: http://apprise:8000
+    urls: ["mailto://platform@example.com"]
+    tags: [core]
+
+sources:
+  - type: github
+    repo: tokio-rs/tokio
+    pattern: '^tokio-\d'
+    routing_tag: core
+
+  - type: docker
+    image: library/nginx
+    preset: numeric
+    routing_tag: core

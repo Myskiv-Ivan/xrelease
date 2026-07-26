@@ -1,0 +1,15 @@
+{{- if and (not .Values.config.existingConfigMap) (or .Values.config.bootstrapInline .Values.config.appInline) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xrelease.fullname" . }}-config
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+data:
+  # Keys must be valid ConfigMap names (no '/'). Deployment projects
+  # releases.yaml → /etc/xrelease/app/releases.yaml via volume items.path.
+  bootstrap.toml: |
+{{ .Values.config.bootstrapInline | indent 4 }}
+  releases.yaml: |
+{{ .Values.config.appInline | indent 4 }}
+{{- end }}

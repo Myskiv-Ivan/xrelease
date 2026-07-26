@@ -1,0 +1,20 @@
+# Organization: security
+defaults:
+  interval_secs: 43200
+
+teams:
+  - tag: ops
+    name: Security Ops
+
+notifiers:
+  - type: webhook
+    name: n8n-security
+    tags: [ops]
+    url: https://n8n.example.com/webhook/upstream-release
+
+sources:
+  - id: wazuh-stable
+    type: github
+    repo: wazuh/wazuh
+    preset: semver-v
+    routing_tag: ops

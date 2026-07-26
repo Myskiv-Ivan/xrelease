@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+#
+# Build context: front/ (see compose.yml). Multi-stage static UI + nginx.
+# Runtime: VITE_* env vars → /ui-config.js via docker-entrypoint.d (no rebuild).
+
+FROM node:24-alpine3.24 AS build
+WORKDIR /app
+
+# Optional bake-time defaults (overridden at container start by ui-config.js).
+ARG VITE_API_URL=
+ARG VITE_AUTH_MODE=local
+ARG VITE_API_KEY_DEFAULT_ROLE=admin
+ARG VITE_OIDC_ISSUER=
+ARG VITE_OIDC_CLIENT_ID=
+ARG VITE_OIDC_REDIRECT_URI=
+ARG VITE_OIDC_SCOPES=openid,profile,email,groups
+ARG VITE_OIDC_ROLE_CLAIM=groups
+ARG VITE_OIDC_ROLE_ADMIN=xrelease-admin,admin
+ARG VITE_OIDC_ROLE_OPERATOR=xrelease-operator,operator
+ARG VITE_OIDC_ROLE_VIEWER=xrelease-viewer,viewer
+ARG VITE_GRAFANA_EMBED_URL=
+
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_AUTH_MODE=$VITE_AUTH_MODE \
+    VITE_API_KEY_DEFAULT_ROLE=$VITE_API_KEY_DEFAULT_ROLE \
+    VITE_OIDC_ISSUER=$VITE_OIDC_ISSUER \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_OIDC_REDIRECT_URI=$VITE_OIDC_REDIRECT_URI \
+    VITE_OIDC_SCOPES=$VITE_OIDC_SCOPES \
+    VITE_OIDC_ROLE_CLAIM=$VITE_OIDC_ROLE_CLAIM \
+    VITE_OIDC_ROLE_ADMIN=$VITE_OIDC_ROLE_ADMIN \
+    VITE_OIDC_ROLE_OPERATOR=$VITE_OIDC_ROLE_OPERATOR \
+    VITE_OIDC_ROLE_VIEWER=$VITE_OIDC_ROLE_VIEWER \
+    VITE_GRAFANA_EMBED_URL=$VITE_GRAFANA_EMBED_URL
+
+COPY package.json package-lock.json ./
+RUN npm ci \
+    && npm cache clean --force
+COPY . .
+RUN npm run build \
+    && rm -rf node_modules
+
+# Stable nginx on Alpine 3.24; -slim drops extra modules unused for static+proxy.
+FROM nginx:1.30-alpine3.24-slim
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/build /usr/share/nginx/html
+COPY scripts/docker-ui-config.sh /docker-entrypoint.d/40-xrelease-ui-config.sh
+RUN chmod +x /docker-entrypoint.d/40-xrelease-ui-config.sh
+EXPOSE 80

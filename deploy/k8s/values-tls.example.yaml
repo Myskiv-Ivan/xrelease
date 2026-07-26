@@ -1,0 +1,46 @@
+# TLS overlay for Helm — Ingress HTTPS via an existing Kubernetes TLS Secret.
+#
+# 1. Create the Secret from your PEM files:
+#    kubectl -n xrelease create secret tls xrelease-tls \
+#      --cert=cert.pem --key=key.pem
+#
+# 2. Install / upgrade:
+#    helm upgrade --install xrelease ./deploy/helm/xrelease \
+#      --namespace xrelease --create-namespace \
+#      -f deploy/k8s/values.secrets.yaml \
+#      -f deploy/k8s/values-tls.example.yaml
+#
+# Adjust hosts to match the certificate CN/SAN.
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: xrelease.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: xrelease-tls
+      hosts:
+        - xrelease.example.com
+
+  # Optional: separate host for forge webhooks (same TLS Secret or another).
+  # api:
+  #   enabled: true
+  #   className: nginx
+  #   hosts:
+  #     - host: hooks.example.com
+  #       paths:
+  #         - path: /api/v1/webhooks
+  #           pathType: Prefix
+  #         - path: /health
+  #           pathType: Prefix
+  #         - path: /ready
+  #           pathType: Prefix
+  #   tls:
+  #     - secretName: xrelease-tls
+  #       hosts:
+  #         - hooks.example.com

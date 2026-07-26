@@ -1,0 +1,16 @@
+# Single-document desired state (sources / teams / notifiers / apprise).
+#
+# CURRENT ROOT bootstrap.toml declares [[organizations]] without `app` and
+# [config_api] source=api + ui_config=true — so THIS FILE IS NOT LOADED at
+# runtime. Compose does not mount it. Author per org in the UI (Config → org)
+# or via: POST /api/v1/organizations/{id}/config/apply
+#
+# Use this file only when you switch to single-doc mode:
+#   - remove [[organizations]] from bootstrap.toml
+#   - set compose XRELEASE_APP_CONFIG + mount (see docker-compose.yaml comments)
+#   - or: local mode with one --app path
+#
+# Multi-org GitOps sample (per-org files): deploy/examples/multi-org/
+# Sample sources for copy-paste into UI Apply live under that example too.
+
+{}

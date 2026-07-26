@@ -1,0 +1,243 @@
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-svelte/tailwind.css';
+
+/* Support both data-theme (app) and .dark (shadcn / bits-ui). */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme='dark'], [data-theme='dark'] *));
+@custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
+	/* Two families: DM Sans (UI) + JetBrains Mono (data/code). Heading = same face, heavier weight. */
+	--font-sans: 'DM Sans Variable', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-heading: 'DM Sans Variable', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo,
+		monospace;
+}
+
+/*
+ * Ops-monitor palette: neutral slate + teal primary (no purple cast).
+ * Dark tokens apply only when dark is explicit — bare :root is not dark-locked
+ * so light mode cannot fight leftover dark vars.
+ */
+:root {
+	--radius: 0.625rem;
+}
+
+:root.dark,
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	/* #0f1419-ish slate */
+	--background: oklch(0.145 0.01 240);
+	--foreground: oklch(0.96 0.005 240);
+	--card: oklch(0.185 0.012 240);
+	--card-foreground: oklch(0.96 0.005 240);
+	--popover: oklch(0.2 0.012 240);
+	--popover-foreground: oklch(0.96 0.005 240);
+	/* teal primary */
+	--primary: oklch(0.72 0.12 185);
+	--primary-foreground: oklch(0.16 0.02 185);
+	--secondary: oklch(0.24 0.01 240);
+	--secondary-foreground: oklch(0.94 0.005 240);
+	--muted: oklch(0.24 0.01 240);
+	--muted-foreground: oklch(0.7 0.01 240);
+	/* accent = operator action green */
+	--accent: oklch(0.74 0.16 152);
+	--accent-foreground: oklch(0.18 0.04 152);
+	--destructive: oklch(0.62 0.2 25);
+	--success: oklch(0.68 0.15 150);
+	--warning: oklch(0.78 0.14 85);
+	--border: oklch(0.3 0.01 240);
+	--input: oklch(0.26 0.01 240);
+	--ring: oklch(0.72 0.12 185);
+	--chart-1: oklch(0.72 0.12 185);
+	--chart-2: oklch(0.74 0.16 152);
+	--chart-3: oklch(0.78 0.14 85);
+	--chart-4: oklch(0.62 0.2 25);
+	--chart-5: oklch(0.55 0.01 240);
+	--sidebar: oklch(0.16 0.01 240);
+	--sidebar-foreground: oklch(0.96 0.005 240);
+	--sidebar-primary: oklch(0.72 0.12 185);
+	--sidebar-primary-foreground: oklch(0.16 0.02 185);
+	--sidebar-accent: oklch(0.24 0.01 240);
+	--sidebar-accent-foreground: oklch(0.94 0.005 240);
+	--sidebar-border: oklch(0.3 0.01 240);
+	--sidebar-ring: oklch(0.72 0.12 185);
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+	--background: oklch(0.97 0.005 240);
+	--foreground: oklch(0.22 0.015 240);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.22 0.015 240);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.22 0.015 240);
+	--primary: oklch(0.48 0.1 185);
+	--primary-foreground: oklch(0.99 0.005 185);
+	--secondary: oklch(0.94 0.008 240);
+	--secondary-foreground: oklch(0.28 0.015 240);
+	--muted: oklch(0.94 0.008 240);
+	--muted-foreground: oklch(0.45 0.015 240);
+	--accent: oklch(0.52 0.14 152);
+	--accent-foreground: oklch(0.99 0.005 152);
+	--destructive: oklch(0.52 0.2 25);
+	--success: oklch(0.48 0.13 150);
+	--warning: oklch(0.68 0.14 85);
+	--border: oklch(0.88 0.01 240);
+	--input: oklch(0.92 0.008 240);
+	--ring: oklch(0.48 0.1 185);
+	--chart-1: oklch(0.48 0.1 185);
+	--chart-2: oklch(0.52 0.14 152);
+	--chart-3: oklch(0.68 0.14 85);
+	--chart-4: oklch(0.52 0.2 25);
+	--chart-5: oklch(0.55 0.01 240);
+	--sidebar: oklch(0.98 0.004 240);
+	--sidebar-foreground: oklch(0.22 0.015 240);
+	--sidebar-primary: oklch(0.48 0.1 185);
+	--sidebar-primary-foreground: oklch(0.99 0.005 185);
+	--sidebar-accent: oklch(0.94 0.008 240);
+	--sidebar-accent-foreground: oklch(0.28 0.015 240);
+	--sidebar-border: oklch(0.88 0.01 240);
+	--sidebar-ring: oklch(0.48 0.1 185);
+}
+
+/* Pre-hydration / no data-theme yet → dark ops default */
+:root:not([data-theme]) {
+	color-scheme: dark;
+	--background: oklch(0.145 0.01 240);
+	--foreground: oklch(0.96 0.005 240);
+	--card: oklch(0.185 0.012 240);
+	--card-foreground: oklch(0.96 0.005 240);
+	--popover: oklch(0.2 0.012 240);
+	--popover-foreground: oklch(0.96 0.005 240);
+	--primary: oklch(0.72 0.12 185);
+	--primary-foreground: oklch(0.16 0.02 185);
+	--secondary: oklch(0.24 0.01 240);
+	--secondary-foreground: oklch(0.94 0.005 240);
+	--muted: oklch(0.24 0.01 240);
+	--muted-foreground: oklch(0.7 0.01 240);
+	--accent: oklch(0.74 0.16 152);
+	--accent-foreground: oklch(0.18 0.04 152);
+	--destructive: oklch(0.62 0.2 25);
+	--success: oklch(0.68 0.15 150);
+	--warning: oklch(0.78 0.14 85);
+	--border: oklch(0.3 0.01 240);
+	--input: oklch(0.26 0.01 240);
+	--ring: oklch(0.72 0.12 185);
+	--chart-1: oklch(0.72 0.12 185);
+	--chart-2: oklch(0.74 0.16 152);
+	--chart-3: oklch(0.78 0.14 85);
+	--chart-4: oklch(0.62 0.2 25);
+	--chart-5: oklch(0.55 0.01 240);
+	--sidebar: oklch(0.16 0.01 240);
+	--sidebar-foreground: oklch(0.96 0.005 240);
+	--sidebar-primary: oklch(0.72 0.12 185);
+	--sidebar-primary-foreground: oklch(0.16 0.02 185);
+	--sidebar-accent: oklch(0.24 0.01 240);
+	--sidebar-accent-foreground: oklch(0.94 0.005 240);
+	--sidebar-border: oklch(0.3 0.01 240);
+	--sidebar-ring: oklch(0.72 0.12 185);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	html {
+		@apply font-sans text-base antialiased;
+	}
+	body {
+		@apply bg-background text-foreground min-h-dvh text-sm leading-normal;
+	}
+	h1,
+	h2,
+	h3 {
+		@apply font-heading;
+	}
+	a {
+		@apply text-primary cursor-pointer transition-colors duration-200 hover:underline;
+	}
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']) {
+		@apply cursor-pointer;
+	}
+	/* Native select / option menus inherit a readable scheme */
+	select {
+		color-scheme: inherit;
+	}
+}
+
+::selection {
+	background: color-mix(in oklch, var(--primary) 35%, transparent);
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+	background-color: var(--border);
+	border: 3px solid transparent;
+	border-radius: 9999px;
+	background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+	background-color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

@@ -1,0 +1,29 @@
+# Example desired document in TOML (same shape as YAML app/releases.yaml).
+# Apply via: xrctl / POST /api/v1/config/apply (Content-Type: application/toml)
+# or mount as --app when [config_api].source = "local".
+
+[defaults]
+interval_secs = 86400
+jitter_secs = 3600
+poll_on_startup = true
+
+[[teams]]
+tag = "platform-team"
+name = "Platform Engineering"
+
+[[sources]]
+type = "github"
+repo = "tokio-rs/tokio"
+preset = "semver-v"
+routing_tag = "platform-team"
+
+# Outbound webhook — also configurable in UI (Delivery channels).
+[[notifiers]]
+type = "webhook"
+name = "ops-hooks"
+url = "https://hooks.example.com/xrelease"
+method = "POST"
+tags = ["platform-team"]
+secret_env = "XRELEASE_OUTBOUND_WEBHOOK_SECRET"
+signature_header = "X-Signature-256"
+headers = { Authorization = "Bearer replace-me", "X-Team" = "platform" }

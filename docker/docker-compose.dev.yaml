@@ -1,0 +1,130 @@
+# Development only — builds backend + UI from source.
+#
+#   cp .env.example .env
+#   docker compose -f docker/docker-compose.dev.yaml up -d --build
+#
+# Operators (published images, no build):
+#   docker compose up -d
+#   → repo-root docker-compose.yaml
+#
+# Default bootstrap.toml: multi-org + UI (source=api, ui_config=true).
+# OIDC: docs/operations/oidc.md · TLS: docs/operations/tls.md
+# UI: http://127.0.0.1:3000  (backend :8080 not published)
+
+name: xrelease
+
+services:
+  postgres:
+    # PG 18+: official image VOLUME is /var/lib/postgresql (not …/data).
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xrelease}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xrelease}
+      POSTGRES_DB: ${POSTGRES_DB:-xrelease}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xrelease} -d ${POSTGRES_DB:-xrelease}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  xrelease:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/myskiv-ivan/xrelease:0.1.0
+    pull_policy: missing
+    restart: unless-stopped
+    command: ["serve"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      apprise:
+        condition: service_started
+    # Secrets only in env_file — do not re-list them under environment with
+    # ${VAR:-default} (project-dir interpolation would override env_file).
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      XRELEASE_CONFIG: /etc/xrelease/bootstrap.toml
+      # Multi-org UI/API: leave APP_CONFIG unset.
+      # Single-doc: uncomment APP_CONFIG + volume below.
+      # XRELEASE_APP_CONFIG: /etc/xrelease/app/releases.yaml
+      XRELEASE_DATABASE_URL: ${XRELEASE_DATABASE_URL:-postgres://xrelease:xrelease@postgres:5432/xrelease}
+      XRELEASE_APPRISE_ENDPOINT: http://apprise:8000
+      XRELEASE_API_LISTEN: ${XRELEASE_API_LISTEN:-0.0.0.0:8080}
+      XRELEASE_LOG: ${XRELEASE_LOG:-info}
+    volumes:
+      - ../bootstrap.toml:/etc/xrelease/bootstrap.toml:ro
+      # - ../app/releases.yaml:/etc/xrelease/app/releases.yaml:ro
+      # - ../deploy/examples/multi-org/app:/etc/xrelease/app:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "xrelease",
+          "--config",
+          "/etc/xrelease/bootstrap.toml",
+          "health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ui:
+    build:
+      context: ../front
+      dockerfile: ../docker/Dockerfile.ui
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_AUTH_MODE: ${VITE_AUTH_MODE:-local}
+        VITE_API_KEY_DEFAULT_ROLE: ${VITE_API_KEY_DEFAULT_ROLE:-admin}
+        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
+        VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+        VITE_OIDC_SCOPES: ${VITE_OIDC_SCOPES:-openid,profile,email,groups}
+        VITE_OIDC_ROLE_CLAIM: ${VITE_OIDC_ROLE_CLAIM:-groups}
+        VITE_OIDC_ROLE_ADMIN: ${VITE_OIDC_ROLE_ADMIN:-xrelease-admin,admin}
+        VITE_OIDC_ROLE_OPERATOR: ${VITE_OIDC_ROLE_OPERATOR:-xrelease-operator,operator}
+        VITE_OIDC_ROLE_VIEWER: ${VITE_OIDC_ROLE_VIEWER:-xrelease-viewer,viewer}
+        VITE_GRAFANA_EMBED_URL: ${VITE_GRAFANA_EMBED_URL:-}
+    image: ghcr.io/myskiv-ivan/xrelease-ui:0.1.0
+    pull_policy: missing
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-}
+      VITE_AUTH_MODE: ${VITE_AUTH_MODE:-local}
+      VITE_API_KEY_DEFAULT_ROLE: ${VITE_API_KEY_DEFAULT_ROLE:-admin}
+      VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-}
+      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
+      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+      VITE_OIDC_SCOPES: ${VITE_OIDC_SCOPES:-openid,profile,email,groups}
+      VITE_OIDC_ROLE_CLAIM: ${VITE_OIDC_ROLE_CLAIM:-groups}
+      VITE_OIDC_ROLE_ADMIN: ${VITE_OIDC_ROLE_ADMIN:-xrelease-admin,admin}
+      VITE_OIDC_ROLE_OPERATOR: ${VITE_OIDC_ROLE_OPERATOR:-xrelease-operator,operator}
+      VITE_OIDC_ROLE_VIEWER: ${VITE_OIDC_ROLE_VIEWER:-xrelease-viewer,viewer}
+      VITE_GRAFANA_EMBED_URL: ${VITE_GRAFANA_EMBED_URL:-}
+    depends_on:
+      xrelease:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:80"
+
+  apprise:
+    image: caronc/apprise:1.5.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APPRISE_STATELESS_URLS: ""
+    volumes:
+      - apprise-config:/config
+
+volumes:
+  postgres-data:
+  apprise-config:

@@ -1,0 +1,52 @@
+# Infrastructure bootstrap — NOT desired state (sources/teams/notifiers).
+# Secrets live in repo-root `.env` — see `.env.example`.
+#
+# Active profile below: multi-org + API + UI (dashboard Apply → ledger).
+# Root `app/releases.yaml` is ignored while `[[organizations]]` is set.
+
+[api]
+listen = "0.0.0.0:8080"
+require_auth = true
+rate_limit_per_minute = 120
+# api_key / oidc / webhook_secret / local-auth → XRELEASE_* in .env
+
+[config_api]
+api_config = true
+source = "api"
+ui_config = true
+# apply_scope = "xrelease:config-apply"
+# XRELEASE_CONFIG_APPLY_SECRET for HMAC (X-Config-Signature) — optional in lab
+
+# ── Authoring variants (pick ONE [config_api] block) ─────────────────────────
+#
+# 1) Local — file authority; no UI editor:
+#      api_config = false
+#      source = "local"
+#      ui_config = false
+#      Each [[organizations]] MUST set app = "app/<id>/releases.yaml"
+#      (single-doc: omit [[organizations]], mount app/releases.yaml)
+#
+# 2) API — xrctl / curl apply; observability UI only (no Config form):
+#      api_config = true
+#      source = "api"
+#      ui_config = false
+#      Org `app` optional (first-boot seed); omit for empty ledger until apply
+#
+# 3) API + UI (this file) — dashboard Config editor + same apply API:
+#      api_config = true
+#      source = "api"
+#      ui_config = true
+#
+# Invalid (validate error):
+#      api_config = false + source = "api"
+#      ui_config = true without api_config = true and source = "api"
+#
+# Multi-org catalogue (bootstrap-only). Omit entire section for single-document mode.
+
+[[organizations]]
+id = "platform"
+name = "Platform Engineering"
+
+[[organizations]]
+id = "security"
+name = "Security Operations"

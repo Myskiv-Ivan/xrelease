@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" class="dark" data-theme="dark">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			(function () {
+				try {
+					var mode = localStorage.getItem('xrelease_theme') || 'dark';
+					var dark =
+						mode === 'dark' ||
+						(mode === 'system' &&
+							window.matchMedia('(prefers-color-scheme: dark)').matches);
+					var resolved = dark ? 'dark' : 'light';
+					var root = document.documentElement;
+					root.dataset.theme = resolved;
+					root.classList.toggle('dark', dark);
+					root.style.colorScheme = resolved;
+				} catch (_) {}
+			})();
+		</script>
+		<!-- Runtime UI settings (Docker/Helm entrypoint overwrites; stub in static/) -->
+		<script src="/ui-config.js"></script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

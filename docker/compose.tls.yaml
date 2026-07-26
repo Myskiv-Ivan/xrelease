@@ -1,0 +1,25 @@
+# Optional HTTPS on the UI nginx container (no extra reverse-proxy image).
+#
+# Configure in repo-root `.env` (see `.env.example`):
+#   XRELEASE_PUBLIC_HOST=xrelease.example.com   # DNS / hosts only (cert CN/SAN)
+#   XRELEASE_TLS_CERT=./docker/certs/cert.pem
+#   XRELEASE_TLS_KEY=./docker/certs/key.pem
+#   XRELEASE_TLS_HTTP_PORT=80
+#   XRELEASE_TLS_HTTPS_PORT=443
+#
+#   docker compose -f docker-compose.yaml -f docker/compose.tls.yaml up -d
+#   → https://$XRELEASE_PUBLIC_HOST
+#
+# See docs/operations/tls.md · docker/certs/README.md
+
+name: xrelease
+
+services:
+  ui:
+    ports: !override
+      - "${XRELEASE_TLS_HTTP_PORT:-80}:80"
+      - "${XRELEASE_TLS_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx.tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${XRELEASE_TLS_CERT:-./docker/certs/cert.pem}:/certs/cert.pem:ro
+      - ${XRELEASE_TLS_KEY:-./docker/certs/key.pem}:/certs/key.pem:ro

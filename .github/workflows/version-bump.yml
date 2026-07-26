@@ -1,0 +1,60 @@
+name: version-bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump (backend + UI + OpenAPI)
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # RELEASE_TOKEN (PAT, contents:write) so the pushed tag triggers release.yml.
+          # Default GITHUB_TOKEN pushes do not start new workflows — see docs/operations/ci-cd.md.
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@1.96
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Bump version
+        id: bump
+        run: |
+          python3 scripts/bump-version.py --bump "${{ inputs.bump }}" --print > version.txt
+          echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify lockfiles
+        run: |
+          cargo check --locked
+          cd front && npm ci && npm run check
+
+      - name: Commit, tag, and push
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock api/openapi.json front/package.json front/package-lock.json \
+            deploy/helm/xrelease/Chart.yaml docker-compose.yaml docker/docker-compose.dev.yaml
+          git commit -m "chore: release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD
+          git push origin "v${VERSION}"

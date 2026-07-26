@@ -1,0 +1,43 @@
+{{- if .Values.apprise.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "xrelease.fullname" . }}-apprise
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: apprise
+spec:
+  ports:
+    - port: {{ .Values.apprise.service.port }}
+      targetPort: http
+      name: http
+  selector:
+    {{- include "xrelease.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: apprise
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xrelease.fullname" . }}-apprise
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: apprise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "xrelease.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apprise
+  template:
+    metadata:
+      labels:
+        {{- include "xrelease.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apprise
+    spec:
+      containers:
+        - name: apprise
+          image: {{ .Values.apprise.image }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.apprise.service.port }}
+{{- end }}

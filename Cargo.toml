@@ -1,0 +1,132 @@
+# Two crates: the `xrelease` backend (this package) and the `xrelease-cli`
+# remote-management client (`cli/`, binary `xrctl`). The CLI does NOT depend on
+# this package, so `cargo build -p xrelease-cli` never compiles postgres,
+# vendored OpenSSL, lettre, feed-rs, or the broker clients
+[workspace]
+members = ["cli"]
+# Inferred as "2" today because the root is also an edition-2021 package, but
+# pin it so removing that package can't silently drop the resolver back to "1".
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+license = "Apache-2.0"
+repository = "https://github.com/Myskiv-Ivan/xrelease"
+homepage = "https://github.com/Myskiv-Ivan/xrelease"
+authors = ["xrelease contributors"]
+
+# Dependency versions shared by the backend and the CLI so they cannot drift.
+[workspace.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signal"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+# Public API docs are tracked incrementally; CI clippy enforces other lints.
+missing_docs = "allow"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[package]
+name = "xrelease"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Watch software release sources and notify via Apprise, webhooks, Kafka, NATS, or RabbitMQ"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["releases", "notifications", "apprise", "self-hosted", "gitops"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "xrelease"
+path = "src/main.rs"
+
+[lib]
+name = "xrelease"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { workspace = true }
+# `join_all` for concurrent notification fan-out (alloc-only keeps it lean).
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.9"
+serde_yaml = "0.9"
+feed-rs = "2"
+semver = "1"
+postgres = { version = "0.19", features = ["with-chrono-0_4"] }
+r2d2 = "0.8"
+r2d2_postgres = "0.18"
+# Vendored OpenSSL so multi-arch Docker builds do not need cross libssl packages.
+openssl = { version = "0.10", features = ["vendored"] }
+postgres-openssl = "0.5"
+thiserror = "2"
+anyhow = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { workspace = true }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+rand = "0.9"
+regex = "1"
+axum = { version = "0.8", features = ["json", "macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+subtle = "2"
+# At-rest AES-256-GCM for the config ledger (`config_revision.content`).
+aes-gcm = { version = "0.10", features = ["zeroize"] }
+base64 = { version = "0.22", features = ["std"] }
+getrandom = "0.2"
+zeroize = { version = "1", features = ["derive"] }
+governor = "0.10"
+jsonwebtoken = { version = "9", default-features = false, features = ["use_pem"] }
+argon2 = { version = "0.5", features = ["std"] }
+password-hash = { version = "0.5", features = ["getrandom"] }
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport"] }
+
+# Optional message-broker sinks. Each is gated behind a cargo feature so the
+# default binary stays lean (no C `librdkafka`, no broker client crates).
+rdkafka = { version = "0.36", optional = true }
+async-nats = { version = "0.38", optional = true }
+lapin = { version = "2", optional = true }
+cron = "0.17.0"
+
+[features]
+default = []
+# Generic outgoing webhook is always available (pure reqwest); these add brokers.
+kafka = ["dep:rdkafka"]
+nats = ["dep:async-nats"]
+rabbitmq = ["dep:lapin"]
+# Convenience: enable every broker sink at once.
+all-notifiers = ["kafka", "nats", "rabbitmq"]
+
+[dev-dependencies]
+wiremock = "0.6"
+# Inherit the workspace tokio pin (anti-drift), adding only the test-only
+# features on top. `tower` is a transitive dep, not a workspace dependency, so
+# it stays a literal pin here.
+tokio = { workspace = true, features = ["net", "io-util"] }
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

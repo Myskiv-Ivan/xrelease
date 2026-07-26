@@ -1,0 +1,148 @@
+# Default values — ready stack (published GHCR images).
+# Same product shape as repo-root docker-compose.yaml: PG + UI + Apprise + Ingress.
+#
+#   cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
+#   # edit secrets, then:
+#   helm upgrade --install xrelease ./deploy/helm/xrelease \
+#     --namespace xrelease --create-namespace \
+#     -f deploy/k8s/values.secrets.yaml
+#
+# Production GitOps: -f deploy/k8s/values-gitops.example.yaml
+# OIDC: -f deploy/k8s/values-oidc.example.yaml
+
+# MUST stay 1 — chart fails if higher (one poller per DB).
+replicaCount: 1
+
+image:
+  repository: ghcr.io/myskiv-ivan/xrelease
+  # Empty → Chart.appVersion.
+  tag: ""
+  pullPolicy: Always
+
+imagePullSecrets: []
+# - name: ghcr-pull
+
+command:
+  - serve
+
+config:
+  existingConfigMap: ""
+  bootstrapInline: |
+    # XRELEASE_DATABASE_URL from the chart PostgreSQL Secret overrides this URL.
+    [database]
+    postgres_url = "postgres://xrelease@xrelease-postgresql:5432/xrelease"
+
+    [log]
+    level = "info"
+
+    [api]
+    listen = "0.0.0.0:8080"
+    require_auth = true
+    rate_limit_per_minute = 120
+
+    [config_api]
+    api_config = true
+    source = "api"
+    ui_config = true
+  # Optional first-boot seed (source=api). Idle until UI / xrctl Apply.
+  appInline: |
+    defaults:
+      interval_secs: 86400
+    notifiers:
+      - type: apprise
+        endpoint: http://xrelease-apprise:8000
+        urls: []
+
+database:
+  url: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: xrelease.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  api:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: hooks.example.com
+        paths:
+          - path: /api/v1/webhooks
+            pathType: Prefix
+          - path: /health
+            pathType: Prefix
+          - path: /ready
+            pathType: Prefix
+    tls: []
+
+postgresql:
+  enabled: true
+  image: postgres:18-alpine
+  auth:
+    username: xrelease
+    # Required — set in values.secrets.yaml
+    password: ""
+    database: xrelease
+  existingSecret: ""
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""
+  resources: {}
+
+apprise:
+  enabled: true
+  image: caronc/apprise:1.5.1
+  service:
+    port: 8000
+
+ui:
+  enabled: true
+  image:
+    repository: ghcr.io/myskiv-ivan/xrelease-ui
+    tag: ""
+    pullPolicy: ""
+  service:
+    type: ClusterIP
+    port: 80
+  env:
+    VITE_API_URL: ""
+    VITE_AUTH_MODE: local
+    VITE_API_KEY_DEFAULT_ROLE: admin
+
+env:
+  XRELEASE_LOG: info
+
+secrets:
+  existingSecret: ""
+  apiKey: ""
+  databaseUrl: ""
+  webhookSecret: ""
+  expressAccessToken: ""
+  configEncryptionKey: ""
+  sessionSecret: ""
+  adminUser: "admin"
+  adminPassword: ""
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+livenessProbe:
+  path: /health
+  port: 8080
+readinessProbe:
+  path: /ready
+  port: 8080

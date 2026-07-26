@@ -1,0 +1,123 @@
+{{- if .Values.postgresql.enabled }}
+{{- $fullname := include "xrelease.fullname" . -}}
+{{- $pgName := include "xrelease.postgresqlName" . -}}
+{{- if not .Values.postgresql.existingSecret }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $pgName }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+type: Opaque
+stringData:
+  postgres-password: {{ .Values.postgresql.auth.password | quote }}
+  # urlquery encodes reserved characters in the password (@ : / # …).
+  connection-url: {{ printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username (.Values.postgresql.auth.password | urlquery) $pgName .Values.postgresql.auth.database | quote }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $pgName }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgres
+      name: postgres
+  selector:
+    {{- include "xrelease.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+---
+{{- if .Values.postgresql.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $pgName }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.persistence.size | quote }}
+  {{- with .Values.postgresql.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $pgName }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ $pgName }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "xrelease.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "xrelease.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: {{ .Values.postgresql.image | quote }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default $pgName }}
+                  key: postgres-password
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+            # PG 18+ image VOLUME is /var/lib/postgresql (not …/data).
+            - name: PGDATA
+              value: /var/lib/postgresql/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if .Values.postgresql.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $pgName }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

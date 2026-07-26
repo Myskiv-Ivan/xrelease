@@ -1,0 +1,61 @@
+# Multi-team routing — sources, teams, notifiers (GitOps app layer).
+#
+# Uses built-in filter presets (semver-v / numeric); routing_tag stays per-source.
+
+defaults:
+  interval_secs: 86400
+  jitter_secs: 3600
+  upstream_requests_per_minute: 60
+  poll_on_startup: true
+
+teams:
+  - tag: platform-team
+    name: Platform Engineering
+  - tag: security-team
+    name: Security Operations
+
+
+notifiers:
+  - type: apprise
+    endpoint: http://apprise:8000
+    config_key: release-channels
+    tags: []
+    format: markdown
+  - type: express
+    name: express-platform
+    tags: [platform-team]
+    base_url: https://cts.example.com
+    group_chat_id: dec60c05-0000-0000-0000-platformchat
+    access_token_env: XRELEASE_EXPRESS_TOKEN_PLATFORM
+    template: "**{{title}}**\n{{body}}\n{{url}}"
+
+  - type: express
+    name: express-security
+    tags: [security-team]
+    base_url: https://cts.example.com
+    group_chat_id: aaaa1111-0000-0000-0000-securitychat
+    access_token_env: XRELEASE_EXPRESS_TOKEN_SECURITY
+    template: "**{{title}}**\n{{body}}\n{{url}}"
+
+  - type: webhook
+    name: n8n-security
+    tags: [security-team]
+    url: https://n8n.example.com/webhook/upstream-release
+
+sources:
+  - id: wazuh-stable
+    type: github
+    repo: wazuh/wazuh
+    preset: semver-v
+    routing_tag: security-team
+
+  - id: tokio
+    type: github
+    repo: tokio-rs/tokio
+    pattern: '^tokio-\d'
+    routing_tag: platform-team
+
+  - type: docker
+    image: library/nginx
+    preset: numeric
+    routing_tag: platform-team
