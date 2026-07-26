@@ -169,7 +169,7 @@ jobs:
           docker compose -f docker/docker-compose.dev.yaml config --quiet
 
       - name: Build backend (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile
@@ -180,7 +180,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Build CLI / xrctl (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile.cli
@@ -191,7 +191,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=cli
 
       - name: Build UI (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./front
           file: ./docker/Dockerfile.ui
@@ -202,7 +202,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=ui
 
       - name: Build UI with OIDC args (smoke)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./front
           file: ./docker/Dockerfile.ui
