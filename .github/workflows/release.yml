@@ -43,7 +43,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.ver.outputs.tag }}
 
@@ -72,7 +72,7 @@ jobs:
             name: linux-arm64
             cross: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
@@ -150,7 +150,7 @@ jobs:
             build_args: |
               VITE_AUTH_MODE=local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
