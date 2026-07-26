@@ -19,13 +19,13 @@ permissions:
 jobs:
   bump:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           # RELEASE_TOKEN (PAT, contents:write) so the pushed tag triggers release.yml.
-          # Default GITHUB_TOKEN pushes do not start new workflows — see docs/operations/ci-cd.md.
+          # Default GITHUB_TOKEN pushes do not start new workflows — see .github/RELEASE.md.
           token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@1.96

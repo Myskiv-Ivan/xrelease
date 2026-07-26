@@ -16,7 +16,7 @@ env:
 
 jobs:
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.96
@@ -37,7 +37,7 @@ jobs:
         run: python3 scripts/bump-version.py --check
 
   security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
       contents: read
     steps:
@@ -62,7 +62,7 @@ jobs:
           exit-code: "0"
 
   config:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     needs: rust
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +85,7 @@ jobs:
             validate --strict --format json
 
   front:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     defaults:
       run:
         working-directory: front
@@ -103,7 +103,7 @@ jobs:
       - run: npm run build
 
   helm:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
@@ -155,7 +155,7 @@ jobs:
           grep -qi 'replicaCount must be 1' /tmp/helm-fail.txt
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     needs: [rust, front]
     steps:
       - uses: actions/checkout@v4

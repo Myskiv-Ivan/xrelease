@@ -23,7 +23,7 @@ env:
 
 jobs:
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
@@ -61,7 +61,7 @@ jobs:
   binaries:
     name: binary (${{ matrix.name }})
     needs: preflight
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -124,7 +124,7 @@ jobs:
   docker:
     name: docker (${{ matrix.component }})
     needs: preflight
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
       contents: read
       packages: write
@@ -208,7 +208,7 @@ jobs:
   github-release:
     name: GitHub Release
     needs: [preflight, binaries, docker]
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/download-artifact@v4
         with:

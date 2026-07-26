@@ -11,24 +11,32 @@ on:
 jobs:
   analyze:
     name: analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
+      # analyze reads workflow run metadata (required on private repos)
+      actions: read
       contents: read
       security-events: write
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Rust: build-mode none (rust-analyzer extract; no cargo build / autobuild)
           - language: rust
+            build-mode: none
           - language: javascript-typescript
+            build-mode: none
     steps:
       - uses: actions/checkout@v4
+
+      # rust-analyzer / CodeQL Rust need a toolchain on the runner
+      - uses: dtolnay/rust-toolchain@1.96
+        if: matrix.language == 'rust'
 
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-
-      - uses: github/codeql-action/autobuild@v3
+          build-mode: ${{ matrix.build-mode }}
 
       - uses: github/codeql-action/analyze@v3
         with:

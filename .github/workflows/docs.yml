@@ -31,7 +31,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +47,9 @@ jobs:
         id: pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
+        with:
+          # Create/enable Pages (GitHub Actions source) if not configured yet
+          enablement: true
 
       - name: Build book
         run: |
@@ -68,7 +71,7 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -64,19 +64,13 @@ Add a source example to `app/releases.yaml` and tests where practical.
 
 ## Release (maintainers)
 
+See [`.github/RELEASE.md`](.github/RELEASE.md).
+
 1. On `main`: Actions → **version-bump** → patch / minor / major.
-2. It syncs Cargo, OpenAPI, front, Helm chart, compose files, commits
-   `chore: release vX.Y.Z`, and pushes tag `vX.Y.Z`.
-3. **release** builds Linux binaries, multi-arch GHCR images (signed + SBOM),
-   and publishes the GitHub Release.
+2. Tag `vX.Y.Z` → **release** publishes GHCR + GitHub Release.
+3. Optional secret **`RELEASE_TOKEN`** so the tag push auto-starts release.
 
-For step 3 to start automatically after version-bump, add repo secret
-**`RELEASE_TOKEN`** (PAT with Contents write). Without it, run **release**
-manually (Actions → release → tag `vX.Y.Z`).
-
-Workflow map: `.github/workflows/`. End-user apply-from-CI examples live in
-[`docs/operations/ci-cd.md`](docs/operations/ci-cd.md) (published user docs —
-not the maintainer release checklist).
+End-user apply-from-CI: [`docs/operations/ci-cd.md`](docs/operations/ci-cd.md).
 
 ## License
 
