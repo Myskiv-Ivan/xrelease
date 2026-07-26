@@ -27,7 +27,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # rust-analyzer / CodeQL Rust need a toolchain on the runner
       - uses: dtolnay/rust-toolchain@1.96

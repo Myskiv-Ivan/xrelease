@@ -4,7 +4,7 @@
 # Cross-compile from BUILDPLATFORM to TARGETARCH (linux/amd64, linux/arm64).
 # Debian Trixie matches distroless/cc-debian13 glibc. PostgreSQL client uses
 # vendored OpenSSL for optional TLS (sslmode=require/…).
-FROM --platform=$BUILDPLATFORM rust:1.96-trixie AS build
+FROM --platform=$BUILDPLATFORM rust:1.97-trixie AS build
 ARG TARGETARCH
 WORKDIR /app
 

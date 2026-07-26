@@ -18,7 +18,7 @@ jobs:
   rust:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.96
         with:
           components: rustfmt, clippy
@@ -41,7 +41,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Rust advisories + licenses (cargo-deny)
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -65,7 +65,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     needs: rust
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.96
       - uses: Swatinem/rust-cache@v2
 
@@ -90,7 +90,7 @@ jobs:
       run:
         working-directory: front
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -105,7 +105,7 @@ jobs:
   helm:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
         with:
           version: v3.16.4
@@ -158,10 +158,10 @@ jobs:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     needs: [rust, front]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Compose config (images + dev build)
         run: |
@@ -169,7 +169,7 @@ jobs:
           docker compose -f docker/docker-compose.dev.yaml config --quiet
 
       - name: Build backend (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile
@@ -180,7 +180,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Build CLI / xrctl (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile.cli
@@ -191,7 +191,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=cli
 
       - name: Build UI (linux/amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./front
           file: ./docker/Dockerfile.ui
@@ -202,7 +202,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=ui
 
       - name: Build UI with OIDC args (smoke)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./front
           file: ./docker/Dockerfile.ui
