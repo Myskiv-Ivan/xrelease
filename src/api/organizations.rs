@@ -46,7 +46,7 @@ pub async fn list_organizations(
                 .index
                 .watches()
                 .iter()
-                .filter(|watch| watch.organization_id.as_deref() == Some(&id))
+                .filter(|watch| watch.organization_id.as_deref() == Some(id))
                 .count();
             json!({
             "id": id,

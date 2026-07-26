@@ -169,7 +169,7 @@ pub async fn login(
 
     let role = AppRole::parse(&user.role).unwrap_or(AppRole::Viewer);
     let (token, expires_in) = issue_session_token(
-        &secret,
+        secret,
         user.id,
         username,
         role,

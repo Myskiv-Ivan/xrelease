@@ -167,8 +167,8 @@ pub fn load_infra_bootstrap(paths: &ConfigPaths) -> anyhow::Result<Config> {
 ///
 /// 1. Infra bootstrap from `paths.bootstrap` + env (TOML, infra sections only).
 /// 2. When `[[organizations]]` is non-empty: compose every org from its own
-/// authority — its ledger stream when `source = "api"` holds a row, its
-/// app file otherwise ([`compose_organizations`]).
+///    authority — its ledger stream when `source = "api"` holds a row, its
+///    app file otherwise ([`compose_organizations`]).
 /// 3. Else latest `applied` revision from PostgreSQL when available.
 /// 4. Else on-disk app file (`paths.app` or auto-discovered `app/releases.yaml`).
 /// 5. Fail loudly when neither ledger nor app file provides desired state.
@@ -260,7 +260,7 @@ pub fn organization_desired_raw(
     let id = &org.id.clone();
     if bootstrap.config_api.ledger_is_bootable() {
         if let Some(store) = store {
-            if let Some(revision) = store.latest_applied_config_revision(Some(&id))? {
+            if let Some(revision) = store.latest_applied_config_revision(Some(id))? {
                 return Ok((revision.content, DesiredSource::Ledger));
             }
         }
@@ -385,7 +385,7 @@ pub fn compose_organizations(
         if desired_source != DesiredSource::Empty && !has_desired_state(&desired) {
             bail!("organization `{id}` desired document defines no desired-state sections");
         }
-        namespace_organization_desired(&id, &mut desired);
+        namespace_organization_desired(id, &mut desired);
         let source_count = desired.sources.len();
 
         // Prefer the first org's defaults for any source that somehow skipped

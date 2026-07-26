@@ -35,7 +35,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: ghcr.io/myskiv-ivan/xrelease:0.1.0
+    image: ghcr.io/myskiv-ivan/xrelease:0.1.1
     pull_policy: missing
     restart: unless-stopped
     command: ["serve"]
@@ -93,7 +93,7 @@ services:
         VITE_OIDC_ROLE_OPERATOR: ${VITE_OIDC_ROLE_OPERATOR:-xrelease-operator,operator}
         VITE_OIDC_ROLE_VIEWER: ${VITE_OIDC_ROLE_VIEWER:-xrelease-viewer,viewer}
         VITE_GRAFANA_EMBED_URL: ${VITE_GRAFANA_EMBED_URL:-}
-    image: ghcr.io/myskiv-ivan/xrelease-ui:0.1.0
+    image: ghcr.io/myskiv-ivan/xrelease-ui:0.1.1
     pull_policy: missing
     restart: unless-stopped
     environment:

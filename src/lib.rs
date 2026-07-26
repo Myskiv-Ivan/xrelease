@@ -13,10 +13,10 @@
 //! # Binaries
 //!
 //! - **`xrelease`** (this crate) — instance process: `serve` (poller + outbox +
-//! sinks + HTTP API + webhooks) plus local ops (`validate`, `health`,
-//! `sources`, …).
+//!   sinks + HTTP API + webhooks) plus local ops (`validate`, `health`,
+//!   `sources`, …).
 //! - **`xrctl`** (`cli/` → `xrelease-cli`) — lean remote management client over
-//! HTTP; no Postgres, no local config authority.
+//!   HTTP; no Postgres, no local config authority.
 //!
 //! # Module map
 //!
@@ -25,11 +25,11 @@
 //! - [`crypto`] — AES-GCM for `app_secret` values (desired doc keeps `*_env` refs).
 //! - [`model`] — the [`model::Release`] value type shared by every provider.
 //! - [`sources`] — provider adapters behind one [`sources::Provider`] enum
-//! (static dispatch; see Best Practices, Chapter 6).
+//!   (static dispatch; see Best Practices, Chapter 6).
 //! - [`store`] — PostgreSQL-backed "have I seen this release?" state.
 //! - [`notify`] — the [`notify::Notifier`] trait, Apprise, webhooks, and
-//! optional message-broker sinks (Kafka / NATS / RabbitMQ) behind
-//! [`CompositeNotifier`] fan-out.
+//!   optional message-broker sinks (Kafka / NATS / RabbitMQ) behind
+//!   [`CompositeNotifier`] fan-out.
 //! - [`pipeline`] — the single-source poll/diff/notify step, unit-testable.
 //! - [`scheduler`]— spawns and supervises one polling loop per source.
 //! - [`runtime`] — `serve` over the same pipeline.
