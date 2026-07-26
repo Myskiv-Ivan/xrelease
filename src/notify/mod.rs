@@ -16,16 +16,16 @@
 
 pub mod apprise;
 pub mod express;
+pub mod kafka;
+pub mod nats;
 pub mod novu;
 pub mod payload;
+pub mod rabbitmq;
 pub mod routing;
 pub mod slack;
 pub mod smtp;
 pub mod telegram;
 pub mod webhook;
-pub mod kafka;
-pub mod nats;
-pub mod rabbitmq;
 
 pub use apprise::AppriseNotifier;
 pub use express::{ExpressNotifier, ExpressNotifierOptions};

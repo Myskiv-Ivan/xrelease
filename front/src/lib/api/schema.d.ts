@@ -1147,8 +1147,9 @@ export interface components {
             sink_kinds: {
                 value: string;
                 label: string;
-                /** @description False when the sink needs a cargo feature this build lacks */
+                /** @description Whether this binary can build the sink (always true — every sink kind is compiled in) */
                 available: boolean;
+                /** @description Reserved; always null — sinks are not feature-gated */
                 requires_feature?: string | null;
             }[];
             smtp_tls_modes?: {

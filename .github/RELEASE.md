@@ -28,14 +28,32 @@ tag v*.*.*     ──► release.yml   binaries + GHCR (cosign) + GitHub Release
 
 ## Publish a release (happy path)
 
+Do this **in order** — do not invent a tag by hand unless recovering.
+
 1. Merge to `main`, wait for green `ci`.
-2. Actions → **version-bump** → Run workflow → branch `main` → patch / minor / major.
-3. Workflow bumps Cargo, OpenAPI, front, Helm `Chart.yaml`, compose image tags,
-   commits `chore: release vX.Y.Z`, pushes tag `vX.Y.Z`.
-4. **release** builds:
+2. Actions → **version-bump** → Run workflow → branch `main` → **patch** / **minor** / **major**.
+3. Workflow bumps Cargo, OpenAPI, front (`package.json` + **`schema.d.ts` via `gen:api`**),
+   Helm `Chart.yaml`, compose image tags; commits `chore: release vX.Y.Z`; pushes tag `vX.Y.Z`.
+4. **release** starts from the tag (needs `RELEASE_TOKEN`) and publishes:
    - Linux amd64/arm64 archives (`xrelease`, `xrctl`)
    - Multi-arch images: `ghcr.io/<owner>/xrelease`, `-cli`, `-ui` (SBOM + cosign)
    - GitHub Release with notes + checksums
+
+### Local equivalent (same order)
+
+```bash
+git checkout main && git pull
+python3 scripts/bump-version.py --bump patch   # or minor / major
+(cd front && npm ci && npm run gen:api)
+python3 scripts/bump-version.py --check
+git add -u && git commit -m "chore: release v$(python3 scripts/bump-version.py --print)"
+VERSION="$(python3 scripts/bump-version.py --print)"
+git tag "v${VERSION}"
+git push origin HEAD "v${VERSION}"
+# if no RELEASE_TOKEN: Actions → release → tag = vX.Y.Z
+```
+
+Never create `v0.1.0` when Cargo is already `0.1.2` — tag must match `Cargo.toml`.
 
 ### Auto-trigger after version-bump
 

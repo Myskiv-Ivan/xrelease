@@ -43,10 +43,14 @@ jobs:
           python3 scripts/bump-version.py --bump "${{ inputs.bump }}" --print > version.txt
           echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
 
+      - name: Regenerate front OpenAPI types
+        working-directory: front
+        run: npm ci && npm run gen:api
+
       - name: Verify lockfiles
         run: |
           cargo check --locked
-          cd front && npm ci && npm run check
+          cd front && npm run check
 
       - name: Commit, tag, and push
         env:
@@ -55,6 +59,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.toml Cargo.lock api/openapi.json front/package.json front/package-lock.json \
+            front/src/lib/api/schema.d.ts \
             deploy/helm/xrelease/Chart.yaml docker-compose.yaml docker/docker-compose.dev.yaml
           git commit -m "chore: release v${VERSION}"
           git tag "v${VERSION}"
