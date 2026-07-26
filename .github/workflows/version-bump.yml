@@ -28,7 +28,9 @@ jobs:
           # Default GITHUB_TOKEN pushes do not start new workflows — see .github/RELEASE.md.
           token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
+        with:
+          toolchain: "1.96"
       - uses: actions/setup-node@v7
         with:
           node-version: "24"

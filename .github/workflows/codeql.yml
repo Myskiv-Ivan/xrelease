@@ -70,9 +70,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
         if: matrix.language == 'rust'
-
+        with:
+          toolchain: "1.96"
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}

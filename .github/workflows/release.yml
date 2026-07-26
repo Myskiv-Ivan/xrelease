@@ -78,7 +78,9 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
+        with:
+          toolchain: "1.96"
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
