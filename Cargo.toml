@@ -90,7 +90,9 @@ base64 = { version = "0.22", features = ["std"] }
 getrandom = "0.2"
 zeroize = { version = "1", features = ["derive"] }
 governor = "0.10"
-jsonwebtoken = { version = "11", default-features = false, features = ["use_pem", "rust_crypto"] }
+# Prefer `aws_lc_rs` over `rust_crypto`: the latter pulls `rsa`, which is
+# unpatched for RUSTSEC-2023-0071 (Marvin Attack timing sidechannel).
+jsonwebtoken = { version = "11", default-features = false, features = ["use_pem", "aws_lc_rs"] }
 argon2 = { version = "0.5", features = ["std"] }
 password-hash = { version = "0.5", features = ["getrandom"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport"] }
