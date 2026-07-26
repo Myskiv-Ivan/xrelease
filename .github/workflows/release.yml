@@ -31,7 +31,10 @@ jobs:
     steps:
       - name: Resolve tag / version
         id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag }}"
           else
@@ -42,12 +45,34 @@ jobs:
             echo "expected tag like v0.1.0 (digits after v), got: $TAG" >&2
             exit 1
           fi
+
+          # workflow_dispatch needs an *existing* tag — checkout cannot create it
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if ! gh api "repos/${{ github.repository }}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+              {
+                echo "### Tag \`${TAG}\` does not exist on the remote"
+                echo
+                echo "\`release\` only builds an **already pushed** tag."
+                echo
+                echo "Create it first:"
+                echo "1. Actions → **version-bump** → patch/minor/major (needs \`RELEASE_TOKEN\`),"
+                echo "   or locally: \`git tag ${TAG} && git push origin ${TAG}\`"
+                echo "2. Re-run **release** with the same tag (or let the tag push start it)."
+                echo
+                echo "Current tip on main may already be a newer Cargo version — tag must match it."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "Tag ${TAG} not found on origin. Run version-bump (or git tag + push) first." >&2
+              exit 1
+            fi
+          fi
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.ver.outputs.tag }}
+          fetch-tags: true
 
       - name: Tag matches repo versions
         run: |
@@ -160,7 +185,7 @@ jobs:
 
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
 
       - uses: docker/login-action@v4
         with:
