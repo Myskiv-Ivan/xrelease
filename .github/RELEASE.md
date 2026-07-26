@@ -70,7 +70,7 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 | `docs.yml` | Changes under `docs/**` (or manual); deploy only on `main` push / dispatch |
 | `codeql.yml` | PR + push `main` + weekly Mon; **skipped** on private until `CODE_SCANNING_ENABLED` |
 | `version-bump.yml` | Manual, only if ref is `main` |
-| `release.yml` | Tag `v*.*.*` or manual with existing tag |
+| `release.yml` | Tag `v0.1.0` / `v1.2.3` (not `v.0.1.0`) or manual with that tag |
 
 Do **not** make `codeql` a required status check while the repo is private without GHAS —
 the analyze job is skipped and only `gate` succeeds.

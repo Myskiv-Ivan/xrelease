@@ -2,11 +2,12 @@ name: release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    # Strict semver tags only (rejects mistaken v.0.1.0)
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing git tag to release (vX.Y.Z)
+        description: Existing git tag (form v0.1.0 — not v.0.1.0)
         required: true
         type: string
 
@@ -36,10 +37,11 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"
           fi
-          case "$TAG" in
-            v*.*.*) ;;
-            *) echo "expected tag like v1.2.3, got: $TAG" >&2; exit 1 ;;
-          esac
+          # Must be vMAJOR.MINOR.PATCH — not v.0.1.0 / v1.2 / etc.
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "expected tag like v0.1.0 (digits after v), got: $TAG" >&2
+            exit 1
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
@@ -76,7 +78,7 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}

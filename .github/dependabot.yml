@@ -17,6 +17,10 @@ updates:
     groups:
       npm-dependencies:
         patterns: ["*"]
+    ignore:
+      # svelte-check needs TS programmatic API — not ready for TypeScript 7 yet
+      - dependency-name: "typescript"
+        versions: [">=7"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -25,6 +29,10 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+    ignore:
+      # Action tag IS the Rust version (e.g. @1.96). Dependabot must not bump it
+      # to fake action versions like @1.100. We pin a commit SHA + rust-toolchain.toml.
+      - dependency-name: "dtolnay/rust-toolchain"
 
   # Backend image (docker/Dockerfile) + UI image (docker/Dockerfile.ui)
   - package-ecosystem: docker

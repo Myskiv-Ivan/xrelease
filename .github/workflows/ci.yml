@@ -19,7 +19,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
@@ -66,7 +66,7 @@ jobs:
     needs: rust
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master — pin; version comes from rust-toolchain.toml
       - uses: Swatinem/rust-cache@v2
 
       - name: Validate bootstrap + app config
@@ -91,7 +91,7 @@ jobs:
         working-directory: front
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
