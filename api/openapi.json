@@ -3,7 +3,7 @@
   "info": {
     "title": "xrelease API",
     "description": "Self-hosted release notifier — management API and inbound webhooks.\n\nStarted with `xrelease serve`. Polling continues in the background; webhooks provide low-latency push for GitHub, GitLab, Gitea, Codeberg, Bitbucket, and Docker Hub.\n\nConfiguration is split: `bootstrap.toml` (infra) + desired state (sources / teams / notifiers via file, API ledger, or UI Apply). Notifiers include Apprise, Novu, Slack, Telegram, SMTP, webhooks, eXpress, and optional brokers.\n\nSource kinds (`type`): `github`, `codeberg`, `gitea`, `gitlab`, `bitbucket`, `docker`, `ghcr`, `quay`, `ecr`, `feed`, `pypi`, `npm`, `yarn`, `cargo`, `maven`, `nuget`, `hex`, `rubygems`, `packagist`, `cpan`, `artifacthub`.",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
