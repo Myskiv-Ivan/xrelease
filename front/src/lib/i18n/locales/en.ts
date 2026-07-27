@@ -465,9 +465,8 @@ export const en = {
 		failed: 'Diagnostics failed',
 		notRun: 'Run checks to load probe results.',
 		webhookEndpoints: 'Webhook endpoints',
-		teams: 'Teams',
-		teamsEmpty: 'No teams configured.',
-		teamSources: 'sources'
+		/** Also the empty state for the Config editor's team list. */
+		teamsEmpty: 'No teams configured.'
 	},
 	settings: {
 		title: 'Settings',
@@ -517,17 +516,11 @@ export const en = {
 		createRequired: 'Username and password are required',
 		passwordTooShort: 'Password must be at least 8 characters',
 		createFailed: 'Failed to create user',
-		oidcEmail: 'SSO email',
-		oidcEmailPlaceholder: 'name@example.com',
-		oidcLink: 'Link SSO',
-		oidcSave: 'Save link',
-		oidcLinking: 'Saving…',
-		oidcBoundHint: 'Linked — this identity has signed in. Changing the address unlinks it.',
-		oidcPendingHint:
-			'Binds on their first SSO sign-in (needs a verified email). Blank + save to unlink.',
-		oidcLinkOk: 'OIDC linked for {user}.',
-		oidcUnlinkOk: 'OIDC unlinked for {user}.',
-		oidcLinkFailed: 'Failed to update OIDC link'
+		emailSsoHint: 'Use the address the IdP asserts — SSO adopts this account on first sign-in.',
+		colUser: 'User',
+		colEmail: 'Email',
+		colRole: 'Role',
+		colSource: 'Source'
 	},
 	login: {
 		title: 'Sign in',

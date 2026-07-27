@@ -11,15 +11,10 @@
 	import type { KeyValueItem } from '$lib/types/ui';
 	import { WEBHOOK_ENDPOINTS } from '$lib/core/constants';
 	import { resolveApiError } from '$lib/core/errors';
-	import { belongsToOrganization } from '$lib/core/organization';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
 	import { t } from '$lib/i18n';
 	import { getNetworkState } from '$lib/stores/network.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
 
 	const network = getNetworkState();
-	const teamsStore = getTeamsStore();
-	const orgs = getOrganizationsState();
 
 	let health = $state<HealthResponse | null>(null);
 	let ready = $state<ReadyResponse | null>(null);
@@ -83,17 +78,6 @@
 		];
 	});
 
-	const teamItems = $derived(
-		(orgs.isMultiOrg && orgs.selectedId
-			? teamsStore.teams.filter((team) => belongsToOrganization(team.tag, orgs.selectedId))
-			: teamsStore.teams
-		).map((team) => ({
-			title: team.name ?? team.tag,
-			code: team.tag,
-			detail: `${team.source_count} ${t('diagnostics.teamSources')}`
-		}))
-	);
-
 	const webhookItems = WEBHOOK_ENDPOINTS.map((endpoint) => ({
 		title: endpoint.forge,
 		code: endpoint.path,
@@ -133,10 +117,6 @@
 		</div>
 
 		<NotifierTestPanel />
-
-		<Panel title={t('diagnostics.teams')}>
-			<MetaList items={teamItems} empty={t('diagnostics.teamsEmpty')} />
-		</Panel>
 
 		<Panel title={t('diagnostics.webhookEndpoints')}>
 			<MetaList items={webhookItems} />

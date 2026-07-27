@@ -5,6 +5,9 @@ export const APP_VERSION =
 	typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.0';
 export const APP_REPOSITORY = 'https://github.com/Myskiv-Ivan/xrelease';
 export const APP_ISSUES_URL = `${APP_REPOSITORY}/issues`;
+/** SPDX id — matches the repo LICENSE and front/package.json. */
+export const APP_LICENSE = 'Apache-2.0';
+export const APP_LICENSE_URL = `${APP_REPOSITORY}/blob/main/LICENSE`;
 
 export const STORAGE_KEYS = {
 	apiKey: 'xrelease_api_key',
