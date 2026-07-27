@@ -113,6 +113,11 @@ pub fn resolve_auth_principal(
                 .and_then(|value| value.as_str())
                 .filter(|value| !value.is_empty())
                 .map(str::to_owned);
+            let email = claims
+                .get("email")
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned);
             // Resolve roles from the LIVE token claims (not a possibly-stale
             // DB row) so RBAC reflects the IdP's current group membership,
             // including per-organization `{role}:{org}` grants.
@@ -126,7 +131,11 @@ pub fn resolve_auth_principal(
                 &api.oidc.role_viewer,
                 fallback,
             );
-            return Ok(AuthPrincipal::Oidc { subject, roles });
+            return Ok(AuthPrincipal::Oidc {
+                subject,
+                email,
+                roles,
+            });
         }
     }
 
@@ -245,6 +254,10 @@ pub enum AuthPrincipal {
     /// (global + per-organization) resolved from the token's group claims.
     Oidc {
         subject: Option<String>,
+        /// `email` claim, for audit provenance only — never for authZ. The
+        /// `sub` is the identity; the address is just what a human reading the
+        /// revision ledger can actually recognise.
+        email: Option<String>,
         roles: super::role::ResolvedRoles,
     },
     /// No authentication is configured at all (unauthenticated management API (require_auth = false)).
@@ -272,6 +285,12 @@ impl AuthPrincipal {
         match self {
             Self::ApiKey => Some("api_key".to_owned()),
             Self::Local { username, .. } => Some(format!("local:{username}")),
+            // Prefer the email: `oidc:8f3a-…-c21` identifies nobody to the
+            // person auditing who applied a config. Fall back to `sub` when the
+            // IdP withheld the claim, so the record is never anonymous.
+            Self::Oidc {
+                email: Some(email), ..
+            } => Some(format!("oidc:{email}")),
             Self::Oidc {
                 subject: Some(subject),
                 ..
@@ -491,13 +510,26 @@ mod tests {
 
     #[test]
     fn audit_label_should_identify_the_verified_principal() {
+        // The email claim wins over the opaque subject: an auditor reading the
+        // revision ledger can recognise an address, not a UUID.
         assert_eq!(
             AuthPrincipal::Oidc {
-                subject: Some("alice@example.com".into()),
+                subject: Some("8f3a-b7c1-c21".into()),
+                email: Some("alice@example.com".into()),
                 roles: super::super::role::ResolvedRoles::flat(AppRole::Admin),
             }
             .audit_label(),
             Some("oidc:alice@example.com".to_owned())
+        );
+        // No email claim → fall back to the subject rather than losing identity.
+        assert_eq!(
+            AuthPrincipal::Oidc {
+                subject: Some("8f3a-b7c1-c21".into()),
+                email: None,
+                roles: super::super::role::ResolvedRoles::flat(AppRole::Admin),
+            }
+            .audit_label(),
+            Some("oidc:8f3a-b7c1-c21".to_owned())
         );
         assert_eq!(
             AuthPrincipal::ApiKey.audit_label(),
@@ -506,6 +538,7 @@ mod tests {
         assert_eq!(
             AuthPrincipal::Oidc {
                 subject: None,
+                email: None,
                 roles: super::super::role::ResolvedRoles::flat(AppRole::Viewer),
             }
             .audit_label(),
@@ -529,6 +562,7 @@ mod tests {
         );
         let principal = AuthPrincipal::Oidc {
             subject: Some("bob".into()),
+            email: None,
             roles,
         };
         // Admin on `platform`…

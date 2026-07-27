@@ -306,6 +306,11 @@ export const en = {
 		clientValidationWarnings: '{count} warnings',
 		clientValidationErrors: '{count} errors',
 		moreIssues: '… and {count} more',
+		originLocal: 'Local account',
+		originOidc: 'SSO',
+		originApi: 'Automation',
+		originAnonymous: 'Unauthenticated',
+		originUnknown: 'Unknown origin',
 		notifiers: 'Delivery channels',
 		notifiersHint:
 			'One channel per destination. Tag channels with team tags (10 teams → set tags on each channel). Empty tags = all teams (wildcard). After Apply, secrets live in app_secret — no .env edits.',

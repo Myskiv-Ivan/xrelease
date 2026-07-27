@@ -74,6 +74,18 @@
 	 * the bare row where the nav is hidden again.
 	 */
 	--app-header-h: 3.5rem;
+	/*
+	 * Table surfaces, pre-blended to OPAQUE colours.
+	 *
+	 * The sticky "Details" column must paint over the cells scrolling beneath
+	 * it, so it cannot be transparent — but if it hardcodes its own colour it
+	 * stops matching the row (that is how it ended up lighter than the rest of
+	 * the table). It now uses `bg-inherit`, which only lines up when the row
+	 * itself is opaque: an alpha row tint would be composited twice, once by
+	 * the row and again by the sticky cell.
+	 */
+	--table-head-bg: color-mix(in oklch, var(--muted) 40%, var(--card));
+	--table-row-hover-bg: color-mix(in oklch, var(--muted) 20%, var(--card));
 }
 
 :root:has(nav[data-mobile-nav]) {

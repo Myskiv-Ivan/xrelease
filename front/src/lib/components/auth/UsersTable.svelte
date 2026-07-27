@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { AuthUserView } from '$lib/api/types';
 	import Badge from '$lib/components/kit/Badge.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
@@ -11,7 +10,7 @@
 		TABLE_HEAD_ROW
 	} from '$lib/components/kit/table-styles';
 	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { EMPTY_VALUE } from '$lib/core/format';
+	import { EMPTY_VALUE, formatDateTimeFull } from '$lib/core/format';
 	import { roleLabel } from '$lib/auth/roles';
 	import { t } from '$lib/i18n';
 
@@ -87,11 +86,11 @@
 					</div>
 				</td>
 				<td class={TABLE_DATE_CELL}>
-					<RelativeTime value={user.created_at} />
+					{formatDateTimeFull(user.created_at)}
 				</td>
 				<td class={TABLE_DATE_CELL}>
 					{#if user.last_login_at}
-						<RelativeTime value={user.last_login_at} />
+						{formatDateTimeFull(user.last_login_at)}
 					{:else}
 						{t('users.neverLoggedIn')}
 					{/if}

@@ -3,7 +3,6 @@
 	import Badge from '$lib/components/kit/Badge.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
@@ -13,7 +12,8 @@
 		TABLE_HEAD_ROW
 	} from '$lib/components/kit/table-styles';
 	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { EMPTY_VALUE } from '$lib/core/format';
+	import { EMPTY_VALUE, formatDateTimeFull } from '$lib/core/format';
+	import { parseAppliedBy, type AppliedBy } from '$lib/config/applied-by';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -22,6 +22,14 @@
 	}
 
 	let { revisions, total }: Props = $props();
+
+	function originLabel(origin: AppliedBy['origin']): string {
+		if (origin === 'local') return t('config.originLocal');
+		if (origin === 'oidc') return t('config.originOidc');
+		if (origin === 'api') return t('config.originApi');
+		if (origin === 'anonymous') return t('config.originAnonymous');
+		return t('config.originUnknown');
+	}
 </script>
 
 <Panel title={t('config.history')}>
@@ -50,6 +58,7 @@
 			</thead>
 			<tbody>
 				{#each revisions as rev (rev.id)}
+					{@const by = parseAppliedBy(rev.applied_by)}
 					<tr class="{TABLE_BODY_ROW} align-middle">
 						<td class="{TABLE_BODY_CELL} {TYPE_CODE}">{rev.id}</td>
 						<td class={TABLE_BODY_CELL}>
@@ -62,11 +71,21 @@
 						<td class="{TABLE_BODY_CELL} max-w-[10rem] truncate" title={rev.revision_label ?? undefined}>
 							{rev.revision_label ?? EMPTY_VALUE}
 						</td>
-						<td class="{TABLE_BODY_CELL} max-w-[9rem] truncate" title={rev.applied_by ?? undefined}>
-							{rev.applied_by ?? EMPTY_VALUE}
+						<!-- title keeps the raw server label for support / debugging -->
+						<td class="{TABLE_BODY_CELL} max-w-[14rem]" title={rev.applied_by ?? undefined}>
+							{#if by}
+								<div class="flex min-w-0 flex-col gap-0.5">
+									<span class="truncate text-sm">{by.identity}</span>
+									<span class={TYPE_MUTED}>
+										{originLabel(by.origin)}{by.claimed ? ` · ${by.claimed}` : ''}
+									</span>
+								</div>
+							{:else}
+								{EMPTY_VALUE}
+							{/if}
 						</td>
 						<td class={TABLE_DATE_CELL}>
-							<RelativeTime value={rev.applied_at} />
+							{formatDateTimeFull(rev.applied_at)}
 						</td>
 						<td class="{TABLE_BODY_CELL} {TYPE_CODE}" title={rev.content_sha256}>
 							{rev.content_sha256.slice(0, 12)}…

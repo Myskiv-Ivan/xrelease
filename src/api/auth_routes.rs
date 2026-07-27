@@ -314,7 +314,7 @@ pub async fn me(
                 user: user.map(|u| user_view(&u, role, BTreeMap::new())),
             }))
         }
-        AuthPrincipal::Oidc { subject, roles } => {
+        AuthPrincipal::Oidc { subject, roles, .. } => {
             // Roles come from the live token claims (resolved at auth time),
             // not the possibly-stale DB row. Expose both global and per-org so
             // the UI can gate org-scoped config write without guessing claims.

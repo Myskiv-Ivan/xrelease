@@ -69,6 +69,28 @@ export function formatRelative(
 	return formatDateTime(date.toISOString());
 }
 
+/**
+ * Full timestamp for audit surfaces (revision ledger, provenance, last login):
+ * "Jul 23, 2026, 14:30:07". Seconds included because two applies a minute apart
+ * are indistinguishable otherwise, which defeats the point of an audit trail.
+ */
+export function formatDateTimeFull(value: string | Date | null | undefined): string {
+	if (value == null || (typeof value === 'string' && value.trim() === '')) return EMPTY_VALUE;
+	const date = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return typeof value === 'string' ? value : EMPTY_VALUE;
+	}
+	return new Intl.DateTimeFormat('en', {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false
+	}).format(date);
+}
+
 export function formatNumber(value: number): string {
 	return new Intl.NumberFormat().format(value);
 }

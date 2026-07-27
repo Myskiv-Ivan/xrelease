@@ -1,6 +1,6 @@
 import type { ConfigApplyStatus, ConfigView } from '$lib/api/types';
 import type { KeyValueItem } from '$lib/types/ui';
-import { EMPTY_VALUE, formatRelative } from '$lib/core/format';
+import { EMPTY_VALUE, formatDateTimeFull, formatRelative } from '$lib/core/format';
 import { t } from '$lib/i18n';
 
 export function desiredSourceLabel(source: 'ledger' | 'app_file' | 'empty'): string {
@@ -42,8 +42,12 @@ export function configProvenanceItems(
 			value: input.revision_label ?? EMPTY_VALUE
 		},
 		{
+			// Relative alone ("3d") is too coarse to correlate a config change
+			// with an incident, so the absolute stamp sits alongside it.
 			label: t('config.appliedAt'),
-			value: input.applied_at ? formatRelative(input.applied_at, now) : EMPTY_VALUE
+			value: input.applied_at
+				? `${formatDateTimeFull(input.applied_at)} (${formatRelative(input.applied_at, now)})`
+				: EMPTY_VALUE
 		}
 	];
 
