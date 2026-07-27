@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/logo.svg';
+	import favicon from '$lib/assets/favicon.svg';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import AppFooter from '$lib/components/layout/AppFooter.svelte';
 	import OfflineBanner from '$lib/components/layout/OfflineBanner.svelte';

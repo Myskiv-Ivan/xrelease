@@ -13,7 +13,7 @@
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
 	import Badge from '$lib/components/kit/Badge.svelte';
-	import { FIELD_GROUP, FIELD_STACK } from '$lib/components/kit/layout-styles';
+	import { FIELD_GROUP, FIELD_STACK, TYPE_STATUS_SUCCESS } from '$lib/components/kit/layout-styles';
 	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
 	import { resolveApiError } from '$lib/core/errors';
 	import { t } from '$lib/i18n';
@@ -115,7 +115,7 @@
 			<ErrorAlert message={error} />
 		{/if}
 		{#if saved}
-			<p class="text-sm text-success">{t('settings.apiKeySaved')}</p>
+			<p class={TYPE_STATUS_SUCCESS}>{t('settings.apiKeySaved')}</p>
 		{/if}
 	</div>
 </Panel>

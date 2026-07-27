@@ -31,8 +31,12 @@
 	import {
 		TYPE_MUTED,
 		TYPE_HINT,
+		TYPE_FIELD_ERROR,
+		TYPE_FIELD_WARNING,
+		TYPE_STATUS_WARNING,
 		FIELD_GROUP,
-		TYPE_OVERLINE
+		TYPE_OVERLINE,
+		TYPE_CODE
 	} from '$lib/components/kit/layout-styles';
 	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
 	import { resolveApiError } from '$lib/core/errors';
@@ -338,7 +342,7 @@
 	{/if}
 
 	{#if notifiers.length === 0}
-		<p class="text-sm text-warning">{t('config.notifiersEmpty')}</p>
+		<p class={TYPE_STATUS_WARNING}>{t('config.notifiersEmpty')}</p>
 	{:else}
 		<div class="mb-3 flex flex-wrap items-end gap-2">
 			<label class="{FIELD_GROUP} min-w-[10rem] flex-1 text-sm">
@@ -362,7 +366,7 @@
 		</div>
 
 		{#if shownCount === 0}
-			<p class="mb-3 {TYPE_HINT}">{t('config.notifiersEmpty')}</p>
+			<p class="mb-3 {TYPE_HINT}">{t('config.notifiersFilterEmpty')}</p>
 		{/if}
 
 		<div class="flex flex-col gap-4">
@@ -448,7 +452,7 @@
 							</div>
 
 							{#if testResult?.error}
-								<p class="border-t border-border px-3 py-2 text-xs text-destructive">
+								<p class="border-t border-border px-3 py-2 {TYPE_FIELD_ERROR}">
 									{testResult.error}
 								</p>
 							{/if}
@@ -537,16 +541,16 @@
 														/>
 													</label>
 													{#if fieldError(path)}
-														<span class="text-xs text-destructive">{fieldError(path)}</span>
+														<span class={TYPE_FIELD_ERROR}>{fieldError(path)}</span>
 													{/if}
 													{#if fieldError(envPath)}
-														<span class="text-xs text-destructive">{fieldError(envPath)}</span>
+														<span class={TYPE_FIELD_ERROR}>{fieldError(envPath)}</span>
 													{/if}
 													{#if fieldWarning(path)}
-														<span class="text-xs text-warning">{fieldWarning(path)}</span>
+														<span class={TYPE_FIELD_WARNING}>{fieldWarning(path)}</span>
 													{/if}
 													{#if fieldWarning(envPath)}
-														<span class="text-xs text-warning">{fieldWarning(envPath)}</span>
+														<span class={TYPE_FIELD_WARNING}>{fieldWarning(envPath)}</span>
 													{/if}
 												</div>
 												{:else}
@@ -603,7 +607,7 @@
 														{#each MESSAGE_TEMPLATE_PLACEHOLDERS as name (name)}
 															<button
 																type="button"
-																class="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+																class="rounded-md border border-border px-1.5 py-0.5 {TYPE_CODE} hover:bg-muted"
 																{disabled}
 																onclick={() => appendTemplateToken(draft, spec.key, name)}
 															>
@@ -666,10 +670,10 @@
 													<span class={TYPE_MUTED}>{t('config.notifiersSecretHint')}</span>
 												{/if}
 												{#if fieldError(path)}
-													<span class="text-xs text-destructive">{fieldError(path)}</span>
+													<span class={TYPE_FIELD_ERROR}>{fieldError(path)}</span>
 												{/if}
 												{#if fieldWarning(path)}
-													<span class="text-xs text-warning">{fieldWarning(path)}</span>
+													<span class={TYPE_FIELD_WARNING}>{fieldWarning(path)}</span>
 												{/if}
 											</label>
 												{/if}
@@ -714,7 +718,7 @@
 											<p class="mt-2 {TYPE_MUTED}">{t('config.notifiersTagsHint')}</p>
 										{/if}
 										{#if fieldError(`notifiers.${index}.tags`)}
-											<p class="mt-1 text-xs text-destructive">
+											<p class="mt-1 {TYPE_FIELD_ERROR}">
 												{fieldError(`notifiers.${index}.tags`)}
 											</p>
 										{/if}
@@ -729,6 +733,6 @@
 	{/if}
 
 	{#if fieldWarning('notifiers')}
-		<p class="mt-3 text-xs text-warning">{fieldWarning('notifiers')}</p>
+		<p class="mt-3 {TYPE_FIELD_WARNING}">{fieldWarning('notifiers')}</p>
 	{/if}
 </Panel>

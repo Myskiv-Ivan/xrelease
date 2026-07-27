@@ -66,7 +66,7 @@ semver = "1"
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
 r2d2 = "0.8"
 r2d2_postgres = "0.18"
-# Vendored OpenSSL so multi-arch Docker builds do not need cross libssl packages.
+# Vendored OpenSSL so Docker/CI builds do not need host libssl for postgres TLS.
 openssl = { version = "0.10", features = ["vendored"] }
 postgres-openssl = "0.5"
 thiserror = "2"

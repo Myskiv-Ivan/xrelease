@@ -37,8 +37,8 @@ Do this **in order** — do not invent a tag by hand unless recovering.
 3. Workflow bumps Cargo, OpenAPI, front (`package.json` + **`schema.d.ts` via `gen:api`**),
    Helm `Chart.yaml`, compose image tags; commits `chore: release vX.Y.Z`; pushes tag `vX.Y.Z`.
 4. **release** starts from the tag (needs `RELEASE_TOKEN`) and publishes:
-   - Linux amd64/arm64 archives (`xrelease`, `xrctl`)
-   - Multi-arch images: `ghcr.io/<owner>/xrelease`, `-cli`, `-ui` (SBOM + cosign)
+   - Linux **amd64** archives (`xrelease`, `xrctl`)
+   - Images: `ghcr.io/<owner>/xrelease`, `-cli`, `-ui` (**linux/amd64**, SBOM + cosign)
    - GitHub Release with notes + checksums
 
 ### Local equivalent (same order)
@@ -125,7 +125,7 @@ No self-hosted runner is required.
 
 - No install, billed as Actions minutes
 - Docker + Buildx available for `ci` / `release` image jobs
-- Enough for this project’s Linux + QEMU multi-arch builds
+- Enough for this project’s Linux **amd64** builds (no QEMU / arm64)
 
 Leave variable `ACTIONS_RUNS_ON` unset (or set `["ubuntu-latest"]`).
 
@@ -154,9 +154,9 @@ Use when you need private network, custom hardware, or to avoid hosted minutes.
    | Need | Why |
    |---|---|
    | Docker + Buildx | `ci` / `release` image builds |
-   | Disk / RAM | Rust release + multi-arch QEMU |
+   | Disk / RAM | Rust release + Docker amd64 builds |
    | Outbound HTTPS | crates.io, npm, GHCR, cosign Fulcio |
-   | Linux amd64 (or matching labels) | Job images assume Linux |
+   | Linux amd64 (or matching labels) | Job images assume Linux amd64 |
 
 Do not commit registration tokens. Rotate the runner if compromised.
 Prefer GitHub-hosted unless you have a concrete need.

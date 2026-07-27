@@ -11,7 +11,7 @@
 		TABLE_DATE_CELL,
 		TABLE_HEAD_ROW
 	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
 	import type { SortState } from '$lib/core/sort';
 	import { toggleSortKey } from '$lib/core/sort';
 	import { t } from '$lib/i18n';
@@ -141,7 +141,7 @@
 					{/if}
 				</td>
 				<td
-					class="max-w-xs {TABLE_BODY_CELL} truncate text-xs text-destructive"
+					class="max-w-xs {TABLE_BODY_CELL} truncate {TYPE_FIELD_ERROR}"
 					title={entry.last_error ?? undefined}
 				>
 					{entry.last_error ?? EMPTY_VALUE}

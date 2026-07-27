@@ -14,7 +14,7 @@
 
 <span
 	class={cn(
-		'inline-flex max-w-none shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium',
+		'inline-flex max-w-none shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium',
 		KIND_TONE_CLASSES[meta.tone]
 	)}
 	title={label ?? meta.label}

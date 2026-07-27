@@ -1,14 +1,22 @@
-# xrelease
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="xrls" width="180" height="66" />
+</p>
 
-[![CI](https://github.com/Myskiv-Ivan/xrelease/actions/workflows/ci.yml/badge.svg)](https://github.com/Myskiv-Ivan/xrelease/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://myskiv-ivan.github.io/xrelease/)
-[![CodeQL](https://github.com/Myskiv-Ivan/xrelease/actions/workflows/codeql.yml/badge.svg)](https://github.com/Myskiv-Ivan/xrelease/actions/workflows/codeql.yml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.96-orange?logo=rust)](https://www.rust-lang.org/)
+<h1 align="center">xrelease</h1>
 
-**Self-hosted release notifier.** Watch upstream software you depend on and
-notify the right teams — on your infrastructure, without sending config or
-secrets to a SaaS.
+<p align="center">
+  <a href="https://github.com/Myskiv-Ivan/xrelease/actions/workflows/ci.yml"><img src="https://github.com/Myskiv-Ivan/xrelease/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://myskiv-ivan.github.io/xrelease/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Docs" /></a>
+  <a href="https://github.com/Myskiv-Ivan/xrelease/actions/workflows/codeql.yml"><img src="https://github.com/Myskiv-Ivan/xrelease/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License" /></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.96-orange?logo=rust" alt="Rust" /></a>
+</p>
+
+<p align="center">
+  <b>Self-hosted release notifier.</b> Watch upstream software you depend on and
+  notify the right teams — on your infrastructure, without sending config or
+  secrets to a SaaS.
+</p>
 
 Typical jobs:
 

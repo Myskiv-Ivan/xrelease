@@ -38,7 +38,17 @@
 		} from '$lib/config/release-pattern-templates';
 		import { listSourceKindValues, getSourceKindMeta } from '$lib/config/source-kinds';
 		import { sourceFieldHint, sourceFieldLabel } from '$lib/config/field-labels';
-	import { TYPE_CODE, TYPE_MUTED, TYPE_HINT, TYPE_OVERLINE } from '$lib/components/kit/layout-styles';
+	import {
+		FIELD_GROUP,
+		TYPE_CODE,
+		TYPE_FIELD_ERROR,
+		TYPE_FIELD_WARNING,
+		TYPE_HINT,
+		TYPE_MUTED,
+		TYPE_OVERLINE,
+		TYPE_STATUS_ERROR,
+		TYPE_STATUS_WARNING
+	} from '$lib/components/kit/layout-styles';
 	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
 	import { resolveApiError } from '$lib/core/errors';
 	import { getConfigSchemaStore } from '$lib/data/config-schema.svelte';
@@ -71,6 +81,8 @@
 	let loadedSha = $state<string | null>(null);
 	let revisionLabel = $state('');
 	let isBusy = $state(false);
+	/** Which primary action owns the busy spinner (avoids both buttons saying "…"). */
+	let busyAction = $state<'validate' | 'apply' | null>(null);
 	let statusMessage = $state<string | null>(null);
 	let statusTone = $state<'success' | 'danger' | 'muted'>('muted');
 	let applyResult = $state<ConfigApplyResponse | null>(null);
@@ -296,6 +308,10 @@
 		sourceOpenByKey = { ...sourceOpenByKey, [key]: !isSourceOpen(key) };
 	}
 
+	function collapseAllSources() {
+		sourceOpenByKey = {};
+	}
+
 	function removeSource(key: string) {
 		sources = sources.filter((source) => source.key !== key);
 	}
@@ -322,6 +338,7 @@
 			statusMessage = t('config.clientValidationBlocked');
 			return;
 		}
+		busyAction = apply ? 'apply' : 'validate';
 		isBusy = true;
 		statusMessage = null;
 		applyResult = null;
@@ -384,6 +401,7 @@
 			}
 		} finally {
 			isBusy = false;
+			busyAction = null;
 		}
 	}
 </script>
@@ -410,67 +428,91 @@
 		</Panel>
 	{:else if parseError || !defaults || !parsed}
 	<Panel title={t('config.tabEdit')}>
-		<p class="text-sm text-destructive">{parseError ?? t('config.editParseError')}</p>
+		<p class={TYPE_STATUS_ERROR}>{parseError ?? t('config.editParseError')}</p>
 	</Panel>
 {:else}
 	<div class="flex flex-col gap-4">
-		<div class="flex flex-wrap items-center gap-2">
-			{#if isDirty}
-				<Badge tone="warning" dot>{t('config.dirty')}</Badge>
-			{/if}
-			{#if validation.errors.length > 0}
-				<Badge tone="danger" dot
-					>{validation.errors.length} {t('config.clientValidation')}</Badge
-				>
-			{:else if validation.warnings.length > 0}
-				<Badge tone="warning" dot
-					>{validation.warnings.length} warn · {t('config.clientValidationOk')}</Badge
-				>
-			{:else}
-				<Badge tone="success" dot>{t('config.clientValidationOk')}</Badge>
-			{/if}
-			{#if statusMessage}
-				<Badge tone={statusTone} dot>{statusMessage}</Badge>
-			{/if}
-			{#if applyResult}
-				<span class="{TYPE_CODE} {TYPE_MUTED}">
-					#{applyResult.revision} · {applyResult.content_sha256.slice(0, 12)}…
-				</span>
-				{#if applyResult.sources_added?.length}
-					<span class={TYPE_MUTED}>
-						{t('config.diffAdded')}: {applyResult.sources_added.join(', ')}
+		<div
+			class="sticky top-14 z-20 -mx-1 flex flex-col gap-3 rounded-lg border border-border bg-background/95 px-3 py-3 shadow-sm backdrop-blur"
+		>
+			<div class="flex flex-wrap items-center gap-2">
+				{#if isDirty}
+					<Badge tone="warning" dot>{t('config.dirty')}</Badge>
+				{/if}
+				{#if validation.errors.length > 0}
+					<Badge tone="danger" dot>
+						{t('config.clientValidationErrors').replace(
+							'{count}',
+							String(validation.errors.length)
+						)}
+					</Badge>
+				{:else if validation.warnings.length > 0}
+					<Badge tone="warning" dot>
+						{t('config.clientValidationWarnings').replace(
+							'{count}',
+							String(validation.warnings.length)
+						)}
+					</Badge>
+				{:else}
+					<Badge tone="success" dot>{t('config.clientValidationOk')}</Badge>
+				{/if}
+				{#if statusMessage}
+					<span class="min-w-0 max-w-full" title={statusMessage}>
+						<Badge tone={statusTone} dot class="max-w-full truncate">{statusMessage}</Badge>
 					</span>
 				{/if}
-				{#if applyResult.sources_removed?.length}
-					<span class={TYPE_MUTED}>
-						{t('config.diffRemoved')}: {applyResult.sources_removed.join(', ')}
+				{#if applyResult}
+					<span class="{TYPE_CODE} {TYPE_MUTED}">
+						#{applyResult.revision} · {applyResult.content_sha256.slice(0, 12)}…
 					</span>
+					{#if applyResult.sources_added?.length}
+						<span class={TYPE_MUTED}>
+							{t('config.diffAdded')}: {applyResult.sources_added.join(', ')}
+						</span>
+					{/if}
+					{#if applyResult.sources_removed?.length}
+						<span class={TYPE_MUTED}>
+							{t('config.diffRemoved')}: {applyResult.sources_removed.join(', ')}
+						</span>
+					{/if}
+					{#if applyResult.sources_changed?.length}
+						<span class={TYPE_MUTED}>
+							{t('config.diffChanged')}: {applyResult.sources_changed.join(', ')}
+						</span>
+					{/if}
 				{/if}
-				{#if applyResult.sources_changed?.length}
-					<span class={TYPE_MUTED}>
-						{t('config.diffChanged')}: {applyResult.sources_changed.join(', ')}
-					</span>
-				{/if}
-			{/if}
-			<div class="ml-auto flex flex-wrap items-center gap-2">
-				<Button variant="ghost" size="sm" disabled={!isDirty || isBusy} onclick={loadFromView}>
-					{t('config.discard')}
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={isBusy || !network.isOnline}
-					onclick={() => runValidateOrApply(false)}
-				>
-					{isBusy ? t('config.validating') : t('config.validateOnly')}
-				</Button>
-				<Button
-					size="sm"
-					disabled={isBusy || !network.isOnline || !isDirty || !validation.ok}
-					onclick={() => runValidateOrApply(true)}
-				>
-					{isBusy ? t('config.applying') : t('config.apply')}
-				</Button>
+				<div class="ml-auto flex flex-wrap items-center gap-2">
+					<Button variant="ghost" size="sm" disabled={!isDirty || isBusy} onclick={loadFromView}>
+						{t('config.discard')}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={isBusy || !network.isOnline}
+						onclick={() => runValidateOrApply(false)}
+					>
+						{busyAction === 'validate' ? t('config.validating') : t('config.validateOnly')}
+					</Button>
+					<Button
+						size="sm"
+						disabled={isBusy || !network.isOnline || !isDirty || !validation.ok}
+						onclick={() => runValidateOrApply(true)}
+					>
+						{busyAction === 'apply' ? t('config.applying') : t('config.apply')}
+					</Button>
+				</div>
+			</div>
+			<div class="flex flex-col gap-1.5 sm:max-w-md">
+				<label for="config-revision-label" class={fieldLabelClass}>
+					{t('config.revisionLabelField')}
+				</label>
+				<Input
+					id="config-revision-label"
+					bind:value={revisionLabel}
+					placeholder={t('config.revisionLabelPlaceholder')}
+					disabled={isBusy}
+				/>
+				<p class={TYPE_MUTED}>{t('config.toolbarHint')}</p>
 			</div>
 		</div>
 
@@ -485,26 +527,17 @@
 			</ul>
 		{/if}
 		{#if serverReportErrors.length > 0}
-			<ul class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+			<ul class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 {TYPE_STATUS_ERROR}">
 				{#each serverReportErrors.slice(0, 12) as message (message)}
 					<li>{message}</li>
 				{/each}
 			</ul>
 		{/if}
 
-		<label class="flex max-w-md flex-col gap-1 text-sm">
-			<span class={fieldLabelClass}>{t('config.revisionLabelField')}</span>
-			<Input
-				bind:value={revisionLabel}
-				placeholder={t('config.revisionLabelPlaceholder')}
-				disabled={isBusy}
-			/>
-		</label>
-
 		<Panel title={t('config.defaults')}>
 			<p class="mb-3 {TYPE_HINT}">{t('config.defaultsHint')}</p>
 			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-				<label class="flex flex-col gap-1 text-sm">
+				<label class="{FIELD_GROUP} text-sm">
 					<span class={fieldLabelClass}>{t('config.intervalSecs')}</span>
 					<Input
 						type="number"
@@ -518,7 +551,7 @@
 						}}
 					/>
 				</label>
-				<label class="flex flex-col gap-1 text-sm">
+				<label class="{FIELD_GROUP} text-sm">
 					<span class={fieldLabelClass}>{t('config.jitterSecs')}</span>
 					<Input
 						type="number"
@@ -532,7 +565,7 @@
 						}}
 					/>
 				</label>
-				<label class="flex flex-col gap-1 text-sm">
+				<label class="{FIELD_GROUP} text-sm">
 					<span class={fieldLabelClass}>{t('config.upstreamRpm')}</span>
 					<Input
 						type="number"
@@ -549,11 +582,11 @@
 						}}
 					/>
 				</label>
-				<label class="flex flex-col gap-1 text-sm sm:col-span-2">
+				<label class="{FIELD_GROUP} text-sm sm:col-span-2">
 					<span class={fieldLabelClass}>{t('config.notifySchedule')}</span>
 					<Input bind:value={defaults.notify_schedule} disabled={isBusy} />
 				</label>
-				<label class="flex flex-col gap-1 text-sm sm:col-span-2">
+				<label class="{FIELD_GROUP} text-sm sm:col-span-2">
 					<span class={fieldLabelClass}>{t('config.opsRoutingTag')}</span>
 					<Input
 						bind:value={defaults.ops_routing_tag}
@@ -561,9 +594,9 @@
 						disabled={isBusy}
 					/>
 					{#if fieldError('defaults.ops_routing_tag')}
-						<span class="text-xs text-destructive">{fieldError('defaults.ops_routing_tag')}</span>
+						<span class={TYPE_FIELD_ERROR}>{fieldError('defaults.ops_routing_tag')}</span>
 					{:else if fieldWarning('defaults.ops_routing_tag')}
-						<span class="text-xs text-warning">{fieldWarning('defaults.ops_routing_tag')}</span>
+						<span class={TYPE_FIELD_WARNING}>{fieldWarning('defaults.ops_routing_tag')}</span>
 					{/if}
 				</label>
 				<label class="flex items-center gap-2 text-sm">
@@ -592,14 +625,14 @@
 				<div class="flex flex-col gap-2">
 					{#each teams as team, index (team.key)}
 						<div class="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]">
-							<label class="flex flex-col gap-1 text-sm">
+							<label class="{FIELD_GROUP} text-sm">
 								<span class={fieldLabelClass}>{t('config.teamTag')}</span>
 								<Input bind:value={team.tag} disabled={isBusy} placeholder="platform-team" />
 								{#if fieldError(`teams.${index}.tag`)}
-									<span class="text-xs text-destructive">{fieldError(`teams.${index}.tag`)}</span>
+									<span class={TYPE_FIELD_ERROR}>{fieldError(`teams.${index}.tag`)}</span>
 								{/if}
 							</label>
-							<label class="flex flex-col gap-1 text-sm">
+							<label class="{FIELD_GROUP} text-sm">
 								<span class={fieldLabelClass}>{t('config.teamName')}</span>
 								<Input bind:value={team.name} disabled={isBusy} />
 							</label>
@@ -621,13 +654,20 @@
 
 		<Panel title={t('config.sources')}>
 			{#snippet actions()}
-				<Button variant="outline" size="sm" disabled={isBusy} onclick={addSource}>
-					{t('config.addSource')}
-				</Button>
+				<div class="flex flex-wrap items-center gap-2">
+					{#if sources.length > 0}
+						<Button variant="ghost" size="sm" disabled={isBusy} onclick={collapseAllSources}>
+							{t('config.sourcesCollapseAll')}
+						</Button>
+					{/if}
+					<Button variant="outline" size="sm" disabled={isBusy} onclick={addSource}>
+						{t('config.addSource')}
+					</Button>
+				</div>
 			{/snippet}
 			<p class="mb-3 {TYPE_HINT}">{t('config.sourcesHint')}</p>
 			{#if sources.length === 0}
-				<p class="text-sm text-warning">{t('config.sourcesEmpty')}</p>
+				<p class={TYPE_STATUS_WARNING}>{t('config.sourcesEmpty')}</p>
 			{:else}
 				<div class="flex flex-col gap-4">
 					{#each sourceGroups as group (group.kind)}
@@ -668,7 +708,7 @@
 									{#if open}
 										<div class="border-t border-border p-3">
 											<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.sourceType')}</span>
 													<Select
 														value={source.type}
@@ -680,16 +720,16 @@
 														{/each}
 													</Select>
 												</label>
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.sourceId')}</span>
 													<Input bind:value={source.id} disabled={isBusy} />
 													{#if fieldError(`sources.${index}.id`)}
-														<span class="text-xs text-destructive"
+														<span class={TYPE_FIELD_ERROR}
 															>{fieldError(`sources.${index}.id`)}</span
 														>
 													{/if}
 												</label>
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.routingTag')}</span>
 													<Select
 														value={source.routing_tag}
@@ -708,13 +748,13 @@
 														{/if}
 													</Select>
 													{#if fieldWarning(`sources.${index}.routing_tag`)}
-														<span class="text-xs text-warning"
+														<span class={TYPE_FIELD_WARNING}
 															>{fieldWarning(`sources.${index}.routing_tag`)}</span
 														>
 													{/if}
 												</label>
 												{#each primaryFieldsForKind(source.type) as field (field.key)}
-													<label class="flex flex-col gap-1 text-sm">
+													<label class="{FIELD_GROUP} text-sm">
 														<span class={fieldLabelClass}>
 															{sourceFieldLabel(field.key)}{field.required ? ' *' : ''}
 														</span>
@@ -749,7 +789,7 @@
 															/>
 														{/if}
 														{#if fieldError(`sources.${index}.fields.${field.key}`)}
-															<span class="text-xs text-destructive"
+															<span class={TYPE_FIELD_ERROR}
 																>{fieldError(`sources.${index}.fields.${field.key}`)}</span
 															>
 														{/if}
@@ -758,7 +798,7 @@
 												{#if sourceSupportsToken(source.type)}
 													{@const tokenPending = source.redacted.includes('token')}
 													<div
-														class="flex flex-col gap-1 text-sm sm:col-span-2 rounded-md border border-border/60 p-2"
+														class="{FIELD_GROUP} text-sm sm:col-span-2 rounded-md border border-border/60 p-2"
 													>
 														<span class={fieldLabelClass}>{sourceFieldLabel('token')}</span>
 														<span class={TYPE_MUTED}>{t('config.notifiersSecretPairHint')}</span>
@@ -780,7 +820,7 @@
 														{#if tokenPending && !source.token.trim()}
 															<span class={TYPE_MUTED}>{t('config.notifiersSecretHint')}</span>
 														{/if}
-														<label class="mt-2 flex flex-col gap-1 text-sm">
+														<label class="{FIELD_GROUP} mt-2 text-sm">
 															<span class={fieldLabelClass}>{sourceFieldLabel('token_env')}</span>
 															<Input
 																value={source.token_env}
@@ -797,7 +837,7 @@
 														</label>
 													</div>
 												{/if}
-												<label class="flex flex-col gap-1 text-sm sm:col-span-2">
+												<label class="{FIELD_GROUP} text-sm sm:col-span-2">
 													<span class={fieldLabelClass}>{t('config.patternTemplate')}</span>
 													<Select
 														value={source.preset}
@@ -814,7 +854,7 @@
 													</Select>
 													<span class={TYPE_HINT}>{t('config.patternTemplateHint')}</span>
 												</label>
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.pattern')}</span>
 													<Input
 														bind:value={source.pattern}
@@ -828,21 +868,21 @@
 														}}
 													/>
 													{#if fieldError(`sources.${index}.pattern`)}
-														<span class="text-xs text-destructive"
+														<span class={TYPE_FIELD_ERROR}
 															>{fieldError(`sources.${index}.pattern`)}</span
 														>
 													{/if}
 												</label>
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.excludePattern')}</span>
 													<Input bind:value={source.exclude_pattern} disabled={isBusy} />
 													{#if fieldError(`sources.${index}.exclude_pattern`)}
-														<span class="text-xs text-destructive"
+														<span class={TYPE_FIELD_ERROR}
 															>{fieldError(`sources.${index}.exclude_pattern`)}</span
 														>
 													{/if}
 												</label>
-												<label class="flex flex-col gap-1 text-sm">
+												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.prereleaseTags')}</span>
 													<Input
 														bind:value={source.prerelease_tags}
@@ -850,7 +890,7 @@
 														placeholder={t('config.placeholderPrerelease')}
 													/>
 													{#if fieldWarning(`sources.${index}.prerelease_tags`)}
-														<span class="text-xs text-warning"
+														<span class={TYPE_FIELD_WARNING}
 															>{fieldWarning(`sources.${index}.prerelease_tags`)}</span
 														>
 													{/if}

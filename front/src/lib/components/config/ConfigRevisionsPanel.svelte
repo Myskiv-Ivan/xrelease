@@ -12,7 +12,7 @@
 		TABLE_HEAD_CELL,
 		TABLE_HEAD_ROW
 	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
 	import { EMPTY_VALUE } from '$lib/core/format';
 	import { t } from '$lib/i18n';
 
@@ -72,7 +72,7 @@
 							{rev.content_sha256.slice(0, 12)}…
 						</td>
 						<td
-							class="max-w-xs {TABLE_BODY_CELL} truncate text-xs text-destructive"
+							class="max-w-xs {TABLE_BODY_CELL} truncate {TYPE_FIELD_ERROR}"
 							title={rev.error ?? undefined}
 						>
 							{rev.error ?? EMPTY_VALUE}

@@ -14,7 +14,7 @@
 	import { getAuthState } from '$lib/stores/auth.svelte';
 	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
 	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
-	import { TYPE_MUTED, TYPE_HINT, TYPE_SECTION } from '$lib/components/kit/layout-styles';
+	import { TYPE_MUTED, TYPE_HINT, TYPE_SECTION, TYPE_STATUS_ERROR } from '$lib/components/kit/layout-styles';
 
 	const auth = getAuthState();
 	const sourcesStore = getSourcesStore();
@@ -121,7 +121,7 @@
 			>
 				<span class="inline-flex items-center gap-2">
 					{t('overview.routingSummary')}
-					<span class="text-xs font-normal text-muted-foreground group-open:hidden">
+					<span class="{TYPE_MUTED} font-normal group-open:hidden">
 						· {t('overview.routingExpand')}
 					</span>
 				</span>
@@ -138,7 +138,7 @@
 					{:else if graphLoading}
 						<p class={TYPE_HINT}>{t('common.loading')}</p>
 					{:else if graphError}
-						<p class="text-sm text-destructive">{graphError}</p>
+						<p class={TYPE_STATUS_ERROR}>{graphError}</p>
 					{:else}
 						<p class={TYPE_HINT}>{t('overview.routingEmptyOrg')}</p>
 					{/if}
@@ -152,7 +152,7 @@
 				{:else if graphLoading}
 					<p class={TYPE_HINT}>{t('common.loading')}</p>
 				{:else if graphError}
-					<p class="text-sm text-destructive">{graphError}</p>
+					<p class={TYPE_STATUS_ERROR}>{graphError}</p>
 				{:else}
 					<p class={TYPE_HINT}>{t('config.editNoDesired')}</p>
 				{/if}

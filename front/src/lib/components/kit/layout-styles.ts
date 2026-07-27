@@ -30,8 +30,8 @@ export const TYPE_PAGE_DESC = 'text-sm leading-normal text-muted-foreground';
 /** Overline labels — sole CSS-uppercase role. */
 export const TYPE_OVERLINE =
 	'text-xs font-medium uppercase tracking-wide text-muted-foreground';
-	/** Panel / card section label — prefer `TYPE_SECTION` for visible panel titles. */
-	export const TYPE_PANEL_TITLE = TYPE_OVERLINE;
+/** Panel / card section label — prefer `TYPE_SECTION` for visible panel titles. */
+export const TYPE_PANEL_TITLE = TYPE_OVERLINE;
 /**
  * Table column headers — sentence case, muted, compact.
  * Do not uppercase: "Content SHA-256" / "Applied by" must stay readable.
@@ -46,6 +46,13 @@ export const TYPE_BODY = 'text-sm text-foreground';
 export const TYPE_MUTED = 'text-xs text-muted-foreground';
 /** Form / panel hints at body size (sentence case). */
 export const TYPE_HINT = 'text-sm text-muted-foreground';
+/** Compact field-level validation (under inputs). */
+export const TYPE_FIELD_ERROR = 'text-xs text-destructive';
+export const TYPE_FIELD_WARNING = 'text-xs text-warning';
+/** Body-size status lines (parse errors, empty-state warnings, save confirmations). */
+export const TYPE_STATUS_ERROR = 'text-sm text-destructive';
+export const TYPE_STATUS_WARNING = 'text-sm text-warning';
+export const TYPE_STATUS_SUCCESS = 'text-sm text-success';
 /** Empty / placeholder titles. */
 export const TYPE_EMPTY_TITLE =
 	'font-heading text-base font-semibold tracking-tight text-foreground';

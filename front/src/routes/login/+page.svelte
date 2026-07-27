@@ -48,6 +48,8 @@
 	let isOidcStarting = $state(false);
 	let displayVersion = $state(APP_VERSION);
 
+	const isBusy = $derived(isSubmitting || isOidcStarting);
+
 	onMount(() => {
 		initAuth();
 		initSettings();
@@ -167,7 +169,7 @@
 							autocomplete="username"
 							placeholder={t('login.usernamePlaceholder')}
 							bind:value={username}
-							disabled={isSubmitting}
+							disabled={isBusy}
 						/>
 					</div>
 					<div class={FIELD_GROUP}>
@@ -178,27 +180,34 @@
 							autocomplete="current-password"
 							placeholder={t('login.passwordPlaceholder')}
 							bind:value={password}
-							disabled={isSubmitting}
+							disabled={isBusy}
 						/>
 					</div>
-					<Button type="submit" class="w-full" disabled={isSubmitting}>
+					<Button type="submit" class="w-full" disabled={isBusy}>
 						{isSubmitting ? t('login.verifying') : t('login.continueLocal')}
 					</Button>
 				</form>
-			</Panel>
-		{/if}
 
-		{#if showOidc}
-			{#if showLocal}
-				<div class="relative flex items-center justify-center py-0.5" role="separator">
-					<div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
-					<span class="relative bg-background px-3 {TYPE_MUTED}">
-						{t('login.orSso')}
-					</span>
-				</div>
-			{/if}
+				{#if showOidc}
+					<div class="relative mt-4 flex items-center justify-center py-0.5" role="separator">
+						<div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
+						<span class="relative bg-card px-3 {TYPE_MUTED}">
+							{t('login.orSso')}
+						</span>
+					</div>
+					<Button
+						variant="outline"
+						class="mt-4 w-full"
+						disabled={isBusy}
+						onclick={() => void handleOidcLogin()}
+					>
+						{isOidcStarting ? t('login.oidcRedirecting') : t('login.oidcContinue')}
+					</Button>
+				{/if}
+			</Panel>
+		{:else if showOidc}
 			<Panel>
-				<Button class="w-full" disabled={isOidcStarting} onclick={() => void handleOidcLogin()}>
+				<Button class="w-full" disabled={isBusy} onclick={() => void handleOidcLogin()}>
 					{isOidcStarting ? t('login.oidcRedirecting') : t('login.oidcContinue')}
 				</Button>
 			</Panel>
@@ -223,10 +232,10 @@
 							autocomplete="off"
 							placeholder={t('login.placeholder')}
 							bind:value={apiKeyInput}
-							disabled={isSubmitting}
+							disabled={isBusy}
 						/>
 					</div>
-					<Button type="submit" class="w-full" disabled={isSubmitting}>
+					<Button type="submit" class="w-full" disabled={isBusy}>
 						{isSubmitting ? t('login.verifying') : t('login.continue')}
 					</Button>
 				</form>

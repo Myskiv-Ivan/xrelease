@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing git tag (form v0.1.0 — not v.0.1.0)
+        description: Existing git tag (form v0.1.0)
         required: true
         type: string
 
@@ -86,18 +86,9 @@ jobs:
           fi
 
   binaries:
-    name: binary (${{ matrix.name }})
+    name: binary (linux-amd64)
     needs: preflight
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            name: linux-amd64
-          - target: aarch64-unknown-linux-gnu
-            name: linux-arm64
-            cross: true
     steps:
       - uses: actions/checkout@v7
         with:
@@ -106,11 +97,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
         with:
           toolchain: "1.96"
-          # Required for matrix.cross (aarch64); harmless for native amd64.
-          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: release-${{ matrix.target }}
+          key: release-linux-amd64
 
       - name: Install build deps (librdkafka / OpenSSL)
         run: |
@@ -118,38 +107,30 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake pkg-config libssl-dev libsasl2-dev zlib1g-dev
 
-      - name: Install cross toolchain (arm64)
-        if: matrix.cross
-        run: |
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-
       - name: Build xrelease (backend) + xrctl (CLI)
         # Whole workspace: backend ships every notifier sink (including brokers);
         # the same pass produces the standalone `xrctl` client.
-        run: cargo build --release --locked --workspace --target "${{ matrix.target }}"
+        # linux/amd64 only — arm64 dropped (aws-lc / cross sysroot pain).
+        run: cargo build --release --locked --workspace
 
       - name: Package archives
         env:
           VERSION: ${{ needs.preflight.outputs.version }}
         run: |
-          REL="target/${{ matrix.target }}/release"
-          # Per-target checksum file: both matrix targets used to write the
-          # same `xrelease-${VERSION}-checksums.sha256`, which collide under the
-          # release job's `merge-multiple` download and silently drop a target.
-          CHECKSUMS="checksums-${VERSION}-${{ matrix.name }}.sha256"
+          REL="target/release"
+          CHECKSUMS="checksums-${VERSION}-linux-amd64.sha256"
 
-          DAEMON="xrelease-${VERSION}-${{ matrix.name }}.tar.gz"
+          DAEMON="xrelease-${VERSION}-linux-amd64.tar.gz"
           tar -C "${REL}" -czf "${DAEMON}" xrelease
           sha256sum "${DAEMON}" >> "${CHECKSUMS}"
 
-          CLI="xrctl-${VERSION}-${{ matrix.name }}.tar.gz"
+          CLI="xrctl-${VERSION}-linux-amd64.tar.gz"
           tar -C "${REL}" -czf "${CLI}" xrctl
           sha256sum "${CLI}" >> "${CHECKSUMS}"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: xrelease-${{ matrix.name }}
+          name: xrelease-linux-amd64
           path: |
             xrelease-*.tar.gz
             xrctl-*.tar.gz
@@ -185,7 +166,6 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.tag }}
 
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - uses: sigstore/cosign-installer@v4.1.2
 
@@ -220,7 +200,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -169,9 +169,7 @@ jobs:
           docker compose -f docker-compose.yaml config --quiet
           docker compose -f docker/docker-compose.dev.yaml config --quiet
 
-  # amd64-only smoke — no QEMU (multi-arch is release.yml).
-  # Matrix runs backend/cli/ui in parallel. GHA cache scopes backend|cli|ui
-  # are shared with release.yml so tag builds stay warm.
+  # amd64-only smoke (release.yml publishes linux/amd64 only — no arm64/QEMU).
   docker:
     name: docker (${{ matrix.component }})
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}

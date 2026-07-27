@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Badge from '$lib/components/kit/Badge.svelte';
 	import Select from '$lib/components/kit/Select.svelte';
 	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
 	import { getOutboxStore } from '$lib/data/outbox.svelte';
@@ -49,8 +50,8 @@
 				</option>
 			{/each}
 		</Select>
-		<span class="hidden rounded-md border border-border px-1.5 py-0.5 text-[0.65rem] uppercase tracking-wide text-muted-foreground sm:inline">
-			{auth.roleLabel(orgs.selectedId)}
+		<span class="hidden sm:inline">
+			<Badge tone="muted">{auth.roleLabel(orgs.selectedId)}</Badge>
 		</span>
 	</label>
 {/if}

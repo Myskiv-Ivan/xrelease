@@ -5,7 +5,7 @@
 	import Button from '$lib/components/kit/Button.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
 	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED, TYPE_FIELD_ERROR } from '$lib/components/kit/layout-styles';
 	import { resolveApiError } from '$lib/core/errors';
 	import { t } from '$lib/i18n';
 	import { getAuthState } from '$lib/stores/auth.svelte';
@@ -162,7 +162,7 @@
 						</div>
 					{/if}
 					{#if result?.error}
-						<p class="basis-full text-xs text-destructive">{result.error}</p>
+						<p class="basis-full {TYPE_FIELD_ERROR}">{result.error}</p>
 					{/if}
 				</li>
 			{/each}

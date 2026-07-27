@@ -8,6 +8,7 @@
 		configApiEnabled,
 		configProvenanceItems
 	} from '$lib/config/config-presentation';
+	import { TYPE_FIELD_ERROR } from '$lib/components/kit/layout-styles';
 	import { t } from '$lib/i18n';
 	import { getNowStore } from '$lib/stores/now.svelte';
 
@@ -46,7 +47,7 @@
 	<KeyValueList {items} layout="grid" columns={2} />
 
 	{#if status.last_rejected_error}
-		<p class="mt-3 truncate text-xs text-destructive" title={status.last_rejected_error}>
+		<p class="mt-3 truncate {TYPE_FIELD_ERROR}" title={status.last_rejected_error}>
 			{status.last_rejected_error}
 		</p>
 	{/if}
