@@ -101,6 +101,57 @@ impl PostgresStore {
         Ok(row_to_user(row))
     }
 
+    /// Set (or clear) the SSO link email on a local user.
+    ///
+    /// Clears `oidc_sub` whenever the address changes or is removed: the bound
+    /// subject was proven against the *previous* address, so leaving it in
+    /// place would keep the old IdP identity signed in to this account after an
+    /// admin re-pointed it at someone else.
+    pub(crate) fn set_user_oidc_link_email(
+        &self,
+        user_id: i64,
+        email: Option<&str>,
+    ) -> Result<AppUser, StoreError> {
+        let email = email.map(str::trim).filter(|value| !value.is_empty());
+
+        if let Some(email) = email {
+            let mut client = self.conn()?;
+            let taken = client.query_opt(
+                "SELECT id FROM app_user WHERE lower(email) = lower($1) AND id <> $2 LIMIT 1",
+                &[&email, &user_id],
+            )?;
+            if let Some(row) = taken {
+                let owner: i64 = row.get(0);
+                return Err(StoreError::Other(format!(
+                    "email `{email}` is already used by user {owner}"
+                )));
+            }
+        }
+
+        let mut client = self.conn()?;
+        let now = Utc::now();
+        let row = client
+            .query_opt(
+                // $2 is cast explicitly: inside the CASE it appears only as
+                // `IS NULL` / lower(), which leaves Postgres unable to infer a
+                // parameter type (42P08) and fails every call.
+                "UPDATE app_user SET
+                    email = $2::text,
+                    oidc_sub = CASE
+                        WHEN $2::text IS NULL THEN NULL
+                        WHEN lower(COALESCE(email, '')) IS DISTINCT FROM lower($2::text) THEN NULL
+                        ELSE oidc_sub
+                    END,
+                    updated_at = $3
+                 WHERE id = $1 AND auth_source = 'local'
+                 RETURNING id, username, password_hash, oidc_sub, email, display_name, role,
+                           auth_source, created_at, updated_at, last_login_at, session_version",
+                &[&user_id, &email, &now],
+            )?
+            .ok_or_else(|| StoreError::Other(format!("no local app_user with id {user_id}")))?;
+        Ok(row_to_user(row))
+    }
+
     /// Attach (or clear) an IdP subject on an existing local user.
     ///
     /// Keeps `auth_source = 'local'` so password login still works; OIDC auth
@@ -144,7 +195,7 @@ impl PostgresStore {
     pub(crate) fn upsert_oidc_user(
         &self,
         user: &AppUserUpsertOidc<'_>,
-    ) -> Result<AppUser, StoreError> {
+    ) -> Result<Option<AppUser>, StoreError> {
         let mut client = self.conn()?;
         let now = Utc::now();
 
@@ -167,10 +218,17 @@ impl PostgresStore {
                     &now,
                 ],
             )?;
-            return Ok(row_to_user(row));
+            return Ok(Some(row_to_user(row)));
         }
 
-        if let Some(email) = user.email.map(str::trim).filter(|value| !value.is_empty()) {
+        // Only an IdP-verified address may adopt an existing local account.
+        let linkable_email = user
+            .link_by_email
+            .then_some(user.email)
+            .flatten()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if let Some(email) = linkable_email {
             if let Some(local) = self.find_linkable_local_user_by_email(email)? {
                 let row = client.query_one(
                     "UPDATE app_user SET
@@ -192,8 +250,14 @@ impl PostgresStore {
                         &now,
                     ],
                 )?;
-                return Ok(row_to_user(row));
+                return Ok(Some(row_to_user(row)));
             }
+        }
+
+        // Unknown subject with provisioning disabled — the directory is an
+        // allow-list, so the caller denies instead of creating a row.
+        if !user.allow_create {
+            return Ok(None);
         }
 
         // New rows get `session_version` DEFAULT 0.
@@ -212,7 +276,7 @@ impl PostgresStore {
                 &now,
             ],
         )?;
-        Ok(row_to_user(row))
+        Ok(Some(row_to_user(row)))
     }
 
     pub(crate) fn touch_user_last_login(&self, id: i64) -> Result<(), StoreError> {

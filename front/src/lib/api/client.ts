@@ -247,10 +247,15 @@ export const api = {
 	createUser: (body: AuthCreateUserRequest) =>
 		request<AuthUserView>('/api/v1/auth/users', { method: 'POST', body }),
 	/** Admin: link / unlink OIDC subject on a local user. */
-	linkUserOidc: (id: number, oidcSub: string | null) =>
+	/**
+	 * Link a local user to SSO by the email the IdP will assert. The opaque
+	 * subject binds itself on that person's first OIDC sign-in (requires
+	 * `email_verified`). Pass null to unlink — that also clears a bound subject.
+	 */
+	linkUserOidcEmail: (id: number, email: string | null) =>
 		request<AuthUserView>(`/api/v1/auth/users/${id}/oidc`, {
 			method: 'POST',
-			body: { oidc_sub: oidcSub }
+			body: { email }
 		}),
 
 	/** Organizations (multi-tenant). */

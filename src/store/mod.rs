@@ -893,8 +893,22 @@ impl Store {
         delegate!(self, link_user_oidc_sub(user_id, oidc_sub))
     }
 
-    /// Create or refresh an OIDC identity (link local by email when possible).
-    pub fn upsert_oidc_user(&self, user: &AppUserUpsertOidc<'_>) -> Result<AppUser, StoreError> {
+    /// Set / clear the SSO link email on a local user (clears a stale subject).
+    pub fn set_user_oidc_link_email(
+        &self,
+        user_id: i64,
+        email: Option<&str>,
+    ) -> Result<AppUser, StoreError> {
+        delegate!(self, set_user_oidc_link_email(user_id, email))
+    }
+
+    /// Create or refresh an OIDC identity (link local by verified email when
+    /// permitted). `Ok(None)` means the subject resolved to no row and
+    /// `allow_create` forbade provisioning one — the caller must deny sign-in.
+    pub fn upsert_oidc_user(
+        &self,
+        user: &AppUserUpsertOidc<'_>,
+    ) -> Result<Option<AppUser>, StoreError> {
         delegate!(self, upsert_oidc_user(user))
     }
 
@@ -950,6 +964,16 @@ pub struct AppUserUpsertOidc<'a> {
     pub email: Option<&'a str>,
     pub display_name: Option<&'a str>,
     pub role: &'a str,
+    /// Adopt an existing local account whose email matches `email`.
+    ///
+    /// Caller sets this ONLY when the IdP asserted `email_verified` — an
+    /// unverified address would let anyone who can mint a token for it take
+    /// over the matching local account.
+    pub link_by_email: bool,
+    /// Insert a row when the subject resolves to nothing (`[api.oidc]
+    /// auto_create_users`). When false the upsert returns `Ok(None)` and the
+    /// caller must reject the sign-in.
+    pub allow_create: bool,
 }
 
 #[cfg(test)]

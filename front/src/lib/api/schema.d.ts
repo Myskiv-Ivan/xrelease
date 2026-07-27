@@ -160,8 +160,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Link or unlink an OIDC subject on a local user
-         * @description Admin-only. Attaches `oidc_sub` to an existing local (password) user so the same row can sign in via SSO. `auth_source` stays `local`. Pass a blank/null `oidc_sub` to unlink. Auto-link also happens on `/auth/oidc/sync` when emails match.
+         * Link a local user to SSO by email (or pin an OIDC subject)
+         * @description Admin-only. Set `email` to the address the IdP will assert; the opaque `oidc_sub` binds itself on that person's first OIDC sign-in, provided the token carries `email_verified`. This is the normal path — an admin provisioning an account ahead of first login knows the address but not the subject. Blank/null `email` clears the link and any bound subject; changing the address also clears it, so the new address must be proven again. `oidc_sub` may still be sent to pin or clear a subject directly. `auth_source` stays `local`, so password login keeps working.
          */
         post: operations["linkAuthUserOidc"];
         delete?: never;
@@ -1281,6 +1281,8 @@ export interface components {
             display_name?: string | null;
         };
         AuthLinkOidcRequest: {
+            /** @description SSO link key — the address the IdP will assert for this person. The opaque subject binds itself on their first OIDC sign-in, provided the token carries `email_verified`. Blank/null clears the link and any bound subject. Changing the address also clears the bound subject. */
+            email?: string | null;
             /** @description IdP subject to attach. Null or blank unlinks SSO from the local user. */
             oidc_sub?: string | null;
         };
@@ -1296,6 +1298,8 @@ export interface components {
             local: boolean;
             oidc: boolean;
             api_key: boolean;
+            /** @description Whether an unknown OIDC subject is provisioned on first sign-in (`[api.oidc] auto_create_users`). When false the user directory is an allow-list. */
+            oidc_auto_create_users: boolean;
         };
         AuthMeResponse: {
             method: string;

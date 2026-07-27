@@ -34,16 +34,16 @@
 	let formError = $state<string | null>(null);
 	let formSuccess = $state<string | null>(null);
 
-		let username = $state('');
-		let password = $state('');
-		let displayName = $state('');
-		let email = $state('');
-		let role = $state<AppRoleName>('viewer');
-		/** Draft oidc_sub values keyed by user id (link form). */
-		let oidcDraftById = $state<Record<number, string>>({});
-		let linkingId = $state<number | null>(null);
+	let username = $state('');
+	let password = $state('');
+	let displayName = $state('');
+	let email = $state('');
+	let role = $state<AppRoleName>('viewer');
+	/** Draft SSO link emails keyed by user id. */
+	let oidcEmailDraftById = $state<Record<number, string>>({});
+	let linkingId = $state<number | null>(null);
 
-		const canManage = $derived(auth.hasPermission('settings:write'));
+	const canManage = $derived(auth.hasPermission('settings:write'));
 
 	async function loadUsers() {
 		if (!canManage) return;
@@ -122,33 +122,33 @@
 				err instanceof ApiClientError
 					? err.message
 					: resolveApiError(err, t('users.createFailed'));
-			} finally {
-				isCreating = false;
-			}
+		} finally {
+			isCreating = false;
 		}
+	}
 
-		async function handleLinkOidc(user: AuthUserView) {
-			if (!canManage || !network.isOnline || user.auth_source !== 'local') return;
-			const draft = (oidcDraftById[user.id] ?? user.oidc_sub ?? '').trim();
-			linkingId = user.id;
-			formError = null;
-			formSuccess = null;
-			try {
-				await api.linkUserOidc(user.id, draft || null);
-				formSuccess = draft
-					? t('users.oidcLinkOk').replace('{user}', identityLabel(user))
-					: t('users.oidcUnlinkOk').replace('{user}', identityLabel(user));
-				await loadUsers();
-			} catch (err) {
-				formError =
-					err instanceof ApiClientError
-						? err.message
-						: resolveApiError(err, t('users.oidcLinkFailed'));
-			} finally {
-				linkingId = null;
-			}
+	async function handleLinkOidc(user: AuthUserView) {
+		if (!canManage || !network.isOnline || user.auth_source !== 'local') return;
+		const draft = (oidcEmailDraftById[user.id] ?? user.email ?? '').trim();
+		linkingId = user.id;
+		formError = null;
+		formSuccess = null;
+		try {
+			await api.linkUserOidcEmail(user.id, draft || null);
+			formSuccess = draft
+				? t('users.oidcLinkOk').replace('{user}', identityLabel(user))
+				: t('users.oidcUnlinkOk').replace('{user}', identityLabel(user));
+			await loadUsers();
+		} catch (err) {
+			formError =
+				err instanceof ApiClientError
+					? err.message
+					: resolveApiError(err, t('users.oidcLinkFailed'));
+		} finally {
+			linkingId = null;
 		}
-	</script>
+	}
+</script>
 
 {#if canManage}
 	<Panel title={t('users.title')}>
@@ -224,17 +224,22 @@
 						</div>
 						{#if user.auth_source === 'local'}
 							<div class="w-full border-t border-border/60 pt-2 sm:w-auto sm:border-0 sm:pt-0">
-								<label class="{FIELD_GROUP} text-sm">
-									<span class={fieldLabelClass}>{t('users.oidcSub')}</span>
+								<div class="{FIELD_GROUP} text-sm">
+									<label for="oidc-email-{user.id}" class={fieldLabelClass}>
+										{t('users.oidcEmail')}
+									</label>
 									<div class="flex flex-wrap gap-2">
 										<Input
-											class="min-w-[12rem] flex-1"
-											placeholder={t('users.oidcSubPlaceholder')}
+											id="oidc-email-{user.id}"
+											type="email"
+											autocomplete="off"
+											class="min-w-[14rem] flex-1"
+											placeholder={t('users.oidcEmailPlaceholder')}
 											disabled={linkingId === user.id || !network.isOnline}
-											value={oidcDraftById[user.id] ?? user.oidc_sub ?? ''}
+											value={oidcEmailDraftById[user.id] ?? user.email ?? ''}
 											oninput={(e) => {
-												oidcDraftById = {
-													...oidcDraftById,
+												oidcEmailDraftById = {
+													...oidcEmailDraftById,
 													[user.id]: e.currentTarget.value
 												};
 											}}
@@ -247,13 +252,15 @@
 										>
 											{linkingId === user.id
 												? t('users.oidcLinking')
-												: user.oidc_sub
+												: user.email
 													? t('users.oidcSave')
 													: t('users.oidcLink')}
 										</Button>
 									</div>
-									<span class={TYPE_MUTED}>{t('users.oidcLinkHint')}</span>
-								</label>
+									<span class={TYPE_MUTED}>
+										{user.oidc_sub ? t('users.oidcBoundHint') : t('users.oidcPendingHint')}
+									</span>
+								</div>
 							</div>
 						{/if}
 					</li>

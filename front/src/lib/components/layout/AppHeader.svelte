@@ -102,7 +102,9 @@
 		</div>
 	</div>
 	{#if auth.isAuthenticated}
+		<!-- data-mobile-nav drives --app-header-h in app.css (sticky offsets) -->
 		<nav
+			data-mobile-nav
 			class="flex gap-1.5 overflow-x-auto border-t border-border px-4 py-2 lg:hidden"
 			aria-label={t('nav.mobile')}
 		>

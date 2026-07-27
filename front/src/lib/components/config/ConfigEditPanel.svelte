@@ -136,6 +136,15 @@
 		});
 	});
 
+	/**
+	 * Long issue lists are truncated, but the count is always surfaced — a bare
+	 * cut would read as "12 problems" when the toolbar badge says 30.
+	 */
+	const ISSUE_LIMIT = 12;
+	const allIssues = $derived([...validation.errors, ...validation.warnings]);
+	const visibleIssues = $derived(allIssues.slice(0, ISSUE_LIMIT));
+	const hiddenIssueCount = $derived(Math.max(0, allIssues.length - ISSUE_LIMIT));
+
 	// Deduped: a half-typed catalogue can hold the same tag twice (validation
 	// flags it, but the form still renders), and lists below key on the tag.
 	const teamOptions = $derived([
@@ -422,18 +431,18 @@
 	<Panel title={t('config.tabEdit')}>
 		<p class={TYPE_HINT}>{t('config.editDisabledRole')}</p>
 	</Panel>
-	{:else if !view.desired_content && !(view.ui_config_enabled && view.config_source === 'api')}
-		<Panel title={t('config.tabEdit')}>
-			<p class={TYPE_HINT}>{t('config.editNoDesired')}</p>
-		</Panel>
-	{:else if parseError || !defaults || !parsed}
+{:else if !view.desired_content && !(view.ui_config_enabled && view.config_source === 'api')}
+	<Panel title={t('config.tabEdit')}>
+		<p class={TYPE_HINT}>{t('config.editNoDesired')}</p>
+	</Panel>
+{:else if parseError || !defaults || !parsed}
 	<Panel title={t('config.tabEdit')}>
 		<p class={TYPE_STATUS_ERROR}>{parseError ?? t('config.editParseError')}</p>
 	</Panel>
 {:else}
 	<div class="flex flex-col gap-4">
 		<div
-			class="sticky top-14 z-20 -mx-1 flex flex-col gap-3 rounded-lg border border-border bg-background/95 px-3 py-3 shadow-sm backdrop-blur"
+			class="sticky top-[var(--app-header-h)] z-20 -mx-1 flex flex-col gap-3 rounded-lg border border-border bg-background/95 px-3 py-3 shadow-sm backdrop-blur"
 		>
 			<div class="flex flex-wrap items-center gap-2">
 				{#if isDirty}
@@ -516,22 +525,45 @@
 			</div>
 		</div>
 
+		<!--
+			aria-live: validation runs as the operator types, so the result never
+			gets focus and a screen reader would otherwise miss it entirely.
+		-->
 		{#if validation.errors.length > 0 || validation.warnings.length > 0}
-			<ul class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-				{#each [...validation.errors, ...validation.warnings].slice(0, 12) as issue (issue.path + issue.message)}
-					<li class={issue.severity === 'error' ? 'text-destructive' : 'text-warning'}>
-						<span class="{TYPE_CODE} opacity-70">{issue.path}</span>
-						— {issue.message}
-					</li>
-				{/each}
-			</ul>
+			<div aria-live="polite">
+				<ul class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+					{#each visibleIssues as issue (issue.path + issue.message)}
+						<li class={issue.severity === 'error' ? 'text-destructive' : 'text-warning'}>
+							<span class="{TYPE_CODE} opacity-70">{issue.path}</span>
+							— {issue.message}
+						</li>
+					{/each}
+					{#if hiddenIssueCount > 0}
+						<li class={TYPE_MUTED}>
+							{t('config.moreIssues').replace('{count}', String(hiddenIssueCount))}
+						</li>
+					{/if}
+				</ul>
+			</div>
 		{/if}
 		{#if serverReportErrors.length > 0}
-			<ul class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 {TYPE_STATUS_ERROR}">
-				{#each serverReportErrors.slice(0, 12) as message (message)}
-					<li>{message}</li>
-				{/each}
-			</ul>
+			<div role="alert">
+				<ul
+					class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 {TYPE_STATUS_ERROR}"
+				>
+					{#each serverReportErrors.slice(0, ISSUE_LIMIT) as message (message)}
+						<li>{message}</li>
+					{/each}
+					{#if serverReportErrors.length > ISSUE_LIMIT}
+						<li class={TYPE_MUTED}>
+							{t('config.moreIssues').replace(
+								'{count}',
+								String(serverReportErrors.length - ISSUE_LIMIT)
+							)}
+						</li>
+					{/if}
+				</ul>
+			</div>
 		{/if}
 
 		<Panel title={t('config.defaults')}>

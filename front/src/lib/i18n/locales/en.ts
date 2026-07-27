@@ -305,6 +305,7 @@ export const en = {
 		clientValidationBlocked: 'Fix form errors before apply',
 		clientValidationWarnings: '{count} warnings',
 		clientValidationErrors: '{count} errors',
+		moreIssues: '… and {count} more',
 		notifiers: 'Delivery channels',
 		notifiersHint:
 			'One channel per destination. Tag channels with team tags (10 teams → set tags on each channel). Empty tags = all teams (wildcard). After Apply, secrets live in app_secret — no .env edits.',
@@ -481,7 +482,10 @@ export const en = {
 		apiKeyConfigured: 'Configured',
 		apiKeyMissing: 'Not set',
 		apiKeySaved: 'API key saved.',
-		idpRoles: 'IdP roles'
+		idpRoles: 'IdP roles',
+		oidcAutoCreate: 'SSO provisioning',
+		oidcAutoCreateOn: 'Any valid token creates an account',
+		oidcAutoCreateOff: 'Allow-list — admin must create the account'
 	},
 	users: {
 		title: 'Users',
@@ -513,12 +517,14 @@ export const en = {
 		createRequired: 'Username and password are required',
 		passwordTooShort: 'Password must be at least 8 characters',
 		createFailed: 'Failed to create user',
-		oidcSub: 'OIDC subject',
-		oidcSubPlaceholder: 'IdP sub claim…',
+		oidcEmail: 'SSO email',
+		oidcEmailPlaceholder: 'name@example.com',
 		oidcLink: 'Link SSO',
 		oidcSave: 'Save link',
 		oidcLinking: 'Saving…',
-		oidcLinkHint: 'Leave blank and save to unlink. Same email also auto-links on SSO sync.',
+		oidcBoundHint: 'Linked — this identity has signed in. Changing the address unlinks it.',
+		oidcPendingHint:
+			'Binds on their first SSO sign-in (needs a verified email). Blank + save to unlink.',
 		oidcLinkOk: 'OIDC linked for {user}.',
 		oidcUnlinkOk: 'OIDC unlinked for {user}.',
 		oidcLinkFailed: 'Failed to update OIDC link'

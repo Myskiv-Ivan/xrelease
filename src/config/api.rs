@@ -172,6 +172,16 @@ pub struct OidcConfig {
     /// Role assigned when no mapped claim matches (default `viewer`).
     #[serde(default = "default_oidc_fallback_role")]
     pub default_role: String,
+    /// Create an `app_user` row the first time an unknown IdP subject signs in.
+    ///
+    /// Default `true` keeps the historical behaviour (any valid token from the
+    /// issuer provisions an account). Set `false` to make the user directory an
+    /// allow-list: a token then only authenticates if it already resolves to a
+    /// row — by `oidc_sub`, or by a verified email matching a local account an
+    /// admin created up front. Unknown subjects are rejected instead of
+    /// silently provisioned.
+    #[serde(default = "default_true")]
+    pub auto_create_users: bool,
 }
 
 impl Default for OidcConfig {
@@ -187,6 +197,7 @@ impl Default for OidcConfig {
             role_operator: default_oidc_role_operator(),
             role_viewer: default_oidc_role_viewer(),
             default_role: default_oidc_fallback_role(),
+            auto_create_users: default_true(),
         }
     }
 }

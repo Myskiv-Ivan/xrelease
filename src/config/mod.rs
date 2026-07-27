@@ -414,6 +414,9 @@ fn apply_env_overrides(config: &mut Config) {
     if let Ok(value) = std::env::var("XRELEASE_OIDC_ROLE_VIEWER") {
         config.api.oidc.role_viewer = split_csv(&value);
     }
+    if let Ok(value) = std::env::var("XRELEASE_OIDC_AUTO_CREATE_USERS") {
+        config.api.oidc.auto_create_users = matches!(value.trim(), "1" | "true" | "yes" | "on");
+    }
     if let Ok(value) = std::env::var("XRELEASE_OIDC_DEFAULT_ROLE") {
         config.api.oidc.default_role = value;
     }

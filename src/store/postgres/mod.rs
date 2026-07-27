@@ -732,9 +732,13 @@ impl PostgresStore {
                  WHERE status = 'sent' AND sent_at < now() - make_interval(days => $1::int)",
                 &[&days],
             )? as usize;
+            // `NOT EXISTS` (anti-join), not `NOT IN`: the latter re-scans the
+            // parent id set and, on a large outbox, plans far worse.
             let _ = client.execute(
-                "DELETE FROM notification_sink_delivery
-                 WHERE outbox_id NOT IN (SELECT id FROM notification_outbox)",
+                "DELETE FROM notification_sink_delivery d
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM notification_outbox o WHERE o.id = d.outbox_id
+                 )",
                 &[],
             )?;
         }

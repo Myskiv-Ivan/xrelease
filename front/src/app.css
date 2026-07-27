@@ -65,6 +65,25 @@
  */
 :root {
 	--radius: 0.625rem;
+	/*
+	 * Height of the sticky AppHeader, for in-page sticky toolbars to offset by.
+	 * Base = the h-14 brand/nav row. When the authenticated mobile nav row is
+	 * present (`lg:hidden`, border-t + py-2 around min-h-9 links = 53px) the
+	 * header is taller, so anything pinned at a flat `top-14` slides under it.
+	 * The `:has()` rule tracks that row, and the lg media query drops back to
+	 * the bare row where the nav is hidden again.
+	 */
+	--app-header-h: 3.5rem;
+}
+
+:root:has(nav[data-mobile-nav]) {
+	--app-header-h: 6.8125rem;
+}
+
+@media (width >= 64rem) {
+	:root:has(nav[data-mobile-nav]) {
+		--app-header-h: 3.5rem;
+	}
 }
 
 :root.dark,

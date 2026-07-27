@@ -569,3 +569,195 @@ fn app_secret_should_upsert_resolve_and_delete() {
         None => std::env::remove_var(allow),
     }
 }
+
+// ── OIDC provisioning + SSO email linking ───────────────────────────────────
+//
+// These cover the auth-critical branches of `upsert_oidc_user` /
+// `set_user_oidc_link_email`: who may be provisioned, whose email may adopt an
+// existing account, and when a previously bound subject must be dropped.
+
+use crate::store::{AppUserInsert, AppUserUpsertOidc};
+
+/// Unique per call so parallel/repeat runs never collide on the shared test DB.
+fn unique(prefix: &str) -> String {
+    format!(
+        "{prefix}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    )
+}
+
+fn local_user(store: &Store, email: &str) -> i64 {
+    store
+        .insert_user(&AppUserInsert {
+            username: Some(&unique("user")),
+            password_hash: Some("x"),
+            oidc_sub: None,
+            email: Some(email),
+            display_name: None,
+            role: "viewer",
+            auth_source: "local",
+        })
+        .expect("insert local user")
+        .id
+}
+
+fn oidc_upsert<'a>(
+    sub: &'a str,
+    email: Option<&'a str>,
+    link_by_email: bool,
+    allow_create: bool,
+) -> AppUserUpsertOidc<'a> {
+    AppUserUpsertOidc {
+        oidc_sub: sub,
+        email,
+        display_name: None,
+        role: "viewer",
+        link_by_email,
+        allow_create,
+    }
+}
+
+#[test]
+fn upsert_oidc_user_should_refuse_unknown_subject_when_create_disabled() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let sub = unique("sub-unknown");
+    let email = format!("{}@example.com", unique("nobody"));
+
+    let created = store
+        .upsert_oidc_user(&oidc_upsert(&sub, Some(&email), true, false))
+        .expect("upsert");
+
+    assert!(
+        created.is_none(),
+        "unknown subject must not be provisioned while auto_create_users is off"
+    );
+    assert!(
+        store.get_user_by_oidc_sub(&sub).expect("lookup").is_none(),
+        "no row may be written for a refused sign-in"
+    );
+}
+
+#[test]
+fn upsert_oidc_user_should_create_unknown_subject_when_create_enabled() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let sub = unique("sub-new");
+
+    let created = store
+        .upsert_oidc_user(&oidc_upsert(&sub, None, false, true))
+        .expect("upsert")
+        .expect("row provisioned");
+
+    assert_eq!(created.oidc_sub.as_deref(), Some(sub.as_str()));
+    assert_eq!(created.auth_source, "oidc");
+}
+
+#[test]
+fn upsert_oidc_user_should_adopt_local_account_on_verified_email() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let email = format!("{}@example.com", unique("verified"));
+    let local_id = local_user(&store, &email);
+    let sub = unique("sub-verified");
+
+    // Creation is off: the sign-in may only succeed via the email link.
+    let linked = store
+        .upsert_oidc_user(&oidc_upsert(&sub, Some(&email), true, false))
+        .expect("upsert")
+        .expect("adopted the pre-created local account");
+
+    assert_eq!(
+        linked.id, local_id,
+        "must reuse the local row, not fork one"
+    );
+    assert_eq!(linked.oidc_sub.as_deref(), Some(sub.as_str()));
+    assert_eq!(
+        linked.auth_source, "local",
+        "adoption must keep password login working"
+    );
+}
+
+#[test]
+fn upsert_oidc_user_should_not_adopt_local_account_on_unverified_email() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let email = format!("{}@example.com", unique("unverified"));
+    let local_id = local_user(&store, &email);
+    let sub = unique("sub-unverified");
+
+    // link_by_email=false models a token without `email_verified`. Account
+    // takeover guard: an unproven address must not inherit the local account.
+    let result = store
+        .upsert_oidc_user(&oidc_upsert(&sub, Some(&email), false, false))
+        .expect("upsert");
+
+    assert!(
+        result.is_none(),
+        "unverified email must not adopt an existing account"
+    );
+    let untouched = store
+        .get_user_by_id(local_id)
+        .expect("lookup")
+        .expect("local row still there");
+    assert!(
+        untouched.oidc_sub.is_none(),
+        "local account must not have been bound to the unproven subject"
+    );
+}
+
+#[test]
+fn set_user_oidc_link_email_should_clear_subject_when_address_changes() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let email = format!("{}@example.com", unique("rotate"));
+    let user_id = local_user(&store, &email);
+    let sub = unique("sub-rotate");
+
+    store
+        .upsert_oidc_user(&oidc_upsert(&sub, Some(&email), true, false))
+        .expect("upsert")
+        .expect("linked");
+
+    // Re-pointing the account at a different person must revoke the old
+    // identity, otherwise they keep signing in to it.
+    let moved = store
+        .set_user_oidc_link_email(user_id, Some(&format!("{}@example.com", unique("other"))))
+        .expect("relink");
+
+    assert!(
+        moved.oidc_sub.is_none(),
+        "changing the SSO email must drop the previously bound subject"
+    );
+    assert!(
+        store.get_user_by_oidc_sub(&sub).expect("lookup").is_none(),
+        "the old subject must no longer resolve to any account"
+    );
+}
+
+#[test]
+fn set_user_oidc_link_email_should_reject_address_owned_by_another_user() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let taken = format!("{}@example.com", unique("taken"));
+    local_user(&store, &taken);
+    let other_id = local_user(&store, &format!("{}@example.com", unique("other")));
+
+    let err = store
+        .set_user_oidc_link_email(other_id, Some(&taken))
+        .expect_err("must not let two accounts claim one SSO address");
+
+    assert!(
+        err.to_string().contains("already used by user"),
+        "unexpected error: {err}"
+    );
+}

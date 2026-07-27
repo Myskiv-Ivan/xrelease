@@ -364,22 +364,33 @@ impl PostgresStore {
     /// `sinks` carries `(global_sink_index, kind)` pairs — the index is the
     /// position in the [`CompositeNotifier`] sink list, kept stable across
     /// retries so the ledger and `notify_partial` share one index space.
+    ///
+    /// One statement for the whole set (`unnest` of parallel arrays) rather than
+    /// one round-trip per sink: a digest flush calls this once per grouped row,
+    /// so the per-sink version cost `rows × sinks` round-trips just to open the
+    /// ledger before anything was delivered.
     pub fn ensure_sink_deliveries(
         &self,
         outbox_id: i64,
         sinks: &[(usize, &str)],
     ) -> Result<(), StoreError> {
-        let mut client = self.conn()?;
-        for (index, kind) in sinks {
-            let sink_index = i32::try_from(*index).unwrap_or(i32::MAX);
-            client.execute(
-                "INSERT INTO notification_sink_delivery
- (outbox_id, sink_index, sink_kind, status)
- VALUES ($1, $2, $3, 'pending')
- ON CONFLICT (outbox_id, sink_index) DO NOTHING",
-                &[&outbox_id, &sink_index, kind],
-            )?;
+        if sinks.is_empty() {
+            return Ok(());
         }
+        let sink_indices: Vec<i32> = sinks
+            .iter()
+            .map(|(index, _)| i32::try_from(*index).unwrap_or(i32::MAX))
+            .collect();
+        let sink_kinds: Vec<&str> = sinks.iter().map(|(_, kind)| *kind).collect();
+        let mut client = self.conn()?;
+        client.execute(
+            "INSERT INTO notification_sink_delivery
+ (outbox_id, sink_index, sink_kind, status)
+ SELECT $1, sink_index, sink_kind, 'pending'
+ FROM unnest($2::int[], $3::text[]) AS t(sink_index, sink_kind)
+ ON CONFLICT (outbox_id, sink_index) DO NOTHING",
+            &[&outbox_id, &sink_indices, &sink_kinds],
+        )?;
         Ok(())
     }
 

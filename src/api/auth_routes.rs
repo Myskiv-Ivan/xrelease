@@ -49,9 +49,21 @@ pub struct CreateUserRequest {
 
 /// Admin body for `POST /api/v1/auth/users/{id}/oidc`.
 ///
-/// Set `oidc_sub` to the IdP subject to link; omit / null / blank to unlink.
+/// `email` is the SSO link key: the address the IdP will assert for this
+/// person. Blank / null clears both the link key and any bound subject.
+///
+/// Email rather than `oidc_sub` because an admin provisioning an account ahead
+/// of first login knows the person's address but not the IdP's opaque subject
+/// — that only exists once they have signed in at least once. The subject is
+/// bound automatically on their first OIDC sign-in, provided the token carries
+/// `email_verified`.
+///
+/// `oidc_sub` stays accepted so an admin can still pin or clear a subject
+/// directly (and so existing automation keeps working).
 #[derive(Debug, Deserialize)]
 pub struct LinkOidcRequest {
+    #[serde(default)]
+    pub email: Option<String>,
     #[serde(default)]
     pub oidc_sub: Option<String>,
 }
@@ -98,6 +110,10 @@ pub struct AuthMethodsResponse {
     pub local: bool,
     pub oidc: bool,
     pub api_key: bool,
+    /// `[api.oidc] auto_create_users`. Surfaced so the UI can explain a denied
+    /// SSO sign-in ("an admin must create your account first") instead of
+    /// showing a bare 403, and so Settings can display the policy.
+    pub oidc_auto_create_users: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +138,7 @@ pub async fn auth_methods(State(state): State<Arc<AppState>>) -> Json<AuthMethod
             .api_key
             .as_ref()
             .is_some_and(|key| !key.is_empty()),
+        oidc_auto_create_users: state.api.oidc.auto_create_users,
     })
 }
 
@@ -215,6 +232,14 @@ pub async fn oidc_sync(
         .get("email")
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty());
+    // Adopting a pre-created local account by email is an account-takeover
+    // vector when the IdP never proved the address, so the claim is required
+    // (and must be the boolean `true` — some IdPs send the string "true",
+    // which we accept, but a missing/false claim blocks linking).
+    let email_verified = claims
+        .get("email_verified")
+        .map(|v| v.as_bool() == Some(true) || v.as_str() == Some("true"))
+        .unwrap_or(false);
     let display_name = claims
         .get("name")
         .and_then(|v| v.as_str())
@@ -234,12 +259,24 @@ pub async fn oidc_sync(
 
     // Persist the global role only — per-org grants are live-claim and enforced
     // at request time; the DB row is for audit / local listing, not authZ.
-    let user = state.engine.store.upsert_oidc_user(&AppUserUpsertOidc {
-        oidc_sub,
-        email,
-        display_name,
-        role: roles.global.as_str(),
-    })?;
+    let user = state
+        .engine
+        .store
+        .upsert_oidc_user(&AppUserUpsertOidc {
+            oidc_sub,
+            email,
+            display_name,
+            role: roles.global.as_str(),
+            link_by_email: email_verified,
+            allow_create: state.api.oidc.auto_create_users,
+        })?
+        .ok_or_else(|| {
+            ApiError::Forbidden(
+                "no account for this identity and OIDC auto-provisioning is disabled — \
+                 ask an admin to create a local user with your email address"
+                    .into(),
+            )
+        })?;
 
     Ok(Json(user_view(&user, roles.global, roles.per_org.clone())))
 }
@@ -417,6 +454,33 @@ pub async fn link_user_oidc(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
+
+    // Email path: the admin names the address the IdP will assert, and the
+    // subject binds itself on first sign-in. Only when no explicit subject was
+    // given — a caller pinning `oidc_sub` still wins.
+    if sub.is_none() && body.oidc_sub.is_none() {
+        let email = body
+            .email
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let user = state
+            .engine
+            .store
+            .set_user_oidc_link_email(user_id, email)
+            .map_err(|err| {
+                let message = err.to_string();
+                if message.contains("no local app_user") {
+                    ApiError::NotFound(message)
+                } else if message.contains("already used by user") {
+                    ApiError::Conflict(message)
+                } else {
+                    ApiError::from(err)
+                }
+            })?;
+        let role = AppRole::parse(&user.role).unwrap_or(AppRole::Viewer);
+        return Ok(Json(user_view(&user, role, BTreeMap::new())));
+    }
 
     if let Some(sub) = sub {
         if let Some(owner) = state.engine.store.get_user_by_oidc_sub(sub)? {

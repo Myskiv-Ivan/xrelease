@@ -20,6 +20,7 @@
 	import { roleLabel } from '$lib/auth/roles';
 	import { getAuthState, loginWithApiKey } from '$lib/stores/auth.svelte';
 	import type { KeyValueItem } from '$lib/types/ui';
+	import { onMount } from 'svelte';
 
 	const auth = getAuthState();
 
@@ -27,6 +28,26 @@
 	let error = $state<string | null>(null);
 	let isSaving = $state(false);
 	let saved = $state(false);
+
+	/**
+	 * OIDC provisioning policy is process config (`[api.oidc] auto_create_users`
+	 * / XRELEASE_OIDC_AUTO_CREATE_USERS), so it is reported by the server and
+	 * shown read-only — changing it needs a backend restart, not a UI toggle.
+	 */
+	let autoCreateUsers = $state<boolean | null>(null);
+
+	onMount(() => {
+		if (!isOidcEnabled()) return;
+		void api
+			.getAuthMethods()
+			.then((methods) => {
+				autoCreateUsers = methods.oidc_auto_create_users;
+			})
+			// Non-critical: the panel just omits the row if the probe fails.
+			.catch(() => {
+				autoCreateUsers = null;
+			});
+	});
 
 	const sessionItems = $derived.by((): KeyValueItem[] => {
 		if (!auth.profile) return [];
@@ -46,6 +67,15 @@
 			items.push({
 				label: t('settings.idpRoles'),
 				value: auth.profile.oidcRoles.slice(0, 4).join(', ')
+			});
+		}
+		if (isOidcEnabled() && autoCreateUsers !== null) {
+			items.push({
+				label: t('settings.oidcAutoCreate'),
+				value: autoCreateUsers
+					? t('settings.oidcAutoCreateOn')
+					: t('settings.oidcAutoCreateOff'),
+				tone: autoCreateUsers ? 'default' : 'success'
 			});
 		}
 		return items;

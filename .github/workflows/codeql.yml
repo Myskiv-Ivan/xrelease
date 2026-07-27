@@ -1,8 +1,11 @@
 # CodeQL — advanced setup (SARIF → Security → Code scanning)
 #
-# Private repos: Code Scanning needs GitHub Advanced Security. Until that is on,
-# this workflow no-ops successfully (set CODE_SCANNING_ENABLED=true after enable).
-# Public repos: runs automatically (free Code Scanning).
+# Code scanning must be enabled in the repository before SARIF can be uploaded —
+# on a private repo that needs GitHub Advanced Security, on a public repo it is
+# free but still an explicit opt-in (Settings → Code security → Code scanning).
+# Until it is on, the upload step fails the workflow, so this gates on one
+# variable for BOTH visibilities: set `CODE_SCANNING_ENABLED = true` after
+# enabling scanning. Otherwise the workflow no-ops successfully.
 
 name: codeql
 
@@ -20,7 +23,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Keeps required-check green when scanning cannot upload (private, no GHAS).
+  # Keeps the required check green while code scanning is not enabled yet.
+  #
+  # Gating on visibility was wrong: a *public* repo also rejects the SARIF upload
+  # until scanning is switched on, so the analyze job ran and then hard-failed
+  # with "Code scanning is not enabled for this repository" — exactly the red CI
+  # this gate exists to prevent.
   gate:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     outputs:
@@ -28,22 +36,20 @@ jobs:
     steps:
       - id: decide
         env:
-          IS_PRIVATE: ${{ github.event.repository.private }}
           ENABLED: ${{ vars.CODE_SCANNING_ENABLED }}
         run: |
           set -euo pipefail
-          if [ "$IS_PRIVATE" = "true" ] && [ "$ENABLED" != "true" ]; then
+          if [ "$ENABLED" != "true" ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
             {
               echo "### CodeQL skipped"
-              echo "Repo is **private** and \`CODE_SCANNING_ENABLED\` is not \`true\`."
+              echo "\`CODE_SCANNING_ENABLED\` is not \`true\`."
               echo
-              echo "1. Org/repo: enable **GitHub Advanced Security → Code scanning**"
+              echo "1. Settings → Code security → enable **Code scanning**"
+              echo "   (private repos additionally need GitHub Advanced Security)"
               echo "2. Settings → Secrets and variables → Actions → variable"
               echo "   \`CODE_SCANNING_ENABLED\` = \`true\`"
               echo "3. Re-run this workflow"
-              echo
-              echo "Public repos do not need the variable."
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
@@ -69,7 +75,23 @@ jobs:
             build-mode: none
     steps:
       - uses: actions/checkout@v7
-      # build-mode: none — no compile step; rust-toolchain not required
+
+      # `build-mode: none` still needs a resolvable crate graph for Rust: the
+      # extractor drives rust-analyzer, which must load Cargo metadata and spawn
+      # a proc-macro server to expand `format!`, `tracing::info!`,
+      # `serde_json::json!`, `assert!`, … Without a toolchain and vendored deps
+      # it logged `proc_macro_server: None` plus ~700 "macro expansion failed"
+      # warnings and extracted **81 of 90 files with errors** (9 clean). Every
+      # taint query then runs on a database full of holes, so a clean result was
+      # not evidence of anything — it was an unanalysed codebase reporting zero.
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
+        if: matrix.language == 'rust'
+        with:
+          toolchain: "1.96"
+      - name: Fetch Rust dependencies
+        if: matrix.language == 'rust'
+        run: cargo fetch --locked
+
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
