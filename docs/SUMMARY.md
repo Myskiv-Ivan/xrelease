@@ -1,6 +1,8 @@
 # Table of contents
 
 [Introduction](README.md)
+[Contributing to docs](CONTRIBUTING.md)
+[Migration Report](MIGRATION_REPORT.md)
 
 ---
 

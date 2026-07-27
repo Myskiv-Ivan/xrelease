@@ -3,6 +3,7 @@
 	import type { AuthUserView } from '$lib/api/types';
 	import Button from '$lib/components/kit/Button.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
+	import LoadingState from '$lib/components/kit/LoadingState.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
 	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
 	import UsersTable from '$lib/components/auth/UsersTable.svelte';
@@ -79,7 +80,7 @@
 		{/if}
 
 		{#if isLoading && users.length === 0}
-			<p class={TYPE_HINT}>{t('common.loading')}</p>
+			<LoadingState />
 		{:else if users.length === 0}
 			<EmptyState title={t('users.emptyTitle')} description={t('users.emptyDescription')} />
 		{:else}

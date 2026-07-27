@@ -113,7 +113,7 @@ curl -s http://127.0.0.1:8080/ready | jq
 
 ## Driving the API
 
-For humans and CI, [`xrctl`](cli.md) wraps the management routes
+For humans and CI, [`xrctl`](cli.md#xrctl--remote-management) wraps the management routes
 (`status`, `sources`, `outbox`, `organizations`, `show`, `schema`, `history`,
 `validate`, `apply`, `rollback`, `reload`). Local ops (`validate`, `sources`,
 `health`, `outbox-requeue`, `serve`) use the [`xrelease`](cli.md#xrelease--local-instance)

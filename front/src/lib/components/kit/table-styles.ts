@@ -26,5 +26,11 @@ export const TABLE_SORT_BUTTON = `inline-flex w-full cursor-pointer items-center
  */
 export const TABLE_STICKY_END =
 	'sticky right-0 z-10 bg-inherit shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)] dark:shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.4)]';
-/** Head variant inherits `TABLE_HEAD_ROW`, so it needs no colour of its own. */
-export const TABLE_STICKY_END_HEAD = TABLE_STICKY_END;
+/**
+ * Head variant names the colour instead of inheriting: `TABLE_HEAD_ROW` sits on
+ * `<thead>`, but a `<th>`'s background-color inherits from its `<tr>` — which
+ * carries no background — so `bg-inherit` would resolve to transparent and let
+ * body rows scroll visibly under the pinned header cell. Same token as
+ * `TABLE_HEAD_ROW`, so the two still match exactly.
+ */
+export const TABLE_STICKY_END_HEAD = `${TABLE_STICKY_END} bg-[var(--table-head-bg)]`;

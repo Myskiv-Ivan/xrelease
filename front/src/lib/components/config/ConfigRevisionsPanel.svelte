@@ -3,6 +3,7 @@
 	import Badge from '$lib/components/kit/Badge.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
+	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
@@ -12,7 +13,7 @@
 		TABLE_HEAD_ROW
 	} from '$lib/components/kit/table-styles';
 	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { EMPTY_VALUE, formatDateTimeFull } from '$lib/core/format';
+	import { EMPTY_VALUE } from '$lib/core/format';
 	import { parseAppliedBy, type AppliedBy } from '$lib/config/applied-by';
 	import { t } from '$lib/i18n';
 
@@ -85,7 +86,7 @@
 							{/if}
 						</td>
 						<td class={TABLE_DATE_CELL}>
-							{formatDateTimeFull(rev.applied_at)}
+							<RelativeTime value={rev.applied_at} format="full" />
 						</td>
 						<td class="{TABLE_BODY_CELL} {TYPE_CODE}" title={rev.content_sha256}>
 							{rev.content_sha256.slice(0, 12)}…
