@@ -13,14 +13,12 @@ fn seen<'a>(identity: &'a str, content_digest: Option<&'a str>) -> SeenUpsert<'a
     }
 }
 
-fn open_store() -> Option<Store> {
-    match Store::open_test() {
-        Ok(store) => Some(store),
-        Err(err) => {
-            eprintln!("skipping store test (postgres unavailable): {err}");
-            None
-        }
-    }
+use crate::store::test_db;
+
+/// Open the shared test database, serialized against every other DB-using test
+/// in this binary (see [`test_db`]).
+fn open_store() -> Option<test_db::TestStore> {
+    test_db::open()
 }
 
 #[test]
@@ -200,6 +198,116 @@ fn delivery_backoff_should_defer_claim_and_advance_attempts() {
         .find(|e| e.id == outcome.id)
         .expect("row present");
     assert_eq!(row.attempts, 2);
+}
+
+/// Regression: a breaker-open skip makes no network call, so it must defer the
+/// row without spending its retry budget.
+///
+/// One sink's breaker is shared by every row targeting it, so a backlog behind a
+/// down sink used to burn each queued row's *parent* `attempts` while their sink
+/// ledgers stayed untouched. At the cap `claim_outbox_batch` (`attempts < max`)
+/// stopped returning the row while its status was still `failed` — never
+/// delivered, never dead-lettered, and unreachable by `requeue_dead_outbox`.
+#[test]
+fn defer_delivery_should_postpone_claim_without_spending_attempts() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let event = Event {
+        source_id: "github:org/deferral".into(),
+        source_kind: "GitHub".into(),
+        title: "app v1".into(),
+        body: "notes".into(),
+        url: None,
+        routing_tag: None,
+    };
+    let outcome = store
+        .try_enqueue_notification(&event, "v1.0.0", OutboxMeta::default())
+        .expect("enqueue")
+        .expect("row");
+    store.claim_outbox_batch(10, 300).expect("initial claim");
+
+    // Same deferral effect as `apply_delivery_backoff`…
+    store
+        .defer_delivery(outcome.id, 3_600.0)
+        .expect("defer delivery");
+    assert!(
+        store.claim_outbox_batch(10, 10).expect("claim").is_empty(),
+        "deferred row must not be claimable before the window passes"
+    );
+
+    // …but the retry budget is untouched, however many times it repeats.
+    for _ in 0..(crate::store::OUTBOX_MAX_ATTEMPTS + 5) {
+        store
+            .defer_delivery(outcome.id, 3_600.0)
+            .expect("defer delivery");
+    }
+    let entries = store.list_outbox_entries(10).expect("list");
+    let row = entries
+        .iter()
+        .find(|e| e.id == outcome.id)
+        .expect("row present");
+    assert_eq!(
+        row.attempts, 0,
+        "a breaker deferral is not an attempt and must not consume the budget"
+    );
+
+    // Proof it is still deliverable once the deferral window is cleared.
+    store
+        .release_outbox_lease(outcome.id)
+        .expect("release lease");
+    let claimed = store.claim_outbox_batch(10, 300).expect("claim");
+    assert_eq!(claimed.len(), 1);
+    assert_eq!(claimed[0].id, outcome.id);
+}
+
+/// Regression: a row whose parent budget runs out while its sink ledger still
+/// has retryable sinks stops being claimable but keeps status `failed`.
+///
+/// It is then invisible (not counted as dead-lettered) and unrecoverable, since
+/// `requeue_dead_outbox` only revives `dead`. `finalize_exhausted_outbox` is the
+/// reconciliation the flush loop now runs every cycle.
+#[test]
+fn finalize_exhausted_outbox_should_rescue_unclaimable_failed_rows() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let event = Event {
+        source_id: "github:org/stranded".into(),
+        source_kind: "GitHub".into(),
+        title: "app v1".into(),
+        body: "notes".into(),
+        url: None,
+        routing_tag: None,
+    };
+    let outcome = store
+        .try_enqueue_notification(&event, "v1.0.0", OutboxMeta::default())
+        .expect("enqueue")
+        .expect("row");
+
+    // Spend the parent budget without ever dead-lettering a sink: exactly the
+    // shape `apply_delivery_backoff` produces on the per-sink failure path.
+    for _ in 0..crate::store::OUTBOX_MAX_ATTEMPTS {
+        store
+            .apply_delivery_backoff(outcome.id, 0.0)
+            .expect("advance attempts");
+    }
+    assert!(
+        store.claim_outbox_batch(10, 300).expect("claim").is_empty(),
+        "a row at the attempt cap is no longer claimable"
+    );
+
+    // Reconciliation promotes it to `dead` so it is visible and recoverable.
+    assert_eq!(
+        store.finalize_exhausted_outbox().expect("finalize"),
+        1,
+        "exhausted row must be promoted to dead"
+    );
+    assert_eq!(store.outbox_counts().expect("counts").dead, 1);
+    assert_eq!(store.requeue_dead_outbox().expect("requeue"), 1);
+    let claimed = store.claim_outbox_batch(10, 300).expect("claim");
+    assert_eq!(claimed.len(), 1, "requeue makes the row deliverable again");
+    assert_eq!(claimed[0].id, outcome.id);
 }
 
 #[test]

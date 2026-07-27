@@ -1,15 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 44" fill="none" role="img" aria-label="xrls">
-	<!-- Full-bleed matte first — PNG export must not AA against white -->
-	<rect width="120" height="44" fill="#050805"/>
-	<rect width="120" height="44" rx="7" fill="#050805"/>
-	<rect x="1" y="1" width="118" height="42" rx="6" stroke="#39FF14" stroke-opacity="0.4" stroke-width="1.5"/>
-	<path d="M8 11h104M8 17h104M8 23h104M8 29h104M8 35h104" stroke="#39FF14" stroke-opacity="0.07" stroke-width="1"/>
-	<g fill="#39FF14" transform="translate(20 15)">
-		<path transform="translate(0 0)" opacity="0.65" d="M2 0h2v2h-2zM4 2h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2z"/>
-		<path transform="translate(14 0)" d="M0 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM2 4h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2zM6 8h2v2h-2zM0 10h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(28 0)" d="M0 0h2v2h-2zM2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM0 4h2v2h-2zM8 4h2v2h-2zM0 6h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM0 8h2v2h-2zM4 8h2v2h-2zM0 10h2v2h-2zM6 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(42 0)" d="M0 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM0 6h2v2h-2zM0 8h2v2h-2zM0 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(56 0)" d="M2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM8 8h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2z"/>
-		<path transform="translate(70 0)" d="M0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
+	<!--
+		README / GitHub Pages copy of the xrls wordmark.
+
+		Deliberately NOT the themed variant used by the app and favicon: GitHub's
+		SVG sanitiser drops embedded CSS blocks, which would strip every
+		class-bound fill and render this mark invisible on the README. So colours
+		are plain presentation attributes and the chip is opaque — one dark badge
+		that reads on both GitHub light and dark. Palette mirrors app.css
+		(primary teal #26BDAE, accent green #4AC777, card #0E1318).
+	-->
+	<rect width="120" height="44" rx="7" fill="#0E1318"/>
+	<rect x="1" y="1" width="118" height="42" rx="6" stroke="#26BDAE" stroke-opacity=".4" stroke-width="1.5"/>
+	<path d="M8 11h104M8 17h104M8 23h104M8 29h104M8 35h104" stroke="#26BDAE" stroke-opacity=".07" stroke-width="1"/>
+	<g transform="translate(28.02 16.54) scale(0.78)">
+		<g fill="#4AC777">
+			<path opacity=".8" d="M2 0h2v2h-2zM4 2h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2z"/>
+			<path transform="translate(70 0)" d="M0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
+		</g>
+		<g fill="#26BDAE">
+			<path transform="translate(14 0)" d="M0 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM2 4h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2zM6 8h2v2h-2zM0 10h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(28 0)" d="M0 0h2v2h-2zM2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM0 4h2v2h-2zM8 4h2v2h-2zM0 6h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM0 8h2v2h-2zM4 8h2v2h-2zM0 10h2v2h-2zM6 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(42 0)" d="M0 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM0 6h2v2h-2zM0 8h2v2h-2zM0 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(56 0)" d="M2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM8 8h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2z"/>
+		</g>
 	</g>
 </svg>

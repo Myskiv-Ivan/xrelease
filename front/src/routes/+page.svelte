@@ -10,7 +10,7 @@
 	import StatGrid from '$lib/components/kit/StatGrid.svelte';
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import type { KeyValueItem } from '$lib/types/ui';
-	import { PANEL_GRID, PAGE_STACK, TYPE_SECTION } from '$lib/components/kit/layout-styles';
+	import { PANEL_GRID, PAGE_STACK, TYPE_CODE, TYPE_SECTION } from '$lib/components/kit/layout-styles';
 	import { pollAllSources, pollErrorToast } from '$lib/core/poll';
 	import { getStatusStore } from '$lib/data/status.svelte';
 	import { t } from '$lib/i18n';
@@ -135,7 +135,7 @@
 					<ul class="flex flex-col gap-2 text-sm">
 						{#each statusStore.status.breakers as breaker (breaker.label + breaker.kind)}
 							<li class="flex items-center justify-between gap-3">
-								<span class="font-mono text-xs">
+								<span class={TYPE_CODE}>
 									{breaker.label}
 									<span class="text-muted-foreground">({breaker.kind})</span>
 								</span>

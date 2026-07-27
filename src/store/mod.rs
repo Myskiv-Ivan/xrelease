@@ -7,6 +7,64 @@ mod postgres;
 #[cfg(test)]
 mod store_tests;
 
+/// Shared access to the single test database used by every DB-touching unit
+/// test in the lib test binary.
+#[cfg(test)]
+pub(crate) mod test_db {
+    use super::Store;
+
+    /// Serializes DB-using tests across **all** modules of this binary.
+    ///
+    /// `cargo test` runs one binary's tests on parallel threads, and
+    /// [`Store::open_test`] **truncates every table** before returning. Without
+    /// serialization one test wipes — or globally claims — rows another test is
+    /// mid-way through asserting on: `claim_outbox_batch` is not scoped to a
+    /// source, several tests reuse the same `(source_id, identity)` pair or the
+    /// same `"s1"` source, and one test mutates a process-wide env var. That
+    /// made `cargo test --workspace` fail non-deterministically while every
+    /// test passed in isolation.
+    ///
+    /// This mirrors the `DB_GUARD` already used by each DB-touching e2e file in
+    /// `tests/`. Guards do not serialize *across* binaries, so the connection
+    /// pool stays capped at 4 in [`Store::open_test`].
+    static DB_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// A test store plus the guard serializing its access to the shared database.
+    ///
+    /// Derefs to [`Store`], so call sites read exactly as they did before the
+    /// guard existed. The guard is released when this value drops.
+    pub(crate) struct TestStore {
+        store: Store,
+        _guard: std::sync::MutexGuard<'static, ()>,
+    }
+
+    impl std::ops::Deref for TestStore {
+        type Target = Store;
+
+        fn deref(&self) -> &Self::Target {
+            &self.store
+        }
+    }
+
+    /// Open the truncated test database, or `None` when Postgres is unavailable
+    /// (the caller then skips, matching the previous per-module behaviour).
+    pub(crate) fn open() -> Option<TestStore> {
+        // A panicking test poisons the lock; the DB is truncated on open anyway,
+        // so recover it instead of cascading one failure into every later test.
+        let guard = DB_GUARD.lock().unwrap_or_else(|err| err.into_inner());
+        match Store::open_test() {
+            Ok(store) => Some(TestStore {
+                store,
+                _guard: guard,
+            }),
+            Err(err) => {
+                eprintln!("skipping store test (postgres unavailable): {err}");
+                None
+            }
+        }
+    }
+}
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -378,6 +436,10 @@ impl Store {
     }
 
     /// Open a test database (requires `XRELEASE_TEST_POSTGRES_URL` or local Postgres).
+    ///
+    /// Truncates every table, so tests must not run this concurrently — prefer
+    /// [`test_db::open`], which serializes callers. Direct use is only correct
+    /// when a test deliberately needs a second, unguarded pool.
     #[cfg(test)]
     pub fn open_test() -> Result<Self, StoreError> {
         let url = std::env::var("XRELEASE_TEST_POSTGRES_URL").unwrap_or_else(|_| {
@@ -589,6 +651,13 @@ impl Store {
         backoff_secs: f64,
     ) -> Result<(), StoreError> {
         delegate!(self, apply_delivery_backoff(outbox_id, backoff_secs))
+    }
+
+    /// Defer the next claim by `backoff_secs` **without** counting an attempt —
+    /// for an attempt that made no network call because every unsuccessful sink
+    /// was skipped by an open circuit breaker.
+    pub fn defer_delivery(&self, outbox_id: i64, backoff_secs: f64) -> Result<(), StoreError> {
+        delegate!(self, defer_delivery(outbox_id, backoff_secs))
     }
 
     /// Mark delivery complete and record the release as seen in one transaction.
@@ -885,7 +954,7 @@ pub struct AppUserUpsertOidc<'a> {
 
 #[cfg(test)]
 mod offload_tests {
-    use super::{db_blocking, Store};
+    use super::db_blocking;
 
     #[test]
     fn db_blocking_should_run_inline_without_runtime() {
@@ -923,7 +992,7 @@ mod offload_tests {
         // Reproduces `Runtime::new` under `serve`: open a pool (schema apply)
         // then drop it on the Tokio thread. Without offloaded Drop this panics
         // with "Cannot start a runtime from within a runtime".
-        let Ok(store) = Store::open_test() else {
+        let Some(store) = super::test_db::open() else {
             return;
         };
         drop(store);

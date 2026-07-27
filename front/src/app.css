@@ -1,5 +1,8 @@
-@import '@fontsource-variable/dm-sans';
-@import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource/fira-sans/400.css';
+@import '@fontsource/fira-sans/500.css';
+@import '@fontsource/fira-sans/600.css';
+@import '@fontsource/fira-sans/700.css';
+@import '@fontsource-variable/fira-code';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
@@ -49,11 +52,10 @@
 	--radius-2xl: calc(var(--radius) * 1.8);
 	--radius-3xl: calc(var(--radius) * 2.2);
 	--radius-4xl: calc(var(--radius) * 2.6);
-	/* Two families: DM Sans (UI) + JetBrains Mono (data/code). Heading = same face, heavier weight. */
-	--font-sans: 'DM Sans Variable', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-	--font-heading: 'DM Sans Variable', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-	--font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo,
-		monospace;
+	/* Fira family (ui-ux-pro-max Dashboard Data): Sans for UI, Code for data. */
+	--font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-heading: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Fira Code Variable', 'Fira Code', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 /*
@@ -66,7 +68,10 @@
 }
 
 :root.dark,
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+/* Pre-hydration / no data-theme yet → dark ops default. Folded into the dark
+   selector list rather than duplicated so the two can never drift apart. */
+:root:not([data-theme]) {
 	color-scheme: dark;
 	/* #0f1419-ish slate */
 	--background: oklch(0.145 0.01 240);
@@ -143,44 +148,6 @@
 	--sidebar-ring: oklch(0.48 0.1 185);
 }
 
-/* Pre-hydration / no data-theme yet → dark ops default */
-:root:not([data-theme]) {
-	color-scheme: dark;
-	--background: oklch(0.145 0.01 240);
-	--foreground: oklch(0.96 0.005 240);
-	--card: oklch(0.185 0.012 240);
-	--card-foreground: oklch(0.96 0.005 240);
-	--popover: oklch(0.2 0.012 240);
-	--popover-foreground: oklch(0.96 0.005 240);
-	--primary: oklch(0.72 0.12 185);
-	--primary-foreground: oklch(0.16 0.02 185);
-	--secondary: oklch(0.24 0.01 240);
-	--secondary-foreground: oklch(0.94 0.005 240);
-	--muted: oklch(0.24 0.01 240);
-	--muted-foreground: oklch(0.7 0.01 240);
-	--accent: oklch(0.74 0.16 152);
-	--accent-foreground: oklch(0.18 0.04 152);
-	--destructive: oklch(0.62 0.2 25);
-	--success: oklch(0.68 0.15 150);
-	--warning: oklch(0.78 0.14 85);
-	--border: oklch(0.3 0.01 240);
-	--input: oklch(0.26 0.01 240);
-	--ring: oklch(0.72 0.12 185);
-	--chart-1: oklch(0.72 0.12 185);
-	--chart-2: oklch(0.74 0.16 152);
-	--chart-3: oklch(0.78 0.14 85);
-	--chart-4: oklch(0.62 0.2 25);
-	--chart-5: oklch(0.55 0.01 240);
-	--sidebar: oklch(0.16 0.01 240);
-	--sidebar-foreground: oklch(0.96 0.005 240);
-	--sidebar-primary: oklch(0.72 0.12 185);
-	--sidebar-primary-foreground: oklch(0.16 0.02 185);
-	--sidebar-accent: oklch(0.24 0.01 240);
-	--sidebar-accent-foreground: oklch(0.94 0.005 240);
-	--sidebar-border: oklch(0.3 0.01 240);
-	--sidebar-ring: oklch(0.72 0.12 185);
-}
-
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
@@ -194,7 +161,18 @@
 	h1,
 	h2,
 	h3 {
-		@apply font-heading;
+		@apply font-heading font-semibold tracking-tight;
+	}
+	/* Ops data must not get Fira Code programming ligatures (≠, ->, etc.). */
+	.font-mono,
+	code,
+	kbd,
+	samp,
+	pre {
+		font-variant-ligatures: none;
+		font-feature-settings:
+			'liga' 0,
+			'calt' 0;
 	}
 	a {
 		@apply text-primary cursor-pointer transition-colors duration-200 hover:underline;

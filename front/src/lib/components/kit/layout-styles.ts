@@ -15,9 +15,9 @@ export const LAYOUT_MAX = 'max-w-screen-2xl';
 /**
  * Site-wide type scale (ops dashboard density).
  *
- * Two families only (see app.css):
- * - `font-sans` / `font-heading` → DM Sans (UI copy, titles)
- * - `font-mono` → JetBrains Mono (IDs, tags, hashes, versions, code)
+ * Two families only (see app.css) — Fira cohesion:
+ * - `font-sans` / `font-heading` → Fira Sans (UI copy, titles)
+ * - `font-mono` → Fira Code (IDs, tags, hashes, versions, code)
  *
  * Caps policy: CSS `uppercase` is allowed ONLY via `TYPE_OVERLINE`
  * (panel labels, stat labels). Table column headers use `TYPE_TABLE_HEAD`
@@ -29,7 +29,7 @@ export const TYPE_PAGE_TITLE =
 export const TYPE_PAGE_DESC = 'text-sm leading-normal text-muted-foreground';
 /** Overline labels — sole CSS-uppercase role. */
 export const TYPE_OVERLINE =
-	'text-xs font-medium uppercase tracking-wide text-muted-foreground';
+	'text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground';
 /** Panel / card section label — prefer `TYPE_SECTION` for visible panel titles. */
 export const TYPE_PANEL_TITLE = TYPE_OVERLINE;
 /**

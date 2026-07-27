@@ -3,6 +3,9 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Mobile browser chrome. Kept in sync with the resolved theme below and
+		     by applyTheme() in stores/settings — values mirror --background. -->
+		<meta name="theme-color" content="#070B0E" />
 		<script>
 			(function () {
 				try {
@@ -16,6 +19,8 @@
 					root.dataset.theme = resolved;
 					root.classList.toggle('dark', dark);
 					root.style.colorScheme = resolved;
+					var meta = document.querySelector('meta[name="theme-color"]');
+					if (meta) meta.setAttribute('content', dark ? '#070B0E' : '#F2F6F8');
 				} catch (_) {}
 			})();
 		</script>

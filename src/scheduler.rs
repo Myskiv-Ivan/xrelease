@@ -183,13 +183,26 @@ pub async fn start_background(engine: Arc<Engine>, watches: Option<Vec<Watch>>) 
     }
 }
 
-/// Drain retryable outbox rows once at process start (before poll loops).
-pub async fn startup_outbox_recovery(engine: &Engine) {
+/// Promote rows that used up their retry budget but are still `failed` to
+/// `dead`, so they surface in the dead-letter metric / ops alert and become
+/// recoverable via `outbox requeue`.
+///
+/// Must run **periodically**, not only at startup: `claim_outbox_batch` filters
+/// on `attempts < OUTBOX_MAX_ATTEMPTS`, so the moment a parent row reaches the
+/// cap it stops being claimable. If its status is still `failed` at that point
+/// — which happens when the parent's budget runs out before its sink ledger's,
+/// e.g. one sink dead-letters for real while another is still pending behind an
+/// open circuit breaker — the row is silently invisible: never delivered, never
+/// counted as dead-lettered, and skipped by [`Store::requeue_dead_outbox`],
+/// which only revives `dead`. Reconciling each flush cycle bounds that window
+/// to ~60s instead of "until the next process restart".
+pub async fn reconcile_exhausted_outbox(engine: &Engine, reason: &str) {
     match engine.store.finalize_exhausted_outbox() {
         Ok(marked) if marked > 0 => {
             engine.metrics.record_outbox_dead_lettered(marked);
             warn!(
                 marked,
+                reason,
                 max_attempts = OUTBOX_MAX_ATTEMPTS,
                 "outbox rows marked dead after exhausting delivery retries"
             );
@@ -202,9 +215,14 @@ pub async fn startup_outbox_recovery(engine: &Engine) {
                 )
                 .await;
         }
-        Err(err) => warn!(error = %err, "outbox dead-letter sweep failed"),
+        Err(err) => warn!(error = %err, reason, "outbox dead-letter sweep failed"),
         _ => {}
     }
+}
+
+/// Drain retryable outbox rows once at process start (before poll loops).
+pub async fn startup_outbox_recovery(engine: &Engine) {
+    reconcile_exhausted_outbox(engine, "startup").await;
 
     match engine.flush_outbox(50).await {
         Ok(sent) if sent > 0 => {
@@ -241,6 +259,10 @@ pub fn spawn_outbox_flush(
                     error!(error = %join_err, "notification outbox flush panicked; loop continues")
                 }
             }
+            // After the flush, not before: a row that just exhausted its budget
+            // is reconciled in this same cycle rather than lingering unclaimable
+            // and uncounted until the next one.
+            reconcile_exhausted_outbox(&engine, "flush cycle").await;
             if !sleep_interruptible(period, &shutdown).await {
                 break;
             }

@@ -263,6 +263,34 @@ impl PostgresStore {
         Ok(())
     }
 
+    /// Defer the next claim of this row **without** counting an attempt.
+    ///
+    /// Used when a delivery attempt made no network call at all because every
+    /// unsuccessful sink was skipped by an open circuit breaker. Such a skip is
+    /// a deferral, not an attempt (the same reasoning that keeps
+    /// [`Self::fail_sink_delivery`] off the breaker path), so it must not march
+    /// the parent's `attempts` toward [`OUTBOX_MAX_ATTEMPTS`].
+    ///
+    /// Incrementing here instead would strand the row: one sink's breaker is
+    /// shared by every row targeting it, so a backlog against a down sink burns
+    /// the *parent* budget of each queued row while their sink ledgers stay
+    /// untouched. Once `attempts` reached the cap, [`Self::claim_outbox_batch`]
+    /// (`attempts < max`) stopped returning the row while its status was still
+    /// `failed` — never delivered, never dead-lettered, invisible to the
+    /// dead-letter metric, and unreachable by [`Self::requeue_dead_outbox`]
+    /// (which only revives `dead`) until the next process restart ran
+    /// [`Self::finalize_exhausted_outbox`].
+    pub fn defer_delivery(&self, outbox_id: i64, backoff_secs: f64) -> Result<(), StoreError> {
+        let mut client = self.conn()?;
+        client.execute(
+            "UPDATE notification_outbox
+ SET locked_until = now() + make_interval(secs => $1::double precision)
+ WHERE id = $2",
+            &[&backoff_secs, &outbox_id],
+        )?;
+        Ok(())
+    }
+
     fn outbox_record_from_row(row: postgres::Row) -> OutboxRecord {
         OutboxRecord {
             id: row.get(0),
@@ -541,13 +569,21 @@ impl PostgresStore {
         Ok(ids.len())
     }
 
-    /// Promote exhausted retry rows to `dead` (startup recovery after crash).
+    /// Promote exhausted retry rows to `dead` (crash recovery + flush-cycle
+    /// reconciliation).
+    ///
+    /// Matches `pending` as well as `failed`: [`Self::claim_outbox_batch`] drops
+    /// any row at the attempt cap regardless of status, so an exhausted
+    /// `pending` row is just as unclaimable — and, while it keeps that label, is
+    /// missing from the dead counts and invisible to
+    /// [`Self::requeue_dead_outbox`]. Restricting this sweep to `failed` left
+    /// that variant stranded permanently, across restarts.
     pub fn finalize_exhausted_outbox(&self) -> Result<usize, StoreError> {
         let mut client = self.conn()?;
         let updated = client.execute(
             "UPDATE notification_outbox
  SET status = 'dead'
- WHERE status = 'failed' AND attempts >= $1",
+ WHERE status IN ('pending', 'failed') AND attempts >= $1",
             &[&OUTBOX_MAX_ATTEMPTS],
         )?;
         Ok(updated as usize)

@@ -85,7 +85,7 @@ impl std::error::Error for ValidationRejected {}
 
 /// The submitted document could not be turned into a config at all — it does
 /// not parse as TOML or YAML, or it carries infrastructure sections the
-/// desired-state layer forbids ('s boundary).
+/// desired-state layer forbids (the bootstrap/desired boundary).
 ///
 /// Distinct from [`ValidationRejected`]: that one means "this parsed into a
 /// config, but the config is semantically wrong" (422, with a report). This
@@ -163,6 +163,22 @@ pub struct ValidateResponse {
 pub fn content_sha256(raw: &str) -> String {
     let digest = Sha256::digest(raw.as_bytes());
     hex::encode(digest)
+}
+
+/// The subset of `writes` that would actually change a sealed secret.
+///
+/// Every apply normalizes inline secrets to `*_env` refs, so an unchanged
+/// document yields a full set of `writes` on each call even though none of the
+/// values moved. Only those differing from the currently-resolved value are real
+/// rotations. An unresolvable name counts as changed, so the comparison can only
+/// ever cause an extra reseal — never skip a genuine rotation.
+fn effective_secret_rotations(writes: &[SecretWrite]) -> Vec<&SecretWrite> {
+    writes
+        .iter()
+        .filter(|write| {
+            crate::config::vault_get(&write.name).as_deref() != Some(write.value.as_str())
+        })
+        .collect()
 }
 
 /// A scope-resolved candidate ready to validate and hot-swap.
@@ -416,7 +432,14 @@ pub async fn apply_document(
     // silently drops credential rotations.
     if let Some(current) = &current {
         if current.content_sha256 == candidate.ledger_sha {
-            if candidate.secret_writes.is_empty() {
+            // …but only a write whose value actually *differs* from what is
+            // already sealed is a rotation. Re-sending the same inline secret —
+            // what a UI save or a CI re-apply of unchanged config does on every
+            // call, since an inline value is normalized to a ref on each apply —
+            // is not, and must still report `applied = false`. Comparing against
+            // the process vault fails safe: a name that is not loaded looks
+            // changed, so a real rotation is never mistaken for a no-op.
+            if effective_secret_rotations(&candidate.secret_writes).is_empty() {
                 return Ok(ApplyResponse {
                     applied: false,
                     content_sha256: candidate.ledger_sha,

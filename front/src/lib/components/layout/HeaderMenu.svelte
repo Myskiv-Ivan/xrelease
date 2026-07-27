@@ -2,6 +2,7 @@
 	import { getDisplayName } from '$lib/auth/session';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/button.svelte';
+	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
 	import { t } from '$lib/i18n';
 	import { getAuthState, logout } from '$lib/stores/auth.svelte';
 	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
@@ -46,7 +47,7 @@
 					{#if displayName}
 						<span class="font-medium text-foreground">{displayName}</span>
 					{/if}
-					<span class="text-xs text-muted-foreground">{roleLabel}</span>
+					<span class={TYPE_MUTED}>{roleLabel}</span>
 				</div>
 			</DropdownMenu.Label>
 			<DropdownMenu.Separator />

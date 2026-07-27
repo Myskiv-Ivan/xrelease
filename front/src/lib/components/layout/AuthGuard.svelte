@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { loginPath } from '$lib/auth/return-to';
 	import RoleGuard from '$lib/components/auth/RoleGuard.svelte';
 	import LoadingState from '$lib/components/kit/LoadingState.svelte';
 	import type { Permission } from '$lib/auth/types';
@@ -20,7 +22,7 @@
 	// `isAuthenticated` is still false at first paint.
 	$effect(() => {
 		if (auth.isReady && !auth.isAuthenticated) {
-			goto('/login');
+			goto(loginPath(page.url));
 		}
 	});
 </script>

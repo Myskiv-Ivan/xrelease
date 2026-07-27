@@ -8,7 +8,7 @@ setup, quality gates, and the release flow.
 ```sh
 # Backend (Rust)
 cargo build
-cargo test                    # tests needing Postgres self-skip when it is absent
+cargo test --workspace        # DB-backed tests self-skip without Postgres — see below
 
 # Frontend (SvelteKit)
 cd front
@@ -17,12 +17,24 @@ npm run check
 npm run build
 ```
 
-A local PostgreSQL speeds up store/scheduler tests:
+The store, outbox, config-apply, RBAC, organizations, webhook and observability
+suites need PostgreSQL — **they self-skip when it is absent, so a green
+`cargo test` without a database has not exercised any of them.** To actually run
+them:
 
 ```sh
 docker run --rm -e POSTGRES_USER=xrelease -e POSTGRES_PASSWORD=xrelease \
   -e POSTGRES_DB=xrelease_test -p 5432:5432 postgres:18-alpine
+
+# Any 32-byte base64 key. `config_api.source = "api"` refuses to seal
+# app_secret values without one, so the config-apply e2e tests fail
+# validation (422) if it is unset.
+export XRELEASE_CONFIG_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+cargo test --workspace --locked
 ```
+
+Pass `--workspace`: the `xrctl` CLI crate is not a dependency of the daemon, so a
+bare `cargo test` skips it entirely.
 
 Full stack via Docker (development build):
 
@@ -38,8 +50,8 @@ Operators use published images: `docker compose up -d` (see [`docker/README.md`]
 | Area | Command |
 |---|---|
 | Format | `cargo fmt --all` |
-| Lint | `cargo clippy --all-targets -- -D warnings` |
-| Tests | `cargo test` |
+| Lint | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
+| Tests | `cargo test --workspace --locked` (needs Postgres — see above) |
 | Config | `cargo run -- --config deploy/examples/infra-app/bootstrap.toml --app deploy/examples/infra-app/app/releases.yaml validate --strict` |
 | Frontend | `cd front && npm run check && npm run build` |
 | Docs | `mdbook build docs` (optional locally; CI publishes to GitHub Pages) |

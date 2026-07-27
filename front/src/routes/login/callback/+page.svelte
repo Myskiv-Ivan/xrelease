@@ -9,6 +9,7 @@
 		writeOidcAppRole,
 		writeOidcOrganizationRoles
 	} from '$lib/auth/oidc';
+	import { sanitizeReturnTo } from '$lib/auth/return-to';
 	import type { AppRole } from '$lib/auth/types';
 	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
 	import AppBrand from '$lib/components/layout/AppBrand.svelte';
@@ -31,7 +32,10 @@
 
 		void (async () => {
 			try {
-				const { returnTo } = await completeOidcCallback(page.url.searchParams);
+				// Re-validate: this value round-tripped through session storage.
+				const returnTo = sanitizeReturnTo(
+					(await completeOidcCallback(page.url.searchParams)).returnTo
+				);
 				loginWithOidcSession();
 
 				try {

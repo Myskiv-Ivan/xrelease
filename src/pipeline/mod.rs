@@ -37,7 +37,7 @@ mod tests {
     use chrono::{DateTime, Utc};
 
     use crate::model::Release;
-    use crate::store::{OutboxRecord, Store};
+    use crate::store::OutboxRecord;
 
     fn release(id: &str) -> Release {
         Release::new(id)
@@ -181,12 +181,8 @@ mod tests {
 
     #[test]
     fn select_for_delivery_should_return_nothing_on_first_poll() {
-        let store = match Store::open_test() {
-            Ok(store) => store,
-            Err(err) => {
-                eprintln!("skipping pipeline store test (postgres unavailable): {err}");
-                return;
-            }
+        let Some(store) = crate::store::test_db::open() else {
+            return;
         };
         let releases = vec![release("v1.0.0"), release("v1.1.0")];
         let new = select_for_delivery("s1", &releases, true, &store).expect("select");
@@ -195,12 +191,8 @@ mod tests {
 
     #[test]
     fn select_for_delivery_should_return_only_unseen_after_baseline() {
-        let store = match Store::open_test() {
-            Ok(store) => store,
-            Err(err) => {
-                eprintln!("skipping pipeline store test (postgres unavailable): {err}");
-                return;
-            }
+        let Some(store) = crate::store::test_db::open() else {
+            return;
         };
         let baseline = vec![release("v1.0.0")];
         select_for_delivery("s1", &baseline, true, &store).expect("baseline");
@@ -213,12 +205,8 @@ mod tests {
 
     #[test]
     fn select_for_delivery_should_notify_on_body_update_when_not_excluded() {
-        let store = match Store::open_test() {
-            Ok(store) => store,
-            Err(err) => {
-                eprintln!("skipping pipeline store test (postgres unavailable): {err}");
-                return;
-            }
+        let Some(store) = crate::store::test_db::open() else {
+            return;
         };
         let first = Release::new("v1.0.0").with_body(Some("initial".into()));
         select_for_delivery("s1", &[first], false, &store).expect("baseline");
@@ -231,12 +219,8 @@ mod tests {
 
     #[test]
     fn select_for_delivery_should_skip_body_update_when_excluded() {
-        let store = match Store::open_test() {
-            Ok(store) => store,
-            Err(err) => {
-                eprintln!("skipping pipeline store test (postgres unavailable): {err}");
-                return;
-            }
+        let Some(store) = crate::store::test_db::open() else {
+            return;
         };
         let first = Release::new("v1.0.0").with_body(Some("initial".into()));
         select_for_delivery("s1", &[first], true, &store).expect("baseline");

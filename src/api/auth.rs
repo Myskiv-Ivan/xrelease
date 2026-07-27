@@ -190,9 +190,9 @@ pub async fn require_admin_auth(
 }
 
 /// Enforce a minimum role. A principal with no role is only ever [`AuthPrincipal::Anonymous`],
-/// which occurs solely when no auth is configured (the lab-only when require_auth is false
-/// management surface) — so it is allowed; every configured principal carries a
-/// concrete role and is compared against `minimum`.
+/// which occurs solely when no auth is configured — the lab-only management
+/// surface permitted when `require_auth = false` — so it is allowed; every
+/// configured principal carries a concrete role and is compared against `minimum`.
 pub fn authorize(principal: &AuthPrincipal, minimum: AppRole) -> AuthResult {
     authorize_for_org(principal, minimum, None)
 }
@@ -318,7 +318,8 @@ pub fn require_config_apply_auth(
     // Config apply/rollback rewrites the running desired state — the highest
     // privilege the API grants. Require `admin` *for the target organization*
     // (`None` = the whole-document instance). ApiKey is admin everywhere; an
-    // unconfigured/Anonymous instance stays unauthenticated when require_auth is false, matched by `authorize`.
+    // unconfigured/Anonymous instance (only possible when `require_auth = false`)
+    // stays unauthenticated, matched by `authorize`.
     authorize_for_org(&principal, AppRole::Admin, organization)?;
 
     // `apply_scope` is an OIDC-claims concept — it must only gate requests
@@ -488,12 +489,6 @@ mod tests {
     use super::*;
     use axum::http::{HeaderValue, StatusCode};
 
-    /// Regression: `config_api.api_config = true` with neither bearer auth
-    /// (api_key/OIDC) nor an HMAC secret configured left `/config/apply` and
-    /// `/config/rollback` completely unauthenticated — and the startup
-    /// warning that existed at the time claimed they were still "bearer-only"
-    /// in exactly that case. This predicate is what `api::serve` now checks
-    /// to refuse starting instead.
     #[test]
     fn audit_label_should_identify_the_verified_principal() {
         assert_eq!(
@@ -558,6 +553,12 @@ mod tests {
         assert!(authorize(&AuthPrincipal::Anonymous, AppRole::Admin).is_ok());
     }
 
+    /// Regression: `config_api.api_config = true` with neither bearer auth
+    /// (api_key/OIDC) nor an HMAC secret configured left `/config/apply` and
+    /// `/config/rollback` completely unauthenticated — and the startup
+    /// warning that existed at the time claimed they were still "bearer-only"
+    /// in exactly that case. This predicate is what `api::serve` now checks
+    /// to refuse starting instead.
     #[test]
     fn config_apply_auth_configured_should_require_bearer_or_hmac() {
         assert!(!config_apply_auth_configured(false, false));

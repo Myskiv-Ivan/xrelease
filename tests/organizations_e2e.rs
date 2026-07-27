@@ -422,7 +422,8 @@ async fn local_source_should_refuse_org_pushes_but_reload_from_files() {
 /// composition (other tenants' namespaced sources and their real Apprise
 /// URLs), which the old post-compose restore serialized into the stream — and
 /// a GET→apply round-trip of unchanged content must converge to an idempotent
-/// no-op instead of appending a twin revision per save.
+/// no-op instead of appending a twin revision per save — from the first
+/// round-trip on, since the seed apply already records the canonical body.
 #[tokio::test]
 async fn org_apply_with_redacted_secrets_should_stay_org_local_and_idempotent() {
     let _db = DB_GUARD.lock().await;
@@ -464,7 +465,11 @@ async fn org_apply_with_redacted_secrets_should_stay_org_local_and_idempotent() 
         "GET must redact: {redacted}"
     );
 
-    // …applying it back restores the secret and canonicalizes the ledger body.
+    // …and applying it back restores the secret to the identical ledger body, so
+    // it is a no-op already on the FIRST round-trip: the seed apply normalized
+    // inline secrets to `*_env` refs before recording, so what GET redacts is
+    // the canonical body. Restore therefore reproduces the stored sha, and no
+    // twin revision is appended — which is the whole point of this regression.
     let response = app
         .clone()
         .oneshot(auth_request(
@@ -476,9 +481,13 @@ async fn org_apply_with_redacted_secrets_should_stay_org_local_and_idempotent() 
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let canonicalized = json_body(response).await;
-    assert_eq!(canonicalized["applied"], serde_json::Value::Bool(true));
+    assert_eq!(
+        canonicalized["applied"],
+        serde_json::Value::Bool(false),
+        "restoring the redacted authority document must not re-apply: {canonicalized}"
+    );
 
-    // Round-trip 2 of the (now canonical) content must be a pure no-op.
+    // Round-trip 2 of the same canonical content stays a pure no-op.
     let response = app
         .clone()
         .oneshot(auth_request(
@@ -526,7 +535,7 @@ async fn org_apply_with_redacted_secrets_should_stay_org_local_and_idempotent() 
         "apprise sink must survive the restore round-trip: {redacted_again}"
     );
 
-    // Exactly 2 revisions: seed + canonicalization; the no-op added none.
+    // Exactly 1 revision: the seed. Neither round-trip added one.
     let response = app
         .clone()
         .oneshot(auth_request(
@@ -537,7 +546,7 @@ async fn org_apply_with_redacted_secrets_should_stay_org_local_and_idempotent() 
         .await
         .expect("response");
     let history = json_body(response).await;
-    assert_eq!(history["total"], serde_json::Value::from(2));
+    assert_eq!(history["total"], serde_json::Value::from(1));
 }
 
 #[tokio::test]

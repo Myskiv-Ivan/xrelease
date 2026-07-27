@@ -1,17 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="xrls">
-	<!-- Full-bleed matte — no white AA fringe on export -->
-	<rect width="64" height="64" fill="#050805"/>
-	<rect width="64" height="64" rx="10" fill="#050805"/>
-	<rect x="1" y="1" width="62" height="62" rx="9" stroke="#39FF14" stroke-opacity="0.4" stroke-width="1.5"/>
-	<path d="M8 14h48M8 22h48M8 30h48M8 38h48M8 46h48M8 54h48" stroke="#39FF14" stroke-opacity="0.07" stroke-width="1"/>
-	<g fill="#39FF14" transform="translate(21 10)" opacity="0.65">
-		<path d="M2 0h2v2h-2zM4 2h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2z"/>
-		<path transform="translate(14 0)" d="M0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
-	</g>
-	<g fill="#39FF14" transform="translate(7.5 30)">
-		<path transform="translate(0 0)" d="M0 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM2 4h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2zM6 8h2v2h-2zM0 10h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(13 0)" d="M0 0h2v2h-2zM2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM0 4h2v2h-2zM8 4h2v2h-2zM0 6h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM0 8h2v2h-2zM4 8h2v2h-2zM0 10h2v2h-2zM6 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(26 0)" d="M0 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM0 6h2v2h-2zM0 8h2v2h-2zM0 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
-		<path transform="translate(39 0)" d="M2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM8 8h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2z"/>
+	<!-- Square stack of the wordmark: `>_` prompt over `xrls`. Palette mirrors app.css. -->
+	<style>
+		.chip { fill: #0E1318 }
+		.edge { stroke: #26BDAE; stroke-opacity: .4 }
+		.scan { stroke: #26BDAE; stroke-opacity: .07 }
+		.glyph { fill: #26BDAE }
+		.mark { fill: #4AC777 }
+		@media (prefers-color-scheme: light) {
+			.chip { fill: #FFFFFF }
+			.edge { stroke: #006F65; stroke-opacity: .35 }
+			.scan { stroke: #006F65; stroke-opacity: .06 }
+			.glyph { fill: #006F65 }
+			.mark { fill: #007F3D }
+		}
+	</style>
+	<rect class="chip" width="64" height="64" rx="10"/>
+	<rect class="edge" x="1" y="1" width="62" height="62" rx="9" stroke-width="1.5"/>
+	<path class="scan" d="M8 14h48M8 22h48M8 30h48M8 38h48M8 46h48M8 54h48" stroke-width="1"/>
+	<!--
+		scale 0.78 shrinks the stack off the chip edge; the translate also corrects
+		the old vertical bias (top margin was 10, bottom 20 — now equal).
+	-->
+	<g transform="translate(7.04 10.94) scale(0.78)">
+		<g class="mark" transform="translate(21 10)" opacity=".8">
+			<path d="M2 0h2v2h-2zM4 2h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2z"/>
+			<path transform="translate(14 0)" d="M0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
+		</g>
+		<g class="glyph" transform="translate(7.5 30)">
+			<path d="M0 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM2 4h2v2h-2zM6 4h2v2h-2zM4 6h2v2h-2zM2 8h2v2h-2zM6 8h2v2h-2zM0 10h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(13 0)" d="M0 0h2v2h-2zM2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM0 2h2v2h-2zM8 2h2v2h-2zM0 4h2v2h-2zM8 4h2v2h-2zM0 6h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM0 8h2v2h-2zM4 8h2v2h-2zM0 10h2v2h-2zM6 10h2v2h-2zM0 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(26 0)" d="M0 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM0 6h2v2h-2zM0 8h2v2h-2zM0 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2zM8 12h2v2h-2z"/>
+			<path transform="translate(39 0)" d="M2 0h2v2h-2zM4 0h2v2h-2zM6 0h2v2h-2zM8 0h2v2h-2zM0 2h2v2h-2zM0 4h2v2h-2zM2 6h2v2h-2zM4 6h2v2h-2zM6 6h2v2h-2zM8 8h2v2h-2zM8 10h2v2h-2zM0 12h2v2h-2zM2 12h2v2h-2zM4 12h2v2h-2zM6 12h2v2h-2z"/>
+		</g>
 	</g>
 </svg>

@@ -25,6 +25,24 @@ jobs:
 
   rust:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    # The store, outbox, config-apply, RBAC, organizations, webhook and
+    # observability suites all need PostgreSQL and skip themselves silently when
+    # it is unreachable. Without this service `cargo test --workspace` went green
+    # while the entire DB-backed integration surface never executed.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: xrelease
+          POSTGRES_PASSWORD: xrelease
+          POSTGRES_DB: xrelease_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
@@ -46,7 +64,15 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --workspace
+        env:
+          # Both names are in use: the store/config-apply suites read
+          # XRELEASE_TEST_POSTGRES_URL, the organizations suite XRELEASE_DATABASE_URL.
+          XRELEASE_TEST_POSTGRES_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease_test"
+          XRELEASE_DATABASE_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease_test"
+          # config_api.source = "api" refuses to seal app_secret without a key,
+          # so every config-apply e2e fails validation (422) unless this is set.
+          XRELEASE_CONFIG_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+        run: cargo test --workspace --locked
 
       # Incremental after clippy/test — reuse target/ instead of a cold link via cargo-run.
       - name: Build xrelease binary

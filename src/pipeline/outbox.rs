@@ -333,6 +333,45 @@ pub(crate) fn backoff_secs(attempts: i32, max_secs: u32) -> f64 {
     (BASE_SECS * 2f64.powi(exponent)).min(f64::from(max_secs))
 }
 
+/// Result of one delivery attempt against a row's pending sinks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DeliveryAttempt {
+    /// The row is now fully delivered (parent marked `sent`).
+    delivered: bool,
+    /// The attempt made **no** network call: at least one sink did not succeed,
+    /// and every such sink was skipped by an open circuit breaker. A pure
+    /// deferral must not burn the row's retry budget — see
+    /// [`crate::store::Store::defer_delivery`].
+    deferred_only: bool,
+}
+
+impl DeliveryAttempt {
+    /// Fully delivered.
+    fn delivered() -> Self {
+        Self {
+            delivered: true,
+            deferred_only: false,
+        }
+    }
+
+    /// Not delivered, and the attempt really tried (or failed for a reason that
+    /// should count against the retry budget).
+    fn failed() -> Self {
+        Self {
+            delivered: false,
+            deferred_only: false,
+        }
+    }
+
+    /// Nothing was attempted — every unsuccessful sink was breaker-skipped.
+    fn deferred() -> Self {
+        Self {
+            delivered: false,
+            deferred_only: true,
+        }
+    }
+}
+
 /// Deliver one already-leased outbox row, backing off the lease unless the row
 /// is now fully delivered (so a partial/failed attempt is retryable, at an
 /// exponentially increasing delay, instead of hammering a broken endpoint
@@ -352,17 +391,39 @@ pub(crate) async fn attempt_notification_delivery(
     let started = Instant::now();
     let outcome = deliver_to_pending_sinks(engine, outbox_id, event, source_id, seen).await;
     engine.metrics.record_notify_duration(started.elapsed());
-    if !matches!(outcome, Ok(true)) {
-        let backoff = backoff_secs(
-            attempts_before + 1,
-            engine.outbox_retry_backoff_max_secs().await,
-        );
-        // Best-effort; lease expiry is the safety net if this fails.
-        if let Err(err) = engine.store.apply_delivery_backoff(outbox_id, backoff) {
-            warn!(outbox_id, error = %err, "failed to apply outbox delivery backoff");
+    match &outcome {
+        Ok(attempt) if attempt.delivered => {}
+        Ok(attempt) => {
+            apply_attempt_backoff(engine, outbox_id, attempts_before, *attempt).await;
         }
+        // A hard error left the row's state indeterminate; the lease still
+        // expires, so the next flush retries it.
+        Err(_) => {}
     }
-    outcome
+    outcome.map(|attempt| attempt.delivered)
+}
+
+/// Push the next claim of `outbox_id` out after an unsuccessful attempt.
+///
+/// Best-effort: lease expiry is the safety net if the update fails.
+async fn apply_attempt_backoff(
+    engine: &Engine,
+    outbox_id: i64,
+    attempts_before: i32,
+    attempt: DeliveryAttempt,
+) {
+    let backoff = backoff_secs(
+        attempts_before + 1,
+        engine.outbox_retry_backoff_max_secs().await,
+    );
+    let result = if attempt.deferred_only {
+        engine.store.defer_delivery(outbox_id, backoff)
+    } else {
+        engine.store.apply_delivery_backoff(outbox_id, backoff)
+    };
+    if let Err(err) = result {
+        warn!(outbox_id, error = %err, "failed to apply outbox delivery backoff");
+    }
 }
 
 /// Deliver one outbox row to pending sinks only; complete when all sinks ack.
@@ -372,7 +433,7 @@ pub(crate) async fn deliver_to_pending_sinks(
     event: &Event,
     source_id: &str,
     seen: &SeenUpsert<'_>,
-) -> Result<bool, PipelineError> {
+) -> Result<DeliveryAttempt, PipelineError> {
     // One snapshot for the whole attempt — see `Engine::notifier_snapshot`.
     // `ensure_sink_deliveries`/`list_pending_sink_indices`/etc. below are real
     // DB round-trips; re-reading the live notifier after any of them could
@@ -391,7 +452,7 @@ pub(crate) async fn deliver_to_pending_sinks(
         );
         warn!(source = %source_id, outbox_id, tag = ?event.routing_tag, "{error}");
         fail_outbox_row_alert(engine, outbox_id, source_id, &error).await?;
-        return Ok(false);
+        return Ok(DeliveryAttempt::failed());
     }
 
     let sinks: Vec<(usize, &str)> = matching
@@ -403,16 +464,13 @@ pub(crate) async fn deliver_to_pending_sinks(
     let pending = engine.store.list_pending_sink_indices(outbox_id)?;
     let pending_indices: Vec<usize> = if pending.is_empty() {
         if engine.store.sinks_delivery_complete(outbox_id)? {
-            return engine
-                .store
-                .complete_notification(outbox_id, source_id, seen)
-                .map_err(Into::into);
+            return complete_or_failed(engine, outbox_id, source_id, seen);
         }
         // No retryable sinks remain (the rest are `dead`); re-delivering `matching`
         // here would duplicate notifications to sinks that already succeeded.
         // Sync parent → `dead` so the row leaves the claimable set.
         sync_outbox_status_alert(engine, outbox_id, source_id).await?;
-        return Ok(false);
+        return Ok(DeliveryAttempt::failed());
     } else {
         pending
             .iter()
@@ -435,7 +493,7 @@ pub(crate) async fn deliver_to_pending_sinks(
             .abandon_retryable_sinks(outbox_id, &[], &error)?;
         fail_outbox_row_alert(engine, outbox_id, source_id, &error).await?;
         sync_outbox_status_alert(engine, outbox_id, source_id).await?;
-        return Ok(false);
+        return Ok(DeliveryAttempt::failed());
     }
 
     let orphans: Vec<usize> = pending
@@ -461,6 +519,10 @@ pub(crate) async fn deliver_to_pending_sinks(
     emit_breaker_alerts(engine, &notifier).await;
 
     let mut any_failed = false;
+    // Tracked separately from `any_failed`: a breaker skip defers without
+    // touching the network, so it must not count against the row's retry
+    // budget either (see `DeliveryAttempt::deferred_only`).
+    let mut any_real_failure = false;
     for (index, result) in results {
         record_sink_attempt(engine, &notifier, index, &result);
         match result {
@@ -483,6 +545,7 @@ pub(crate) async fn deliver_to_pending_sinks(
                         "sink delivery skipped: circuit breaker open"
                     );
                 } else {
+                    any_real_failure = true;
                     engine
                         .store
                         .fail_sink_delivery(outbox_id, index, &err.to_string())?;
@@ -501,17 +564,36 @@ pub(crate) async fn deliver_to_pending_sinks(
     sync_outbox_status_alert(engine, outbox_id, source_id).await?;
 
     if any_failed {
-        return Ok(false);
+        return Ok(if any_real_failure {
+            DeliveryAttempt::failed()
+        } else {
+            DeliveryAttempt::deferred()
+        });
     }
 
     if engine.store.sinks_delivery_complete(outbox_id)? {
-        return engine
-            .store
-            .complete_notification(outbox_id, source_id, seen)
-            .map_err(Into::into);
+        return complete_or_failed(engine, outbox_id, source_id, seen);
     }
 
-    Ok(false)
+    Ok(DeliveryAttempt::failed())
+}
+
+/// Mark the parent `sent` (plus the `seen_release` upsert) and map the store's
+/// "did this call win the transition" boolean onto a [`DeliveryAttempt`].
+fn complete_or_failed(
+    engine: &Engine,
+    outbox_id: i64,
+    source_id: &str,
+    seen: &SeenUpsert<'_>,
+) -> Result<DeliveryAttempt, PipelineError> {
+    let completed = engine
+        .store
+        .complete_notification(outbox_id, source_id, seen)?;
+    Ok(if completed {
+        DeliveryAttempt::delivered()
+    } else {
+        DeliveryAttempt::failed()
+    })
 }
 
 /// Deliver a digest group: one combined message for several cron-deferred
@@ -530,19 +612,12 @@ pub(crate) async fn deliver_claimed_outbox_digest(
     let outcomes = deliver_digest_to_pending_sinks(engine, &event, &group).await?;
 
     let mut results = Vec::with_capacity(group.len());
-    for (row, delivered) in group.iter().zip(outcomes.iter()) {
-        if !*delivered {
+    for (row, attempt) in group.iter().zip(outcomes.iter()) {
+        if !attempt.delivered {
             let attempts_before = i32::try_from(row.attempts).unwrap_or(i32::MAX);
-            let backoff = backoff_secs(
-                attempts_before + 1,
-                engine.outbox_retry_backoff_max_secs().await,
-            );
-            // Best-effort; lease expiry is the safety net if this fails.
-            if let Err(err) = engine.store.apply_delivery_backoff(row.id, backoff) {
-                warn!(outbox_id = row.id, error = %err, "failed to apply outbox delivery backoff");
-            }
+            apply_attempt_backoff(engine, row.id, attempts_before, *attempt).await;
         }
-        results.push((row.source_id.clone(), *delivered));
+        results.push((row.source_id.clone(), attempt.delivered));
     }
     Ok(results)
 }
@@ -562,7 +637,7 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
     engine: &Engine,
     event: &Event,
     group: &[OutboxRecord],
-) -> Result<Vec<bool>, PipelineError> {
+) -> Result<Vec<DeliveryAttempt>, PipelineError> {
     // One snapshot for the whole digest attempt — see `Engine::notifier_snapshot`.
     let notifier = engine.notifier_snapshot().await;
     let matching = notifier.matching_indices(event);
@@ -575,7 +650,7 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
         for row in group {
             fail_outbox_row_alert(engine, row.id, &row.source_id, &error).await?;
         }
-        return Ok(vec![false; group.len()]);
+        return Ok(vec![DeliveryAttempt::failed(); group.len()]);
     }
 
     let sink_refs: Vec<(usize, &str)> = matching
@@ -623,12 +698,10 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
         for row in group {
             let outcome = if engine.store.sinks_delivery_complete(row.id)? {
                 let seen = seen_upsert_for(row);
-                engine
-                    .store
-                    .complete_notification(row.id, &row.source_id, &seen)?
+                complete_or_failed(engine, row.id, &row.source_id, &seen)?
             } else {
                 sync_outbox_status_alert(engine, row.id, &row.source_id).await?;
-                false
+                DeliveryAttempt::failed()
             };
             outcomes.push(outcome);
         }
@@ -646,6 +719,10 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
 
     let mut outcomes = Vec::with_capacity(group.len());
     for (row, pending) in group.iter().zip(row_pending.iter()) {
+        // Per row, not per group: the same shared send can be a real failure for
+        // one row's pending set and a pure breaker deferral for another's.
+        let mut any_failed = false;
+        let mut any_real_failure = false;
         for (index, result) in &results {
             if !pending.contains(index) {
                 continue;
@@ -653,6 +730,7 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
             match result {
                 Ok(()) => engine.store.complete_sink_delivery(row.id, *index)?,
                 Err(err) => {
+                    any_failed = true;
                     if matches!(err, NotifyError::BreakerOpen { .. }) {
                         // Deferral, not an attempt — do not burn the sink's
                         // retry budget (see the non-digest path for rationale).
@@ -662,6 +740,7 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
                             "digest sink delivery skipped: circuit breaker open"
                         );
                     } else {
+                        any_real_failure = true;
                         engine
                             .store
                             .fail_sink_delivery(row.id, *index, &err.to_string())?;
@@ -679,11 +758,11 @@ pub(crate) async fn deliver_digest_to_pending_sinks(
 
         let outcome = if engine.store.sinks_delivery_complete(row.id)? {
             let seen = seen_upsert_for(row);
-            engine
-                .store
-                .complete_notification(row.id, &row.source_id, &seen)?
+            complete_or_failed(engine, row.id, &row.source_id, &seen)?
+        } else if any_failed && !any_real_failure {
+            DeliveryAttempt::deferred()
         } else {
-            false
+            DeliveryAttempt::failed()
         };
         outcomes.push(outcome);
     }

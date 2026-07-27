@@ -10,6 +10,7 @@
 		isOidcEnabled
 	} from '$lib/auth/config';
 	import { startOidcLogin } from '$lib/auth/oidc';
+	import { safeReturnTo } from '$lib/auth/return-to';
 	import type { AppRole } from '$lib/auth/types';
 	import AuthModeBadge from '$lib/components/auth/AuthModeBadge.svelte';
 	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
@@ -71,8 +72,7 @@
 		isOidcStarting = true;
 		error = null;
 		try {
-			const returnTo = page.url.searchParams.get('returnTo') ?? '/';
-			await startOidcLogin(returnTo);
+			await startOidcLogin(safeReturnTo(page.url.searchParams));
 		} catch (err) {
 			error = resolveApiError(err, t('login.oidcFailed'));
 			isOidcStarting = false;
@@ -98,7 +98,7 @@
 				username: response.user.username ?? user,
 				displayName: response.user.display_name ?? undefined
 			});
-			goto(page.url.searchParams.get('returnTo') ?? '/');
+			goto(safeReturnTo(page.url.searchParams));
 		} catch (err) {
 			error =
 				err instanceof ApiClientError
@@ -122,7 +122,7 @@
 		try {
 			await api.verifyApiKey(trimmed);
 			loginWithApiKey(trimmed);
-			goto(page.url.searchParams.get('returnTo') ?? '/');
+			goto(safeReturnTo(page.url.searchParams));
 		} catch (err) {
 			error =
 				err instanceof ApiClientError

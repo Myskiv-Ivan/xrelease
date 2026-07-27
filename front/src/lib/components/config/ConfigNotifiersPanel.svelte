@@ -693,7 +693,7 @@
 														{disabled}
 														onchange={() => toggleTag(draft, tag)}
 													/>
-													<span class="font-mono text-xs">{tag}</span>
+													<span class={TYPE_CODE}>{tag}</span>
 												</label>
 											{/each}
 										</div>

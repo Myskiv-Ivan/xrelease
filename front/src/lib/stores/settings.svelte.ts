@@ -26,6 +26,10 @@ function applyTheme(mode: ThemeMode) {
 	root.dataset.theme = resolved;
 	root.classList.toggle('dark', resolved === 'dark');
 	root.style.colorScheme = resolved;
+	// Mobile browser chrome — mirrors --background (see app.html).
+	document
+		.querySelector('meta[name="theme-color"]')
+		?.setAttribute('content', resolved === 'dark' ? '#070B0E' : '#F2F6F8');
 }
 
 export function initSettings() {
