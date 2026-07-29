@@ -10,7 +10,7 @@
 
 image:
   # Pinned by scripts/bump-version.py (empty would track Chart.appVersion).
-  tag: "0.1.4"
+  tag: "0.2.0"
 
 gateway:
   hostnames:

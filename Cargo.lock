@@ -4703,7 +4703,7 @@ dependencies = [
 
 [[package]]
 name = "xrelease"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "xrelease-cli"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",

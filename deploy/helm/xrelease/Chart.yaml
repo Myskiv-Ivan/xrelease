@@ -2,8 +2,8 @@ apiVersion: v2
 name: xrelease
 description: Self-hosted release notifier — Apprise, Novu, Slack, Telegram, SMTP, webhooks, and brokers
 type: application
-version: 0.1.4
-appVersion: "0.1.4"
+version: 0.2.0
+appVersion: "0.2.0"
 # policy/v1 PodDisruptionBudget and the automatic kubernetes.io/metadata.name
 # namespace label (NetworkPolicy selectors) both land in 1.21; 1.25 is the
 # oldest release still in support when this chart shipped.
