@@ -1,5 +1,6 @@
 //! PostgreSQL-backed state store.
 
+mod advisory;
 mod app_secret;
 mod config_revision;
 mod migrate;
@@ -399,6 +400,58 @@ impl PostgresStore {
     }
 
     /// Best-effort newest tag from the seen-release catalogue (UI backfill).
+    /// The single "latest release" row for **every** source, in one query.
+    ///
+    /// What the sources-list page needs per row is one entry — the release whose
+    /// tag matches `source_state.latest_release_tag`, so the tag and its date
+    /// describe the same release. Fetching that with
+    /// [`Self::list_seen_releases`] cost one unbounded scan *per source* (that
+    /// query has no `LIMIT`; the cap is applied in Rust after a semver sort), so
+    /// a hundred watched packages meant a hundred round trips, tens of thousands
+    /// of `Release` values parsed, and all of it discarded except one row each —
+    /// on an endpoint the dashboard polls on a timer.
+    ///
+    /// `DISTINCT ON` picks the first row per source under the `ORDER BY`:
+    /// the tag-matching row when there is one, otherwise the most recently
+    /// published, otherwise the most recently discovered. The tag comparison
+    /// uses `COALESCE(display_tag, identity)` because that is exactly what
+    /// [`crate::store::SeenReleaseEntry::tag`] resolves to, and what
+    /// `set_latest_release_tag` stored.
+    pub fn latest_seen_by_source(&self) -> Result<HashMap<String, SeenReleaseEntry>, StoreError> {
+        let mut client = self.conn()?;
+        let rows = client.query(
+            "SELECT DISTINCT ON (s.source_id)
+                    s.source_id, s.identity, s.display_tag,
+                    s.first_seen_at, s.published_at, s.url
+             FROM seen_release s
+             LEFT JOIN source_state st ON st.source_id = s.source_id
+             ORDER BY s.source_id,
+                      (st.latest_release_tag IS NOT NULL
+                       AND COALESCE(s.display_tag, s.identity) = st.latest_release_tag) DESC,
+                      s.published_at DESC NULLS LAST,
+                      s.first_seen_at DESC",
+            &[],
+        )?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let source_id: String = row.get(0);
+                let identity: String = row.get(1);
+                let display_tag: Option<String> = row.get(2);
+                let first_seen_at: DateTime<Utc> = row.get(3);
+                let published_at: Option<DateTime<Utc>> = row.get(4);
+                let entry = SeenReleaseEntry {
+                    tag: display_tag.unwrap_or_else(|| identity.clone()),
+                    identity,
+                    published_at: published_at.map(|at| at.to_rfc3339()),
+                    url: row.get(5),
+                    first_seen_at: first_seen_at.to_rfc3339(),
+                };
+                (source_id, entry)
+            })
+            .collect())
+    }
+
     pub fn best_seen_identity(&self, source_id: &str) -> Result<Option<String>, StoreError> {
         let mut client = self.conn()?;
         let rows = client.query(
@@ -468,6 +521,7 @@ impl PostgresStore {
                     })
                     .unwrap_or_default();
                 SeenReleaseEntry {
+                    identity: release.id.clone(),
                     tag: display_tag.unwrap_or_else(|| release.raw_tag.clone()),
                     published_at: published_at.map(|at| at.to_rfc3339()),
                     url,
@@ -521,33 +575,41 @@ impl PostgresStore {
         if releases.is_empty() {
             return Ok(());
         }
-        let mut client = self.conn()?;
-        let mut tx = client.transaction()?;
+        // One statement for the whole set (`unnest` of parallel arrays), the
+        // same shape `ensure_sink_deliveries` uses. This runs on *every*
+        // non-304 poll and covers every release the source lists — not just new
+        // ones — so the per-release loop it replaces cost one round trip per
+        // known version, every poll: hundreds for a mature npm or PyPI package.
+        let mut identities: Vec<&str> = Vec::with_capacity(releases.len());
+        let mut published: Vec<Option<DateTime<Utc>>> = Vec::with_capacity(releases.len());
+        let mut urls: Vec<Option<&str>> = Vec::with_capacity(releases.len());
+        let mut display_tags: Vec<Option<&str>> = Vec::with_capacity(releases.len());
         for release in releases {
-            let display_tag = if release.raw_tag == release.id {
-                None
-            } else {
-                Some(release.raw_tag.as_str())
-            };
+            let display_tag = (release.raw_tag != release.id).then_some(release.raw_tag.as_str());
+            // Nothing to merge in — skipped before the round trip, as before.
             if release.published_at.is_none() && release.url.is_none() && display_tag.is_none() {
                 continue;
             }
-            tx.execute(
-                "UPDATE seen_release SET
-                    published_at = COALESCE(published_at, $3),
-                    url = COALESCE(url, $4),
-                    display_tag = COALESCE(display_tag, $5)
-                 WHERE source_id = $1 AND identity = $2",
-                &[
-                    &source_id,
-                    &release.id.as_str(),
-                    &release.published_at,
-                    &release.url.as_deref(),
-                    &display_tag,
-                ],
-            )?;
+            identities.push(release.id.as_str());
+            published.push(release.published_at);
+            urls.push(release.url.as_deref());
+            display_tags.push(display_tag);
         }
-        tx.commit()?;
+        if identities.is_empty() {
+            return Ok(());
+        }
+
+        let mut client = self.conn()?;
+        client.execute(
+            "UPDATE seen_release s SET
+                published_at = COALESCE(s.published_at, t.published_at),
+                url = COALESCE(s.url, t.url),
+                display_tag = COALESCE(s.display_tag, t.display_tag)
+             FROM unnest($2::text[], $3::timestamptz[], $4::text[], $5::text[])
+                  AS t(identity, published_at, url, display_tag)
+             WHERE s.source_id = $1 AND s.identity = t.identity",
+            &[&source_id, &identities, &published, &urls, &display_tags],
+        )?;
         Ok(())
     }
 
@@ -663,11 +725,46 @@ impl PostgresStore {
         if items.is_empty() {
             return self.mark_initialized(source_id);
         }
+        // Batched for the same reason as `enrich_seen_metadata`: this is the
+        // silent baseline on a source's first poll, so `items` is the package's
+        // *entire* published history — one round trip per version turned adding
+        // a mature dependency into hundreds of statements.
+        let identities: Vec<&str> = items.iter().map(|item| item.identity).collect();
+        let display_tags: Vec<Option<&str>> = items.iter().map(|item| item.display_tag).collect();
+        let digests: Vec<Option<&str>> = items.iter().map(|item| item.content_digest).collect();
+        let published: Vec<Option<DateTime<Utc>>> =
+            items.iter().map(|item| item.published_at).collect();
+        let urls: Vec<Option<&str>> = items.iter().map(|item| item.url).collect();
+
         let mut client = self.conn()?;
         let mut tx = client.transaction()?;
-        for item in items {
-            Self::write_seen_row(&mut tx, source_id, item)?;
-        }
+        // `DISTINCT ON` is load-bearing, not tidiness: `ON CONFLICT DO UPDATE`
+        // errors outright if one statement touches the same row twice, and an
+        // upstream listing a version more than once would otherwise fail the
+        // whole baseline. The per-item loop this replaces tolerated that
+        // silently.
+        tx.execute(
+            "INSERT INTO seen_release
+                 (source_id, identity, display_tag, first_seen_at, content_digest, published_at, url)
+             SELECT DISTINCT ON (t.identity)
+                    $1, t.identity, t.display_tag, now(), t.content_digest, t.published_at, t.url
+             FROM unnest($2::text[], $3::text[], $4::text[], $5::timestamptz[], $6::text[])
+                  AS t(identity, display_tag, content_digest, published_at, url)
+             ORDER BY t.identity
+             ON CONFLICT (source_id, identity) DO UPDATE SET
+                 display_tag = COALESCE(EXCLUDED.display_tag, seen_release.display_tag),
+                 content_digest = EXCLUDED.content_digest,
+                 published_at = COALESCE(seen_release.published_at, EXCLUDED.published_at),
+                 url = COALESCE(seen_release.url, EXCLUDED.url)",
+            &[
+                &source_id,
+                &identities,
+                &display_tags,
+                &digests,
+                &published,
+                &urls,
+            ],
+        )?;
         tx.execute(
             "INSERT INTO source_state (source_id, initialized, last_polled_at)
                  VALUES ($1, TRUE, now())
@@ -704,6 +801,7 @@ impl PostgresStore {
         seen_after_days: u32,
         webhooks_after_days: u32,
         outbox_sent_after_days: u32,
+        advisories_after_days: u32,
     ) -> Result<PruneReport, StoreError> {
         let mut report = PruneReport::default();
         let mut client = self.conn()?;
@@ -742,6 +840,23 @@ impl PostgresStore {
                 &[],
             )?;
         }
+        if advisories_after_days > 0 {
+            let days = i32::try_from(advisories_after_days).unwrap_or(i32::MAX);
+            report.advisories_deleted = client.execute(
+                "DELETE FROM release_advisory
+                 WHERE fetched_at < now() - make_interval(days => $1::int)",
+                &[&days],
+            )? as usize;
+            // Same cutoff as the findings above: letting a check-state row
+            // expire simply means that version gets re-verified next time it
+            // is in the backfill's path — a feature, not data loss, since OSV
+            // can publish a new advisory against an old version later.
+            report.advisory_checks_deleted = client.execute(
+                "DELETE FROM advisory_check
+                 WHERE checked_at < now() - make_interval(days => $1::int)",
+                &[&days],
+            )? as usize;
+        }
         Ok(report)
     }
 
@@ -750,7 +865,8 @@ impl PostgresStore {
         let mut client = self.conn()?;
         client.batch_execute(
             "TRUNCATE notification_sink_delivery, notification_outbox, seen_release, \
-             source_state, webhook_delivery, config_revision, app_secret, app_user \
+             source_state, webhook_delivery, config_revision, app_secret, app_user, \
+             release_advisory, advisory_check \
              RESTART IDENTITY CASCADE",
         )?;
         // Keep the process vault aligned with the empty `app_secret` table.

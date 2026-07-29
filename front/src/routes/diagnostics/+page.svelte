@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/api/client';
-	import type { HealthResponse, ReadyResponse } from '$lib/api/types';
+	import type { HealthResponse, ReadyResponse, StatusResponse } from '$lib/api/types';
 	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
 	import NotifierTestPanel from '$lib/components/config/NotifierTestPanel.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
@@ -18,6 +18,7 @@
 
 	let health = $state<HealthResponse | null>(null);
 	let ready = $state<ReadyResponse | null>(null);
+	let status = $state<StatusResponse | null>(null);
 	let error = $state<string | null>(null);
 	let isRunning = $state(false);
 
@@ -25,12 +26,16 @@
 		isRunning = true;
 		error = null;
 		try {
-			const [healthResult, readyResult] = await Promise.all([
+			const [healthResult, readyResult, statusResult] = await Promise.all([
 				api.getHealth(),
-				api.getReady()
+				api.getReady(),
+				// Advisory enrichment is bootstrap-only config, so it is reported
+				// by /status rather than the liveness/readiness probes.
+				api.getStatus()
 			]);
 			health = healthResult;
 			ready = readyResult;
+			status = statusResult;
 		} catch (err) {
 			error = resolveApiError(err, t('diagnostics.failed'));
 		} finally {
@@ -78,6 +83,18 @@
 		];
 	});
 
+	const advisoryItems = $derived.by((): KeyValueItem[] => {
+		if (!status) return [];
+		return [
+			{
+				label: t('diagnostics.advisoriesEnabled'),
+				value: status.advisories.enabled ? t('overview.ok') : t('diagnostics.advisoriesOff'),
+				tone: status.advisories.enabled ? 'success' : 'default'
+			},
+			{ label: t('diagnostics.advisoriesEndpoint'), value: status.advisories.endpoint }
+		];
+	});
+
 	const webhookItems = WEBHOOK_ENDPOINTS.map((endpoint) => ({
 		title: endpoint.forge,
 		code: endpoint.path,
@@ -115,6 +132,19 @@
 				{/if}
 			</Panel>
 		</div>
+
+		<Panel title={t('diagnostics.advisories')}>
+			{#if status}
+				<KeyValueList items={advisoryItems} />
+				<p class="{TYPE_HINT} mt-3">
+					{status.advisories.enabled
+						? t('diagnostics.advisoriesHintOn')
+						: t('diagnostics.advisoriesHintOff')}
+				</p>
+			{:else}
+				<p class={TYPE_HINT}>{t('diagnostics.notRun')}</p>
+			{/if}
+		</Panel>
 
 		<NotifierTestPanel />
 

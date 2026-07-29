@@ -4,7 +4,6 @@
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import { PANEL_GRID } from '$lib/components/kit/layout-styles';
 	import { sourceMetricsItems, sourceScheduleItems } from '$lib/config/source-presentation';
-	import { getNowStore } from '$lib/stores/now.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -12,8 +11,7 @@
 	}
 
 	let { source }: Props = $props();
-	const now = getNowStore();
-	const scheduleItems = $derived(sourceScheduleItems(source, now.current));
+	const scheduleItems = $derived(sourceScheduleItems(source));
 </script>
 
 <div class={PANEL_GRID}>

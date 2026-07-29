@@ -2,57 +2,33 @@
 	import type { SourceDetail } from '$lib/api/types';
 	import Badge from '$lib/components/kit/Badge.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
-	import StatCard from '$lib/components/dashboard/StatCard.svelte';
+	import Section from '$lib/components/kit/Section.svelte';
+	import StatCard from '$lib/components/kit/StatCard.svelte';
 	import StatGrid from '$lib/components/kit/StatGrid.svelte';
 	import ConfigRoutingFromDocument from '$lib/components/config/ConfigRoutingFromDocument.svelte';
 	import { sourceHealth } from '$lib/config/source-presentation';
 	import { formatNumber } from '$lib/core/format';
-	import { getConfigStore } from '$lib/data/config.svelte';
-	import { getOrgConfigStore } from '$lib/data/org-config.svelte';
+	import { createScopedConfig } from '$lib/data/config-scope.svelte';
 	import { getSourcesStore } from '$lib/data/sources.svelte';
 	import { t } from '$lib/i18n';
 	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
-	import { TYPE_MUTED, TYPE_HINT, TYPE_SECTION, TYPE_STATUS_ERROR } from '$lib/components/kit/layout-styles';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
+	import {
+		PANEL_STACK,
+		TYPE_HINT,
+		TYPE_MUTED,
+		TYPE_SECTION,
+		TYPE_STATUS_ERROR
+	} from '$lib/components/kit/layout-styles';
 
 	const auth = getAuthState();
 	const sourcesStore = getSourcesStore();
-	const configStore = getConfigStore();
-	const orgConfigStore = getOrgConfigStore();
-	const orgs = getOrganizationsState();
 	const canReadConfig = $derived(auth.hasPermission('config:read'));
 
-	/** Org the org-config store is tracking (plain, for switch detection). */
-	let activeOrg: string | null = null;
-
-	$effect(() => {
-		if (!auth.isReady || !auth.hasPermission('config:read')) return;
-		if (!orgs.isLoaded) return;
-
-		if (orgs.isMultiOrg) {
-			configStore.stop();
-			if (!orgs.selectedId) {
-				orgConfigStore.stop();
-				activeOrg = null;
-				return;
-			}
-			if (activeOrg === null) {
-				orgConfigStore.start();
-			} else if (activeOrg !== orgs.selectedId) {
-				void orgConfigStore.reload();
-			}
-			activeOrg = orgs.selectedId;
-			return () => {
-				orgConfigStore.stop();
-				activeOrg = null;
-			};
-		}
-
-		orgConfigStore.stop();
-		activeOrg = null;
-		configStore.start();
-		return () => configStore.stop();
+	/** Same controller the config page uses — the routing graph reads the document
+	    the instance is actually authoritative on, global or per-organization. */
+	const config = createScopedConfig({
+		isEnabled: () => auth.isReady && auth.hasPermission('config:read')
 	});
 
 	const healthCounts = $derived.by(() => {
@@ -82,18 +58,15 @@
 			.slice(0, 6);
 	});
 
-	const configView = $derived(configStore.view);
-	const orgDesired = $derived(orgConfigStore.view?.desired_content ?? null);
-	const graphLoading = $derived(
-		orgs.isMultiOrg ? orgConfigStore.isLoading : configStore.isLoading
-	);
-	const graphError = $derived(orgs.isMultiOrg ? orgConfigStore.error : configStore.error);
+	const configView = $derived(config.global.view);
+	const orgDesired = $derived(config.org.view?.desired_content ?? null);
+	const graphLoading = $derived(config.isLoading);
+	const graphError = $derived(config.error);
 </script>
 
-<div class="flex flex-col gap-4">
+<div class={PANEL_STACK}>
 	{#if sourcesStore.sources.length > 0}
-		<section class="flex flex-col gap-3">
-			<h2 class={TYPE_SECTION}>{t('overview.sectionHealth')}</h2>
+		<Section title={t('overview.sectionHealth')}>
 			<StatGrid columns={3}>
 				<StatCard
 					label={t('overview.healthySources')}
@@ -111,7 +84,7 @@
 					tone={healthCounts.errors > 0 ? 'danger' : 'default'}
 				/>
 			</StatGrid>
-		</section>
+		</Section>
 	{/if}
 
 	{#if canReadConfig}
@@ -127,7 +100,7 @@
 				</span>
 			</summary>
 			<div class="border-t border-border px-4 py-3">
-				{#if orgs.isMultiOrg}
+				{#if config.isOrgScoped}
 					{#if orgDesired?.trim()}
 						<ConfigRoutingFromDocument
 							variant="page"
@@ -178,7 +151,7 @@
 							<p class="truncate {TYPE_MUTED}">
 								{source.kind}
 								{#if source.last_polled_at}
-									· <RelativeTime value={source.last_polled_at} class="inline" />
+									· <Timestamp value={source.last_polled_at} class="inline" />
 								{/if}
 							</p>
 						</div>

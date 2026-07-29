@@ -2226,6 +2226,43 @@
           "notifications"
         ]
       },
+      "AdvisoryView": {
+        "type": "object",
+        "description": "One security advisory affecting a released version (see [advisories]). Populated only when advisory enrichment is enabled and a delivery attempt has looked this exact version up.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Primary database id (GHSA-…, RUSTSEC-…, PYSEC-…)."
+          },
+          "display_id": {
+            "type": "string",
+            "description": "Preferred human-facing id: a CVE-… alias when the database has one, else the same value as id."
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "severity": {
+            "type": "string",
+            "nullable": true,
+            "enum": ["low", "moderate", "high", "critical"],
+            "description": "Lowercase label, present only when the advisory database explicitly stated a severity."
+          },
+          "cvss_vector": {
+            "type": "string",
+            "nullable": true,
+            "description": "Raw CVSS vector string, carried verbatim — never computed locally. Populated even when severity is null, as a fallback signal."
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "display_id"
+        ]
+      },
       "SeenReleaseView": {
         "type": "object",
         "properties": {
@@ -2243,6 +2280,13 @@
           },
           "first_seen_at": {
             "type": "string"
+          },
+          "advisories": {
+            "type": "array",
+            "description": "Known security advisories for this exact version. Always empty on the sources-list endpoint (GET /api/v1/sources) — only the source-detail endpoint (GET /api/v1/sources/{id}) attaches them.",
+            "items": {
+              "$ref": "#/components/schemas/AdvisoryView"
+            }
           }
         },
         "required": [
@@ -2444,6 +2488,9 @@
             "items": {
               "$ref": "#/components/schemas/BreakerOpenView"
             }
+          },
+          "advisories": {
+            "$ref": "#/components/schemas/AdvisoryStatus"
           }
         },
         "required": [
@@ -2456,7 +2503,26 @@
           "metrics",
           "config_apply",
           "outbox_deferred",
-          "breakers"
+          "breakers",
+          "advisories"
+        ]
+      },
+      "AdvisoryStatus": {
+        "type": "object",
+        "description": "Advisory-enrichment status. Lets the dashboard tell an empty advisory column apart from a disabled feature — without it, \"no known CVEs\", \"enrichment is off\", and \"not a package source\" all render identically.",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "True when [advisories] is enabled and has a usable endpoint."
+          },
+          "endpoint": {
+            "type": "string",
+            "description": "Advisory database being queried — confirms a self-hosted OSV mirror is actually in use. Never carries credentials."
+          }
+        },
+        "required": [
+          "enabled",
+          "endpoint"
         ]
       },
       "ConfigApplyStatus": {

@@ -22,17 +22,21 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 - Kafka, NATS, and RabbitMQ notifier sinks are always compiled into the
   `xrelease` binary (no cargo features / `all-notifiers`). Local builds, GHCR
-  images, and GitHub Release archives share one notifier surface — see
-  [`docs/adr/0001-all-notifiers-always-on.md`](docs/adr/0001-all-notifiers-always-on.md).
-- TLS guides document mounted certificate files (Compose) and Ingress TLS
-  Secrets (Kubernetes).
+  images, and GitHub Release archives share one notifier surface.
+- Helm defaults are CloudNativePG + Gateway API; site overlay is
+  [`deploy/k8s/values.yaml`](deploy/k8s/values.yaml) (+ gitignored
+  `values.secrets.yaml`). Optional Ingress / builtin PG / OIDC are local
+  value overrides — [deployment variants](docs/operations/deployment-variants.md).
+- TLS guides: Compose PEM on UI nginx; Kubernetes terminates on the Gateway
+  listener (or Ingress via a local overlay) —
+  [tls.md](docs/operations/tls.md) · [gateway.md](docs/operations/gateway.md).
 
 ### Fixed
 
 - UI OIDC role mapping calls `toLowerCase()` / `trim()` correctly, so IdP
   group claims resolve to viewer/operator/admin (and `alias:org` grants).
 - UI nginx preserves edge `X-Forwarded-Proto` when proxying to the API
-  (HTTPS behind Ingress / reverse proxy).
+  (HTTPS behind Gateway / Ingress / reverse proxy).
 
 ### Added
 
@@ -40,6 +44,5 @@ Schema upgrades run automatically on startup. Lab resets remain
 - Docker HTTPS on UI nginx with **cert.pem / key.pem** via `.env`
   (`XRELEASE_TLS_CERT`, `XRELEASE_TLS_KEY`, ports) —
   [`docker/compose.tls.yaml`](docker/compose.tls.yaml).
-- Kubernetes Ingress TLS overlay:
-  [`deploy/k8s/values-tls.example.yaml`](deploy/k8s/values-tls.example.yaml)
-  (`kubectl create secret tls --cert/--key`).
+- Optional security-advisory enrichment (`[advisories]`) via OSV — opt-in;
+  Compose lab enables it in [`bootstrap.toml`](bootstrap.toml).

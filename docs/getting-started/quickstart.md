@@ -2,15 +2,18 @@
 
 ## Default labs (what you get out of the box)
 
-| | **Docker** (`docker-compose.yaml`) | **Kubernetes** (chart defaults) |
+| | **Docker** (`docker-compose.yaml`) | **Kubernetes** (`values.yaml`) |
 |---|---|---|
 | **Authoring** | **API + UI** (multi-org ledger) | **API + UI** (single-doc ledger) |
 | **Desired state** | Idle until UI / `xrctl` Apply | Idle until UI / `xrctl` Apply |
-| **URL** | http://127.0.0.1:3000 | Ingress host (`xrelease.local`) |
-| **API from host** | via `:3000` (backend `:8080` not published) | via Ingress → UI nginx |
+| **URL** | http://127.0.0.1:3000 | Gateway hostname |
+| **API from host** | via `:3000` (backend `:8080` not published) | via Gateway → UI nginx |
+| **Stack** | UI + PG + Apprise | CNPG + Gateway + NetworkPolicy |
 | **Config** | repo [`bootstrap.toml`](../../bootstrap.toml) | chart `bootstrapInline` (**API + UI**) |
 
-**Local** and **API** (no UI editor): docs + [`deploy/examples/`](../../deploy/examples/) only — not the default labs.
+Lab-only Helm (builtin PG, no CNPG/Gateway): see
+[deployment variants](../operations/deployment-variants.md).
+**Local** / **API** (no UI editor): docs + [`deploy/examples/`](../../deploy/examples/).
 
 Authoring flags: [Local / API / API + UI](../configuration/overview.md#authoring-variants).
 
@@ -56,20 +59,27 @@ More: [Docker](docker.md) · [Authentication](../operations/authentication.md).
 
 ## Kubernetes
 
+Platform once (CNPG operator + Gateway), then:
+
 ```sh
-cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
-# edit passwords in values.secrets.yaml
-helm upgrade --install xrelease ./deploy/helm/xrelease \
+TAG=v0.1.4
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.yaml"
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.secrets.example.yaml"
+cp values.secrets.example.yaml values.secrets.yaml
+# edit gateway.hostnames in values.yaml; set secrets.adminPassword in values.secrets.yaml
+helm upgrade --install xrelease oci://ghcr.io/myskiv-ivan/charts/xrelease \
+  --version "${TAG#v}" \
   --namespace xrelease --create-namespace \
-  -f deploy/k8s/values.secrets.yaml
+  -f values.yaml \
+  -f values.secrets.yaml
 ```
 
-Chart default is **API + UI** (same as Docker) + HTTP Ingress — idle until Apply.
-Sign in with `secrets.adminUser` / `secrets.adminPassword` from the secrets
-overlay, then **Config → Edit → Apply** (or `xrctl apply`).
+Canonical stack = **CloudNativePG + Gateway API** + **API + UI** authoring —
+idle until Apply. Sign in with `secrets.adminUser` / `secrets.adminPassword`.
 
 More: [Kubernetes](kubernetes.md) ·
-[`deploy/k8s/README.md`](../../deploy/k8s/README.md).
+[`deploy/k8s/README.md`](../../deploy/k8s/README.md) ·
+[deployment variants](../operations/deployment-variants.md).
 
 ## Verify
 

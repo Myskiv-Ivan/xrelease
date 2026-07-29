@@ -1,8 +1,6 @@
 # Table of contents
 
 [Introduction](README.md)
-[Contributing to docs](CONTRIBUTING.md)
-[Migration Report](MIGRATION_REPORT.md)
 
 ---
 
@@ -38,12 +36,14 @@
 * [OIDC / SSO](operations/oidc.md)
 * [CI/CD integration](operations/ci-cd.md)
 * [Runtime deployment](operations/deployment.md)
-* [TLS & Ingress](operations/tls.md)
+* [Deployment variants](operations/deployment-variants.md)
+* [TLS](operations/tls.md)
+* [Gateway API](operations/gateway.md)
 * [PostgreSQL storage](operations/storage.md)
+* [CloudNativePG](operations/cloudnativepg.md)
 * [Scaling limits](operations/scaling.md)
 
 ## Project
 
 * [Comparison with alternatives](project/comparison.md)
 * [Changelog](project/changelog.md)
-* [Architecture decisions (ADRs)](adr/README.md)

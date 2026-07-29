@@ -1,0 +1,54 @@
+# Gateway for xrelease — a PLATFORM object, deliberately outside the Helm
+# release: it usually fronts several applications and has its own lifecycle
+# (TLS certificates, LB address, listener policy).
+#
+# The chart attaches an HTTPRoute to it via gateway.parentRef.name.
+#
+#   kubectl apply -f deploy/k8s/gateway/gateway.yaml
+#
+# gatewayClassName must match a GatewayClass your controller reconciles:
+#   kubectl get gatewayclass
+#     eg              → Envoy Gateway
+#     nginx           → NGINX Gateway Fabric
+#     istio           → Istio
+#     cilium          → Cilium
+#     traefik         → Traefik
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: xrelease-gateway
+  namespace: xrelease
+spec:
+  gatewayClassName: eg
+  listeners:
+    # Plain HTTP. Keep it only to serve ACME challenges or to redirect;
+    # drop the listener entirely once TLS is in place.
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: "xrelease.example.com"
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+    # HTTPS. Create the Secret first:
+    #   kubectl -n xrelease create secret tls xrelease-tls \
+    #     --cert=cert.pem --key=key.pem
+    # …or let cert-manager issue it (annotate this Gateway with
+    # cert-manager.io/cluster-issuer and let it fill the Secret).
+    # Then pin the route with gateway.parentRef.sectionName: https
+    #
+    # - name: https
+    #   protocol: HTTPS
+    #   port: 443
+    #   hostname: "xrelease.example.com"
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - group: ""
+    #         kind: Secret
+    #         name: xrelease-tls
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: Same

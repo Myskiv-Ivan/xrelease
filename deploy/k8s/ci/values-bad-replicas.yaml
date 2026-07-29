@@ -1,2 +1,0 @@
-# CI-only — must fail chart validate (replicaCount > 1).
-replicaCount: 2

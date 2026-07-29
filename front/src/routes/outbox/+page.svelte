@@ -8,6 +8,7 @@
 	import { getNetworkState } from '$lib/stores/network.svelte';
 	import { getNowStore } from '$lib/stores/now.svelte';
 	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
+	import OrgScopeNotice from '$lib/components/layout/OrgScopeNotice.svelte';
 	import OutboxTable from '$lib/components/outbox/OutboxTable.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
@@ -17,7 +18,7 @@
 	import * as Tabs from '$lib/components/kit/tabs';
 	import { exportRowsAsCsv } from '$lib/core/csv';
 	import { isDeferredDelivery, requeueDeadOutbox, requeueErrorToast } from '$lib/core/outbox';
-	import { belongsToOrganization } from '$lib/core/organization';
+	import { scopeToOrganization } from '$lib/data/organization-scope';
 	import {
 		UNTAGGED_FILTER,
 		collectTeamFilterOptions,
@@ -29,7 +30,6 @@
 	import type { SortState } from '$lib/core/sort';
 	import { t } from '$lib/i18n';
 	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
 
 	const auth = getAuthState();
 	const network = getNetworkState();
@@ -37,7 +37,6 @@
 	const outboxStore = getOutboxStore();
 	const sourcesStore = getSourcesStore();
 	const teamsStore = getTeamsStore();
-	const orgs = getOrganizationsState();
 
 	let sourceFilter = $state('all');
 	let statusFilter = $state('all');
@@ -75,12 +74,9 @@
 		return translated === key ? status : translated;
 	}
 
-	const orgScopedEntries = $derived.by(() => {
-		if (!orgs.isMultiOrg || !orgs.selectedId) return outboxStore.entries;
-		return outboxStore.entries.filter((entry) =>
-			belongsToOrganization(entry.source_id, orgs.selectedId)
-		);
-	});
+	const orgScopedEntries = $derived(
+		scopeToOrganization(outboxStore.entries, (entry) => entry.source_id)
+	);
 
 	const statusCounts = $derived.by(() => {
 		const counts: Record<string, number> = { all: orgScopedEntries.length };
@@ -198,12 +194,7 @@
 		{/if}
 	{/snippet}
 
-	{#if orgs.isMultiOrg && orgs.selected}
-		<p class="mb-3 {TYPE_HINT}">
-			{t('org.filterActive').replace('{org}', orgs.selected.name)}
-			<span class="text-muted-foreground"> — {t('org.filterAllHint')}</span>
-		</p>
-	{/if}
+	<OrgScopeNotice />
 
 	{#if orgScopedEntries.length === 0}
 		<EmptyState title={t('outbox.emptyTitle')} description={t('outbox.emptyDescription')} />

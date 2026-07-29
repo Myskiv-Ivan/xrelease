@@ -4,6 +4,11 @@ description: Self-hosted release notifier — Apprise, Novu, Slack, Telegram, SM
 type: application
 version: 0.1.4
 appVersion: "0.1.4"
+# policy/v1 PodDisruptionBudget and the automatic kubernetes.io/metadata.name
+# namespace label (NetworkPolicy selectors) both land in 1.21; 1.25 is the
+# oldest release still in support when this chart shipped.
+kubeVersion: ">=1.25.0-0"
+icon: https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/main/docs/assets/logo.png
 keywords:
   - releases
   - notifications

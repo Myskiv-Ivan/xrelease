@@ -26,6 +26,8 @@ pub struct PruneSettings {
     pub webhooks_after_days: u32,
     /// Delete sent outbox rows older than N days (`0` = skip).
     pub outbox_sent_after_days: u32,
+    /// Delete `release_advisory` rows older than N days (`0` = skip).
+    pub advisories_after_days: u32,
     /// Hours between periodic prune runs while `serve` is up (`0` = startup only).
     pub interval_hours: u32,
 }
@@ -36,6 +38,7 @@ impl From<&DatabaseConfig> for PruneSettings {
             seen_after_days: db.prune_seen_after_days,
             webhooks_after_days: db.prune_webhooks_after_days,
             outbox_sent_after_days: db.prune_outbox_sent_after_days,
+            advisories_after_days: db.prune_advisories_after_days,
             interval_hours: db.prune_interval_hours,
         }
     }
@@ -48,7 +51,8 @@ impl PruneSettings {
         self.interval_hours > 0
             && (self.seen_after_days > 0
                 || self.webhooks_after_days > 0
-                || self.outbox_sent_after_days > 0)
+                || self.outbox_sent_after_days > 0
+                || self.advisories_after_days > 0)
     }
 }
 
@@ -84,6 +88,10 @@ pub struct Engine {
     pub http: reqwest::Client,
     /// Prometheus counters and latency histograms.
     pub metrics: Arc<Metrics>,
+    /// Best-effort advisory enrichment for package releases.
+    ///
+    /// Always present; inert unless `[advisories] enabled = true`.
+    pub advisories: Arc<crate::advisory::AdvisoryLookup>,
     /// Database retention for startup + periodic prune.
     prune: PruneSettings,
     /// Notifier + poll/outbox tuning; swapped as one unit on config apply.
@@ -125,6 +133,12 @@ impl Engine {
         let has_upstream_limiter = runtime.upstream_limiter.is_some();
         let engine = Arc::new(Self {
             store,
+            // Enrichment shares this client (User-Agent, connection pool) and
+            // applies its own shorter deadline per request.
+            advisories: Arc::new(crate::advisory::AdvisoryLookup::new(
+                config.advisories.clone(),
+                http.clone(),
+            )),
             http,
             metrics: Arc::new(Metrics::new()),
             prune,
@@ -257,8 +271,13 @@ impl Engine {
             self.prune.seen_after_days,
             self.prune.webhooks_after_days,
             self.prune.outbox_sent_after_days,
+            self.prune.advisories_after_days,
         )?;
-        let deleted = report.seen_deleted + report.webhooks_deleted + report.outbox_deleted;
+        let deleted = report.seen_deleted
+            + report.webhooks_deleted
+            + report.outbox_deleted
+            + report.advisories_deleted
+            + report.advisory_checks_deleted;
         self.metrics.record_prune_deleted(deleted);
         if report.any() {
             tracing::info!(
@@ -266,6 +285,8 @@ impl Engine {
                 seen_deleted = report.seen_deleted,
                 webhooks_deleted = report.webhooks_deleted,
                 outbox_deleted = report.outbox_deleted,
+                advisories_deleted = report.advisories_deleted,
+                advisory_checks_deleted = report.advisory_checks_deleted,
                 "database maintenance prune completed"
             );
         }

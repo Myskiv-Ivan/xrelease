@@ -269,7 +269,9 @@ pub struct SourceStateRow {
 /// One seen release row for observability UI.
 #[derive(Debug, Clone)]
 pub struct SeenReleaseEntry {
-    /// Display tag or identity.
+    /// Stable upstream identity (the `seen_release.identity` / advisory version key).
+    pub identity: String,
+    /// Display tag, or identity when no separate label was stored.
     pub tag: String,
     /// RFC 3339 publication timestamp.
     pub published_at: Option<String>,
@@ -345,13 +347,21 @@ pub struct PruneReport {
     pub webhooks_deleted: usize,
     /// Sent `notification_outbox` rows deleted.
     pub outbox_deleted: usize,
+    /// `release_advisory` rows deleted.
+    pub advisories_deleted: usize,
+    /// `advisory_check` rows deleted.
+    pub advisory_checks_deleted: usize,
 }
 
 impl PruneReport {
     /// Whether any rows were removed.
     #[must_use]
     pub fn any(&self) -> bool {
-        self.seen_deleted > 0 || self.webhooks_deleted > 0 || self.outbox_deleted > 0
+        self.seen_deleted > 0
+            || self.webhooks_deleted > 0
+            || self.outbox_deleted > 0
+            || self.advisories_deleted > 0
+            || self.advisory_checks_deleted > 0
     }
 }
 
@@ -503,6 +513,12 @@ impl Store {
         delegate!(self, best_seen_identity(source_id))
     }
 
+    /// The one "latest release" entry per source, batched into a single query
+    /// for the sources-list page.
+    pub fn latest_seen_by_source(&self) -> Result<HashMap<String, SeenReleaseEntry>, StoreError> {
+        delegate!(self, latest_seen_by_source())
+    }
+
     /// List synced release identities for one source (newest semver first).
     pub fn list_seen_releases(
         &self,
@@ -602,11 +618,88 @@ impl Store {
         seen_after_days: u32,
         webhooks_after_days: u32,
         outbox_sent_after_days: u32,
+        advisories_after_days: u32,
     ) -> Result<PruneReport, StoreError> {
         delegate!(
             self,
-            prune(seen_after_days, webhooks_after_days, outbox_sent_after_days)
+            prune(
+                seen_after_days,
+                webhooks_after_days,
+                outbox_sent_after_days,
+                advisories_after_days,
+            )
         )
+    }
+
+    /// Replace the persisted advisory set for one released package version.
+    ///
+    /// Full replace, not accumulate: an empty `advisories` slice clears any
+    /// existing rows for the key (e.g. a previously-flagged version whose
+    /// advisory was later withdrawn upstream). Best-effort by contract — see
+    /// [`crate::advisory`] — so callers must not let a write failure here
+    /// interrupt delivery.
+    pub fn record_advisories(
+        &self,
+        ecosystem: &str,
+        package: &str,
+        version: &str,
+        advisories: &[crate::advisory::Advisory],
+    ) -> Result<(), StoreError> {
+        delegate!(
+            self,
+            record_advisories(ecosystem, package, version, advisories)
+        )
+    }
+
+    /// Persisted advisories for several versions of one package, batched into a
+    /// single query (avoids one round trip per seen release on the source
+    /// detail page).
+    pub fn advisories_for_versions(
+        &self,
+        ecosystem: &str,
+        package: &str,
+        versions: &[&str],
+    ) -> Result<HashMap<String, Vec<crate::advisory::Advisory>>, StoreError> {
+        delegate!(self, advisories_for_versions(ecosystem, package, versions))
+    }
+
+    /// Record that OSV was asked about `(ecosystem, package, version)` —
+    /// regardless of whether the answer found anything. See
+    /// [`crate::store::postgres::PostgresStore::record_advisory_check`] for
+    /// why this is not folded into [`Self::record_advisories`].
+    pub fn record_advisory_check(
+        &self,
+        ecosystem: &str,
+        package: &str,
+        version: &str,
+    ) -> Result<(), StoreError> {
+        delegate!(self, record_advisory_check(ecosystem, package, version))
+    }
+
+    /// Seen versions of one source with no verified advisory check yet,
+    /// newest-discovered first — the background sweep's work queue.
+    pub fn unchecked_seen_versions(
+        &self,
+        source_id: &str,
+        ecosystem: &str,
+        package: &str,
+        limit: usize,
+    ) -> Result<Vec<String>, StoreError> {
+        delegate!(
+            self,
+            unchecked_seen_versions(source_id, ecosystem, package, limit)
+        )
+    }
+
+    /// Which of `versions` have ever had a verified advisory check recorded,
+    /// batched into a single query.
+    pub fn checked_versions(
+        &self,
+        ecosystem: &str,
+        package: &str,
+        versions: &[&str],
+    ) -> Result<std::collections::HashSet<String>, StoreError> {
+        delegate!(self, checked_versions(ecosystem, package, versions))
     }
 
     /// Enqueue a notification for durable delivery.

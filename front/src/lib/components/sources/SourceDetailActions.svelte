@@ -5,11 +5,15 @@
 	import { getNetworkState } from '$lib/stores/network.svelte';
 
 	interface Props {
+		/** Owning source id — links to its advisories page. */
+		sourceId: string;
+		/** Whether this source kind can ever carry advisories. */
+		showAdvisories?: boolean;
 		isPolling?: boolean;
 		onPoll: () => void | Promise<void>;
 	}
 
-	let { isPolling = false, onPoll }: Props = $props();
+	let { sourceId, showAdvisories = false, isPolling = false, onPoll }: Props = $props();
 	const network = getNetworkState();
 	const auth = getAuthState();
 </script>
@@ -19,6 +23,11 @@
 	{#if auth.hasPermission('poll:execute')}
 		<Button variant="accent" disabled={isPolling || !network.isOnline} onclick={() => onPoll()}>
 			{isPolling ? t('overview.polling') : t('sources.pollNow')}
+		</Button>
+	{/if}
+	{#if showAdvisories}
+		<Button variant="outline" href="/sources/{encodeURIComponent(sourceId)}/advisories">
+			{t('sources.advisories')}
 		</Button>
 	{/if}
 </div>

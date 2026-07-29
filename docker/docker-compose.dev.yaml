@@ -35,8 +35,10 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: ghcr.io/myskiv-ivan/xrelease:0.1.4
-    pull_policy: missing
+    # Local tag, not the GHCR release tag: a dev build must never shadow the
+    # published image in the local store.
+    image: xrelease:dev
+    pull_policy: build
     restart: unless-stopped
     command: ["serve"]
     depends_on:
@@ -93,8 +95,8 @@ services:
         VITE_OIDC_ROLE_OPERATOR: ${VITE_OIDC_ROLE_OPERATOR:-xrelease-operator,operator}
         VITE_OIDC_ROLE_VIEWER: ${VITE_OIDC_ROLE_VIEWER:-xrelease-viewer,viewer}
         VITE_GRAFANA_EMBED_URL: ${VITE_GRAFANA_EMBED_URL:-}
-    image: ghcr.io/myskiv-ivan/xrelease-ui:0.1.4
-    pull_policy: missing
+    image: xrelease-ui:dev
+    pull_policy: build
     restart: unless-stopped
     environment:
       VITE_API_URL: ${VITE_API_URL:-}

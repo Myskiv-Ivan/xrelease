@@ -11,12 +11,12 @@
 	} from '$lib/auth/oidc';
 	import { sanitizeReturnTo } from '$lib/auth/return-to';
 	import type { AppRole } from '$lib/auth/types';
-	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
 	import AppBrand from '$lib/components/layout/AppBrand.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
 	import LoadingState from '$lib/components/kit/LoadingState.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
-	import { TYPE_PAGE_DESC } from '$lib/components/kit/layout-styles';
+	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
+	import { FIELD_STACK, TYPE_PAGE_DESC } from '$lib/components/kit/layout-styles';
 	import { APP_VERSION } from '$lib/core/constants';
 	import { resolveApiError } from '$lib/core/errors';
 	import { t } from '$lib/i18n';
@@ -73,8 +73,8 @@
 
 	<Panel>
 		{#if error}
-			<div class="flex flex-col gap-4">
-				<ErrorAlert message={error} />
+			<div class={FIELD_STACK}>
+				<StatusBanner tone="danger">{error}</StatusBanner>
 				<Button href="/login" variant="outline" class="w-full">{t('login.backToLogin')}</Button>
 			</div>
 		{:else}

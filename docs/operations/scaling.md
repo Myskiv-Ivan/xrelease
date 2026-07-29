@@ -64,6 +64,7 @@ postgres_url = "postgres://xrelease:@postgres:5432/xrelease"
 prune_seen_after_days = 365
 prune_webhooks_after_days = 30
 prune_outbox_sent_after_days = 90
+prune_advisories_after_days = 90
 prune_interval_hours = 24
 ```
 
@@ -107,5 +108,13 @@ Each instance: own config pair, own PostgreSQL database, own team tags.
 | Replicas | 1 `xrelease` service | `replicaCount: 1` |
 | Postgres | `postgres` service + volume | Managed or operator |
 | Config reload | `--force-recreate xrelease` | ConfigMap update + rollout |
+| Default memory limit | 512M (`deploy.resources`) | `resources.limits.memory: 512Mi` |
+
+Chart defaults sit at the 100-source line of the table above (requests
+100m/128Mi, limits 1 CPU / 512Mi). Past ~300 sources raise
+`resources.requests.memory` first — the poller is memory-bound, not CPU-bound.
+The production overlay
+([`values.yaml`](../../deploy/k8s/values.yaml))
+starts at 200m/256Mi.
 
 See [`deploy/README.md`](../../deploy/README.md).

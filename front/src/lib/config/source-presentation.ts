@@ -2,14 +2,17 @@ import type { SourceDetail } from '$lib/api/types';
 import type { KeyValueItem } from '$lib/types/ui';
 import type { SurfaceTone } from '$lib/components/kit/surface-styles';
 import { t } from '$lib/i18n';
-import { EMPTY_VALUE, formatInterval, formatNumber, formatRelative } from '$lib/core/format';
+import { EMPTY_VALUE, formatDateTimeFull, formatInterval, formatNumber } from '$lib/core/format';
 
-export function sourceScheduleItems(source: SourceDetail, now: Date = new Date()): KeyValueItem[] {
+export function sourceScheduleItems(source: SourceDetail): KeyValueItem[] {
 	return [
 		{ label: t('sources.latestRelease'), value: source.latest_release_tag ?? EMPTY_VALUE },
 		{ label: t('sources.interval'), value: formatInterval(source.interval_secs) },
 		{ label: t('sources.jitter'), value: formatInterval(source.jitter_secs) },
-		{ label: t('sources.lastPolled'), value: formatRelative(source.last_polled_at, now) },
+		// Absolute, not relative: this is a plain-string `KeyValueItem`, so unlike
+		// `Timestamp` it has nowhere to put a tooltip — a bare "2m" would leave the
+		// actual instant unreachable on this panel.
+		{ label: t('sources.lastPolled'), value: formatDateTimeFull(source.last_polled_at) },
 		{ label: t('sources.routingTag'), value: source.routing_tag ?? EMPTY_VALUE },
 		{
 			label: t('sources.notifySchedule'),

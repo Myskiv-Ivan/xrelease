@@ -1,17 +1,17 @@
 <script lang="ts">
 	import type { SourceDetail } from '$lib/api/types';
-	import StatCard from '$lib/components/dashboard/StatCard.svelte';
+	import StatCard from '$lib/components/kit/StatCard.svelte';
 	import StatGrid from '$lib/components/kit/StatGrid.svelte';
 	import { pollErrorTone } from '$lib/config/source-presentation';
 	import { t } from '$lib/i18n';
-	import { formatNumber, formatDateTime, EMPTY_VALUE } from '$lib/core/format';
+	import { formatNumber, formatDateTimeFull, EMPTY_VALUE } from '$lib/core/format';
 
 	interface Props {
 		source: SourceDetail;
 	}
 
 	let { source }: Props = $props();
-	const lastPolledLabel = $derived(formatDateTime(source.last_polled_at));
+	const lastPolledLabel = $derived(formatDateTimeFull(source.last_polled_at));
 </script>
 
 <StatGrid columns={5}>

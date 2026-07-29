@@ -60,6 +60,11 @@ pub fn contains_infra_sections(config: &Config) -> bool {
         || config.api != default.api
         || config.log != default.log
         || config.config_api != default.config_api
+        // `[advisories]` is an outbound endpoint + credentials-free network
+        // toggle, not desired state: an operator enabling third-party lookups
+        // is an infrastructure decision, so it must not arrive via a pushed
+        // document.
+        || config.advisories != default.advisories
 }
 
 /// Reject infrastructure sections in a desired-state document (app YAML / POST body).
@@ -67,7 +72,8 @@ pub fn ensure_desired_only(config: &Config) -> anyhow::Result<()> {
     if contains_infra_sections(config) {
         bail!(
             "desired-state document must not contain infrastructure sections \
- ([database], [api], [log], [config_api]); configure those in bootstrap.toml only"
+ ([database], [api], [log], [config_api], [advisories]); configure those in \
+ bootstrap.toml only"
         );
     }
     if !config.organizations.is_empty() {
@@ -109,6 +115,7 @@ pub fn strip_infra_sections(config: &mut Config) {
     config.log = Default::default();
     config.api = Default::default();
     config.config_api = Default::default();
+    config.advisories = Default::default();
     config.organizations.clear();
 }
 
@@ -119,6 +126,7 @@ pub fn merge_bootstrap_over_desired(bootstrap: &Config, mut desired: Config) -> 
     desired.log = bootstrap.log.clone();
     desired.api = bootstrap.api.clone();
     desired.config_api = bootstrap.config_api.clone();
+    desired.advisories = bootstrap.advisories.clone();
     desired.organizations = bootstrap.organizations.clone();
     desired
 }
@@ -517,6 +525,39 @@ pub fn effective_revision(store: &Store) -> anyhow::Result<Option<EffectiveRevis
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `[advisories]` enables outbound third-party lookups, so it must not be
+    /// reachable through a pushed desired-state document.
+    #[test]
+    fn pushed_document_with_advisories_should_fail_desired_only() {
+        let config: Config = toml::from_str("[advisories]\nenabled = true\n").expect("parse");
+        assert!(contains_infra_sections(&config));
+        assert!(ensure_desired_only(&config).is_err());
+    }
+
+    #[test]
+    fn strip_infra_sections_should_clear_advisories() {
+        // Must mirror `contains_infra_sections`: a stripped document is fed back
+        // through `ensure_desired_only`, so anything counted as infra there and
+        // left behind here would reject a legitimate document.
+        let mut config: Config = toml::from_str("[advisories]\nenabled = true\n").expect("parse");
+        strip_infra_sections(&mut config);
+        assert!(!contains_infra_sections(&config));
+        assert!(ensure_desired_only(&config).is_ok());
+    }
+
+    #[test]
+    fn merge_bootstrap_over_desired_should_carry_advisories() {
+        // Regression: omitting this silently discarded bootstrap enrichment
+        // settings the moment any desired document was applied.
+        let bootstrap: Config =
+            toml::from_str("[advisories]\nenabled = true\nendpoint = \"https://osv.example\"\n")
+                .expect("parse bootstrap");
+        let desired = Config::default();
+        let merged = merge_bootstrap_over_desired(&bootstrap, desired);
+        assert!(merged.advisories.enabled);
+        assert_eq!(merged.advisories.endpoint, "https://osv.example");
+    }
 
     #[test]
     fn pushed_document_with_database_should_fail_desired_only() {

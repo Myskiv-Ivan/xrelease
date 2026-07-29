@@ -4,6 +4,7 @@ metadata:
   name: {{ include "xrelease.fullname" . }}
   labels:
     {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -11,5 +12,7 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+  # Component-scoped: UI, Apprise and PostgreSQL pods carry the same
+  # name+instance labels and would otherwise land in these endpoints.
   selector:
-    {{- include "xrelease.selectorLabels" . | nindent 4 }}
+    {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 4 }}

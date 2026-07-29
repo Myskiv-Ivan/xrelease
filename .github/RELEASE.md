@@ -11,22 +11,24 @@ PR / push main ──► ci.yml        quality gates (no publish)
                    ├ rust          fmt/clippy/test + binary validate
                    ├ security      cargo-deny + npm audit (+ Trivy advisory)
                    ├ front         check/test/build
-                   ├ helm          lint + template
+                   ├ helm          lint + template + package
                    ├ compose       compose config (parallel)
                    └ docker        matrix amd64 (backend|cli|ui; GHA cache shared w/ release)
+push/PR        ──► k8s-e2e.yml   kind + Helm (paths: deploy/, docker/, front/nginx.conf)
 push main      ──► docs.yml      mdBook → GitHub Pages
 push/PR main   ──► codeql.yml    SAST (gated on private repos)
 manual         ──► version-bump  bump semver → commit + tag vX.Y.Z
-tag v*.*.*     ──► release.yml   binaries + GHCR (cosign) + GitHub Release
+tag v*.*.*     ──► release.yml   binaries + GHCR images + OCI Helm chart (cosign) + GitHub Release
 ```
 
 | Workflow | Trigger | Publishes? |
 |---|---|---|
 | `ci.yml` | PR, push `main` | No (version-sync / rust+validate / security / front / helm / compose / amd64 docker matrix) |
+| `k8s-e2e.yml` | PR/push when `deploy/` / `docker/` / `front/nginx.conf` change | No (kind runtime proof) |
 | `docs.yml` | docs paths | GitHub Pages |
 | `codeql.yml` | main + weekly | No |
 | `version-bump.yml` | manual on `main` | Git commit + tag only |
-| `release.yml` | tag `v*.*.*` or manual | **GHCR** + **GitHub Release** assets |
+| `release.yml` | tag `v*.*.*` or manual | **GHCR images** + **OCI Helm chart** + **GitHub Release** assets |
 
 ## Publish a release (happy path)
 
@@ -35,10 +37,13 @@ Do this **in order** — do not invent a tag by hand unless recovering.
 1. Merge to `main`, wait for green `ci`.
 2. Actions → **version-bump** → Run workflow → branch `main` → **patch** / **minor** / **major**.
 3. Workflow bumps Cargo, OpenAPI, front (`package.json` + **`schema.d.ts` via `gen:api`**),
-   Helm `Chart.yaml`, compose image tags; commits `chore: release vX.Y.Z`; pushes tag `vX.Y.Z`.
+   Helm `Chart.yaml` / `appVersion`, compose image tags, and pinned `image.tag` in
+   `deploy/k8s/values.yaml`; commits
+   `chore: release vX.Y.Z`; pushes tag `vX.Y.Z`.
 4. **release** starts from the tag (needs `RELEASE_TOKEN`) and publishes:
    - Linux **amd64** archives (`xrelease`, `xrctl`)
    - Images: `ghcr.io/<owner>/xrelease`, `-cli`, `-ui` (**linux/amd64**, SBOM + cosign)
+   - Helm chart: `oci://ghcr.io/<owner>/charts/xrelease:<ver>` (cosign) + `.tgz` on the Release
    - GitHub Release with notes + checksums
 
 ### Local equivalent (same order)
@@ -108,6 +113,7 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 | Workflow | When it runs |
 |---|---|
 | `ci.yml` | Every PR + push to `main` |
+| `k8s-e2e.yml` | PR + push `main` when `deploy/**`, `docker/**`, or `front/nginx.conf` change |
 | `docs.yml` | Changes under `docs/**` (or manual); deploy only on `main` push / dispatch |
 | `codeql.yml` | PR + push `main` + weekly Mon; **skipped** on private until `CODE_SCANNING_ENABLED` |
 | `version-bump.yml` | Manual, only if ref is `main` |
@@ -231,7 +237,10 @@ Actions → **version-bump** → **patch** (and `RELEASE_TOKEN` / manual **relea
 | `ghcr.io/…/xrelease:<ver>` | Backend |
 | `ghcr.io/…/xrelease-ui:<ver>` | Dashboard |
 | `ghcr.io/…/xrelease-cli:<ver>` | CI apply (`xrctl`) |
+| `oci://ghcr.io/…/charts/xrelease:<ver>` | Helm chart (overlays still from git / raw tag) |
+| `xrelease-<ver>.tgz` | Same chart as a Release asset |
 | `xrelease-*-linux-*.tar.gz` / `xrctl-*-linux-*.tar.gz` | Binary installs |
 
-Operators: `docker compose up -d` / Helm — see [`deploy/README.md`](../deploy/README.md).
+Operators: `docker compose up -d` / Helm — see [`deploy/README.md`](../deploy/README.md)
+and [`docs/getting-started/kubernetes.md`](../docs/getting-started/kubernetes.md).
 Apply from consumer CI: [`docs/operations/ci-cd.md`](../docs/operations/ci-cd.md).

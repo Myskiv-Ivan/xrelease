@@ -2,7 +2,7 @@
 	import type { OutboxEntry } from '$lib/api/types';
 	import TeamBadge from '$lib/components/teams/TeamBadge.svelte';
 	import Badge from '$lib/components/kit/Badge.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
 	import SortHeader from '$lib/components/kit/SortHeader.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
@@ -131,11 +131,11 @@
 				</td>
 				<td class="{TABLE_BODY_CELL} tabular-nums">{entry.attempts}</td>
 				<td class={TABLE_DATE_CELL}>
-					<RelativeTime value={entry.created_at} />
+					<Timestamp value={entry.created_at} />
 				</td>
 				<td class={TABLE_DATE_CELL}>
 					{#if entry.deliver_after}
-						<RelativeTime value={entry.deliver_after} />
+						<Timestamp value={entry.deliver_after} />
 					{:else}
 						<span class={TYPE_MUTED}>{t('outbox.deliverSoon')}</span>
 					{/if}

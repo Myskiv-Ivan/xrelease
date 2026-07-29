@@ -175,7 +175,45 @@ export const en = {
 		healthStale: 'Stale / waiting',
 		healthError: 'Poll errors',
 		notFoundTitle: 'Source not found',
-		notFoundDescription: 'This id is not in the configured watch list.'
+		notFoundDescription: 'This id is not in the configured watch list.',
+		advisories: 'Advisories',
+		advisoriesOnly: 'With advisories'
+	},
+	advisories: {
+		/**
+		 * Keyed by the backend's lowercase `severity` label
+		 * (`src/advisory/mod.rs`), reached via `t(\`advisories.severity.${x}\`)`.
+		 */
+		severity: {
+			low: 'Low',
+			moderate: 'Moderate',
+			high: 'High',
+			critical: 'Critical'
+		},
+		/** The `I` bucket: a real advisory whose database published no severity. */
+		unscored: 'Unscored',
+		panelSummary: 'Across synced releases',
+		viewDetails: 'Details →',
+		pageTitle: 'Security advisories',
+		backToSource: 'Back to source',
+		search: 'Search by version, CVE, or summary…',
+		allSeverities: 'All severities',
+		allTags: 'All versions',
+		severityCol: 'Severity',
+		idCol: 'Advisory',
+		summaryCol: 'Summary',
+		cvssCol: 'CVSS vector',
+		sourceNote:
+			'Sourced from OSV for the exact published version. Severity is the label the advisory database stated — never derived from the CVSS vector.',
+		emptyTitle: 'No advisories',
+		emptyClean:
+			'OSV knows no advisories for the versions checked so far. Empty is the normal, good result.',
+		emptyDisabled:
+			'Advisory enrichment is off. Set [advisories] enabled = true in bootstrap.toml to look up CVEs for package releases.',
+		emptyUnsupported:
+			'This source is not a package registry, so it has no OSV coordinate to look up.',
+		noneKnownHint:
+			'OSV has no advisories for the versions checked on this page (or the lookup failed). Empty cells are normal when a release is clean.'
 	},
 	outbox: {
 		title: 'Outbox',
@@ -295,7 +333,7 @@ export const en = {
 		placeholderMaven: 'group:artifact',
 		placeholderUrl: 'https://example.com/feed.xml',
 		placeholderHost: 'https://git.example.com',
-		placeholderRegistry: 'https://registry.example.com',
+		placeholderRegistry: 'leave empty for Docker Hub',
 		placeholderPattern: '^v\\d+\\.\\d+\\.\\d+$',
 		placeholderPrerelease: 'beta, rc',
 		patternTemplate: 'Filter template',
@@ -470,6 +508,14 @@ export const en = {
 		failed: 'Diagnostics failed',
 		notRun: 'Run checks to load probe results.',
 		webhookEndpoints: 'Webhook endpoints',
+		advisories: 'Security advisories',
+		advisoriesEnabled: 'enabled',
+		advisoriesOff: 'Off',
+		advisoriesEndpoint: 'endpoint',
+		advisoriesHintOn:
+			'Package releases are annotated with known CVEs as they are delivered. Advisories appear on a source detail page once a delivery has looked that version up.',
+		advisoriesHintOff:
+			'Set [advisories] enabled = true in bootstrap.toml to annotate package releases with known CVEs. Off by default because it sends package names and versions to a third party.',
 		/** Also the empty state for the Config editor's team list. */
 		teamsEmpty: 'No teams configured.'
 	},

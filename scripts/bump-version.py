@@ -18,6 +18,10 @@ PKG_LOCK = ROOT / "front" / "package-lock.json"
 CHART_YAML = ROOT / "deploy" / "helm" / "xrelease" / "Chart.yaml"
 COMPOSE_YAML = ROOT / "docker-compose.yaml"
 COMPOSE_DEV_YAML = ROOT / "docker" / "docker-compose.dev.yaml"
+# Overlays that pin an explicit image.tag instead of inheriting appVersion.
+PINNED_IMAGE_VALUES = (
+    ROOT / "deploy" / "k8s" / "values.yaml",
+)
 
 GHCR_BACKEND = "ghcr.io/myskiv-ivan/xrelease"
 GHCR_UI = "ghcr.io/myskiv-ivan/xrelease-ui"
@@ -148,8 +152,36 @@ def _set_compose_file_images(path: Path, version: str) -> None:
 
 
 def set_compose_images(version: str) -> None:
+    # docker/docker-compose.dev.yaml builds from source and tags the result
+    # `xrelease:dev` — no release tag to keep in sync there.
     _set_compose_file_images(COMPOSE_YAML, version)
-    _set_compose_file_images(COMPOSE_DEV_YAML, version)
+
+
+def set_pinned_image_values(version: str) -> None:
+    for path in PINNED_IMAGE_VALUES:
+        text = path.read_text(encoding="utf-8")
+        updated, n = re.subn(
+            r'^(\s*tag:\s*)"[\d.]+"',
+            rf'\g<1>"{version}"',
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if n != 1:
+            raise SystemExit(
+                f"Failed to update {path.relative_to(ROOT)} image.tag"
+            )
+        path.write_text(updated, encoding="utf-8")
+
+
+def read_pinned_image_version(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = re.search(r'^\s*tag:\s*"([\d.]+)"', text, re.MULTILINE)
+    if not match:
+        raise SystemExit(
+            f"Could not read image.tag from {path.relative_to(ROOT)}"
+        )
+    return match.group(1)
 
 
 def _read_compose_file_versions(path: Path) -> tuple[str, str]:
@@ -163,10 +195,6 @@ def _read_compose_file_versions(path: Path) -> tuple[str, str]:
 
 def read_compose_image_versions() -> tuple[str, str]:
     return _read_compose_file_versions(COMPOSE_YAML)
-
-
-def read_compose_dev_image_versions() -> tuple[str, str]:
-    return _read_compose_file_versions(COMPOSE_DEV_YAML)
 
 
 def read_chart_versions() -> tuple[str, str]:
@@ -185,7 +213,6 @@ def collect_versions() -> dict[str, str]:
     lock_root = lock.get("packages", {}).get("", {}).get("version")
     chart_ver, chart_app = read_chart_versions()
     compose_backend, compose_ui = read_compose_image_versions()
-    compose_dev_backend, compose_dev_ui = read_compose_dev_image_versions()
     cargo_lock = read_cargo_lock_versions()
 
     versions = {
@@ -198,9 +225,9 @@ def collect_versions() -> dict[str, str]:
         "deploy/helm/.../Chart.yaml#appVersion": chart_app,
         "docker-compose.yaml#backend": compose_backend,
         "docker-compose.yaml#ui": compose_ui,
-        "docker/docker-compose.dev.yaml#backend": compose_dev_backend,
-        "docker/docker-compose.dev.yaml#ui": compose_dev_ui,
     }
+    for path in PINNED_IMAGE_VALUES:
+        versions[f"{path.relative_to(ROOT)}#image.tag"] = read_pinned_image_version(path)
     for name, ver in cargo_lock.items():
         versions[f"Cargo.lock#{name}"] = ver
     return versions
@@ -228,6 +255,7 @@ def apply_version(version: str) -> None:
     set_front_package(version)
     set_helm_chart(version)
     set_compose_images(version)
+    set_pinned_image_values(version)
 
 
 def main() -> None:

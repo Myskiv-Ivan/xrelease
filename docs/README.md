@@ -37,8 +37,9 @@ in env (`.env` / K8s Secret).
 |---|---|---|
 | **Authoring** | **API + UI** + multi-org | **API + UI** + single-doc ledger |
 | **First config** | Idle until UI / `xrctl` Apply | Idle until UI / `xrctl` Apply |
-| **URL** | http://127.0.0.1:3000 | Ingress (`xrelease.local`) |
-| **Guide** | [Docker](getting-started/docker.md) | [Kubernetes](getting-started/kubernetes.md) |
+| **Stack** | UI + PG + Apprise | CNPG + Gateway (`values.yaml`) |
+| **URL** | http://127.0.0.1:3000 | Gateway hostname |
+| **Guide** | [Docker](getting-started/docker.md) | [Kubernetes](getting-started/kubernetes.md) · [variants](operations/deployment-variants.md) |
 
 Authoring flags: [Local / API / API + UI](configuration/overview.md#authoring-variants).
 Samples: [`deploy/examples/`](https://github.com/Myskiv-Ivan/xrelease/tree/main/deploy/examples).
@@ -57,10 +58,10 @@ Samples: [`deploy/examples/`](https://github.com/Myskiv-Ivan/xrelease/tree/main/
 |---|---|
 | **Getting started** | Quick start, Docker, Kubernetes |
 | **Concepts** | Architecture, pipeline, provider categories |
-| **Configuration** | Authoring, sources (21), notifications (Apprise, Novu, …), `[api]` / `[config_api]` |
+| **Configuration** | Authoring, sources (21), notifications, `[api]` / `[config_api]`, optional `[advisories]` |
 | **API** | HTTP endpoints, CLI (`xrelease` / `xrctl`), webhooks, OpenAPI |
-| **Operations** | Auth, OIDC, CI apply, deploy, TLS & Ingress, Postgres, scaling |
-| **Project** | Comparison with alternatives, changelog, [ADRs](adr/README.md) |
+| **Operations** | Auth, OIDC, CI apply, deploy, variants, TLS, Gateway, Postgres, CloudNativePG, scaling |
+| **Project** | Comparison with alternatives, changelog |
 
 OpenAPI at runtime: Compose UI `http://127.0.0.1:3000/openapi.json` · native
 `http://127.0.0.1:8080/openapi.json` — [OpenAPI page](api/openapi.md).

@@ -2,7 +2,7 @@
 
 Sample **`bootstrap.toml` + app YAML** patterns. Secrets always come from the
 **single** repo-root [`.env.example`](../../.env.example) (Docker) or
-[`deploy/k8s/secret*.yaml`](../k8s/) (Kubernetes) — do not add per-example `.env`
+[`deploy/k8s/secret.example.yaml`](../k8s/secret.example.yaml) (Kubernetes) — do not add per-example `.env`
 templates.
 
 ## Defaults vs examples
@@ -10,7 +10,7 @@ templates.
 | What | Authoring | Notes |
 |---|---|---|
 | **Docker default** (repo root) | **API + UI** + multi-org | [`bootstrap.toml`](../../bootstrap.toml) — Compose mounts this; idle until Apply |
-| **K8s default** (chart `values.yaml`) | **API + UI** + single doc | + [`values.secrets.yaml`](../k8s/values.secrets.example.yaml) — idle until Apply |
+| **K8s default** (`deploy/k8s/values.yaml` + chart) | **API + UI** + single doc | + [`values.secrets.yaml`](../k8s/values.secrets.example.yaml) — idle until Apply |
 | [`infra-app/`](infra-app/) | **API** (CI / `xrctl`, no UI editor) | Split infra + apply — example only |
 | [`multi-team/`](multi-team/) | **Local** | Per-team routing (eXpress / Apprise tags) — example only |
 | [`multi-org/`](multi-org/) | **Local** (+ how to switch to API) | `[[organizations]]` + `app/<org>/…` — example only |
@@ -23,7 +23,7 @@ templates.
 | Repo root `bootstrap.toml` + `app/` | **Active Docker lab** used by Compose |
 | Repo root `.env.example` | **Single** secrets template (Docker + UI + OIDC) |
 | `deploy/examples/*/` | Copy-paste patterns — not auto-mounted |
-| `deploy/k8s/secret*.yaml` | K8s Secret examples only (never desired-state YAML) |
+| `deploy/k8s/secret.example.yaml` | K8s Secret example only (never desired-state YAML) |
 | `deploy/helm/xrelease/values.yaml` | Helm defaults (**API + UI**) |
 | `deploy/helm/xrelease/` | Chart — no sample secrets |
 

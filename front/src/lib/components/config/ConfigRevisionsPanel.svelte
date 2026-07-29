@@ -3,7 +3,7 @@
 	import Badge from '$lib/components/kit/Badge.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
@@ -86,7 +86,7 @@
 							{/if}
 						</td>
 						<td class={TABLE_DATE_CELL}>
-							<RelativeTime value={rev.applied_at} format="full" />
+							<Timestamp value={rev.applied_at} />
 						</td>
 						<td class="{TABLE_BODY_CELL} {TYPE_CODE}" title={rev.content_sha256}>
 							{rev.content_sha256.slice(0, 12)}…

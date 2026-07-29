@@ -15,7 +15,7 @@ use crate::notify::Event;
 use crate::sources::Provider;
 use crate::store::{OutboxMeta, SeenUpsert, Store, OUTBOX_LEASE_SECS};
 
-use super::{attempt_notification_delivery, Watch};
+use super::{attempt_notification_delivery, DeliveryContext, Watch};
 
 /// Decide which of `releases` should trigger a notification, updating baseline state.
 ///
@@ -228,7 +228,20 @@ pub async fn deliver_new_releases(
             continue;
         }
 
-        if attempt_notification_delivery(engine, enqueued.id, 0, &event, source_id, &seen).await? {
+        if attempt_notification_delivery(
+            engine,
+            enqueued.id,
+            0,
+            &DeliveryContext {
+                event: &event,
+                source_id,
+                kind: watch.provider.kind(),
+                package_name: watch.provider.display_name(),
+                seen: &seen,
+            },
+        )
+        .await?
+        {
             sent += 1;
         }
     }

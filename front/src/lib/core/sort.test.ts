@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compareValues, sortByKey, toggleSortKey } from './sort';
+import {
+	compareNaturalStrings,
+	compareNullableDates,
+	compareValues,
+	sortByKey,
+	toggleSortKey
+} from './sort';
 
 describe('toggleSortKey', () => {
 	it('flips direction when the key is unchanged', () => {
@@ -30,6 +36,32 @@ describe('compareValues', () => {
 	it('treats null as an empty string', () => {
 		expect(compareValues(null, 'a', 'asc')).toBeLessThan(0);
 		expect(compareValues(null, null, 'asc')).toBe(0);
+	});
+});
+
+describe('compareNaturalStrings', () => {
+	it('orders version segments numerically', () => {
+		expect(compareNaturalStrings('1.2.9', '1.2.10', 'asc')).toBeLessThan(0);
+		expect(compareNaturalStrings('1.2.9', '1.2.10', 'desc')).toBeGreaterThan(0);
+	});
+
+	it('still orders plain words', () => {
+		expect(compareNaturalStrings('alpine', 'bookworm', 'asc')).toBeLessThan(0);
+	});
+});
+
+describe('compareNullableDates', () => {
+	it('keeps missing dates last in both directions', () => {
+		expect(compareNullableDates(null, '2026-01-01T00:00:00Z', 'asc')).toBeGreaterThan(0);
+		expect(compareNullableDates(null, '2026-01-01T00:00:00Z', 'desc')).toBeGreaterThan(0);
+		expect(compareNullableDates('', '2026-01-01T00:00:00Z', 'asc')).toBeGreaterThan(0);
+	});
+
+	it('orders present dates chronologically', () => {
+		expect(
+			compareNullableDates('2025-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 'asc')
+		).toBeLessThan(0);
+		expect(compareNullableDates(null, null, 'asc')).toBe(0);
 	});
 });
 

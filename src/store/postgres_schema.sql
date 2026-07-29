@@ -30,6 +30,40 @@ CREATE TABLE IF NOT EXISTS seen_release (
  PRIMARY KEY (source_id, identity)
 );
 
+-- Best-effort security-advisory cache for released package versions
+-- (`[advisories]`, off by default). Keyed by the OSV coordinate rather than by
+-- source: several sources/orgs can legitimately watch the same package, and
+-- the set is fully replaced on each successful lookup, not accumulated —
+-- see `PostgresStore::record_advisories`.
+CREATE TABLE IF NOT EXISTS release_advisory (
+ ecosystem TEXT NOT NULL,
+ package TEXT NOT NULL,
+ version TEXT NOT NULL,
+ advisory_id TEXT NOT NULL,
+ display_id TEXT NOT NULL,
+ summary TEXT,
+ severity TEXT,
+ cvss_vector TEXT,
+ url TEXT,
+ fetched_at TIMESTAMPTZ NOT NULL,
+ PRIMARY KEY (ecosystem, package, version, advisory_id)
+);
+
+-- Ledger of "OSV was asked about this exact version", independent of whether
+-- anything was found. Without this, "never checked" and "checked, confirmed
+-- clean" both look like an empty `release_advisory` set, and the
+-- source-detail backfill (capped at a handful of lookups per page load) would
+-- spend its whole budget re-confirming the same already-clean releases near
+-- the top of a source's history forever, never reaching the ones below them
+-- that were never checked at all. See `PostgresStore::record_advisory_check`.
+CREATE TABLE IF NOT EXISTS advisory_check (
+ ecosystem TEXT NOT NULL,
+ package TEXT NOT NULL,
+ version TEXT NOT NULL,
+ checked_at TIMESTAMPTZ NOT NULL,
+ PRIMARY KEY (ecosystem, package, version)
+);
+
 CREATE TABLE IF NOT EXISTS webhook_delivery (
  delivery_id TEXT PRIMARY KEY,
  received_at TIMESTAMPTZ NOT NULL
@@ -150,3 +184,9 @@ CREATE INDEX IF NOT EXISTS idx_webhook_delivery_received_at
 CREATE INDEX IF NOT EXISTS idx_notification_outbox_sent_at
  ON notification_outbox (sent_at)
  WHERE status = 'sent';
+
+CREATE INDEX IF NOT EXISTS idx_release_advisory_fetched_at
+ ON release_advisory (fetched_at);
+
+CREATE INDEX IF NOT EXISTS idx_advisory_check_checked_at
+ ON advisory_check (checked_at);

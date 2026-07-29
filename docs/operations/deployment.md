@@ -86,8 +86,8 @@ Polling remains the fallback when webhooks are unavailable or misconfigured.
 | Platform | Mode | UI | Auth notes | Config authority |
 |---|---|---|---|---|
 | Compose | `serve` | on (`:3000`) | local admin + API key; OIDC → your IdP | **API + UI** (`docker-compose.yaml`) |
-| Helm | `serve` | on | `require_auth = true` + session/admin | **API + UI** (chart defaults) |
-| Helm prod | `serve`, external PG | optional | Secret + Ingress TLS | Local / API / API+UI via examples |
+| Helm (default) | `serve` + CNPG + Gateway | on | session/admin (+ OIDC) | **API + UI** (`deploy/k8s/values.yaml`) |
+| Helm lab / variants | see [deployment variants](deployment-variants.md) | optional | per overlay | Local / API / API+UI |
 | Remote ops | — | — | API key to `serve` | `xrctl apply` when `source=api` |
 
 **Important:** one poller per PostgreSQL database — a second `serve` fails with
@@ -95,7 +95,8 @@ Polling remains the fallback when webhooks are unavailable or misconfigured.
 
 ## Docker Compose (recommended)
 
-Primary deployment path. See [`docker/README.md`](../../docker/README.md).
+Primary deployment path. See [`docker/README.md`](../../docker/README.md)
+and [Docker](../getting-started/docker.md).
 
 ```
 ┌────────────── docker-compose.yaml (GHCR) ───────────┐
@@ -108,7 +109,6 @@ Primary deployment path. See [`docker/README.md`](../../docker/README.md).
 └─────────────────────────────────────────────────────┘
 ```
 
-See [docker/README.md](../../docker/README.md) for step-by-step setup.
 Optional: [TLS](tls.md) and [OIDC](oidc.md).
 Apply desired state from your pipelines: [CI/CD integration](ci-cd.md).
 
@@ -135,44 +135,19 @@ unreachable database as long as the config parses and sources resolve.
 
 ## CLI reference
 
-Canonical parameter tables: [CLI reference](../api/cli.md).
+Canonical flag and command tables: [CLI reference](../api/cli.md)
+(`xrelease` local ops · `xrctl` remote management).
 
-### `xrelease` (local instance / ops)
+Quick reminders:
 
-| Command | Mode | Needs Postgres | Persists state | Sends notifications |
-|---|---|---|---|---|
-| `xrelease serve` (default) | Backend (API + poller) | connect | yes | yes |
-| `xrelease sources [--format]` | List config | no\* | no | no |
-| `xrelease health` | Probe | connect | no | no |
-| `xrelease validate [--format] [--online] [--strict] [--source]` | Config lint | URL in config only† | no | no |
-| `xrelease outbox-requeue` | Revive dead letters | connect | yes | no |
-
-Global: `-c`/`--config` (`XRELEASE_CONFIG`, default `bootstrap.toml`),
-`-a`/`--app` (`XRELEASE_APP_CONFIG`).
-
-\* May open Postgres when resolving an API ledger.  
-† Offline validate does not open a pool; `--online` needs DB + network.
-
-```sh
-xrelease sources --format json
-xrelease validate --format json --strict
-```
-
-### `xrctl` (remote management)
-
-Separate binary — see [CLI reference](../api/cli.md). Requires a running
-`xrelease serve`.
-
-| Global | Default |
+| Binary | Typical use |
 |---|---|
-| `--api-url` | `http://127.0.0.1:8080` (Compose UI: `:3000`) |
-| `--api-key` | *(none)* — flags only, no client env |
-| `--organization` | *(none)* |
-| `--format` | `text` \| `json` |
+| `xrelease serve` | Backend (Compose / Helm / binary) |
+| `xrelease validate [--strict] [--online]` | Config lint / CI |
+| `xrctl --api-url … --api-key … status` | Observability against a live `serve` |
+| `xrctl apply <file> [--if-match …]` | Hot-swap when `source=api` |
 
-Commands: `status`, `sources`, `outbox`, `organizations`, `show`, `schema`,
-`history [--limit]`, `validate <file>`, `apply <file> [--if-match] [--label]`,
-`rollback`, `reload`.
+Compose UI proxy: `--api-url http://127.0.0.1:3000` (not host `:8080`).
 
 ## Configuration model
 
@@ -197,10 +172,33 @@ Commands: `status`, `sources`, `outbox`, `organizations`, `show`, `schema`,
 Details: [authoring variants](../configuration/overview.md#authoring-variants),
 [Docker](../getting-started/docker.md), [Kubernetes](../getting-started/kubernetes.md).
 
-## Alternatives
-
-See [Comparison with alternatives](../project/comparison.md).
-
 ## Kubernetes
 
-Helm chart and evaluation values: [`deploy/k8s/README.md`](../../deploy/k8s/README.md).
+Canonical path: **xrelease + CloudNativePG + Gateway API** (chart defaults;
+site overlay [`values.yaml`](../../deploy/k8s/values.yaml)).
+Published chart: `oci://ghcr.io/myskiv-ivan/charts/xrelease` (install commands in
+[Kubernetes](../getting-started/kubernetes.md)).
+
+```bash
+TAG=v0.1.4
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.yaml"
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.secrets.example.yaml"
+cp values.secrets.example.yaml values.secrets.yaml
+# edit gateway.hostnames in values.yaml; set secrets.adminPassword in values.secrets.yaml
+helm upgrade --install xrelease oci://ghcr.io/myskiv-ivan/charts/xrelease \
+  --version "${TAG#v}" \
+  --namespace xrelease --create-namespace \
+  -f values.yaml \
+  -f values.secrets.yaml
+```
+
+API key, webhook secret, session secret, config encryption key and the
+built-in database password are generated on first install and preserved across
+upgrades. Render-only pipelines (ArgoCD, `helm template | kubectl apply`) must
+pin `secrets.existingSecret` instead — see
+[deployment variants](deployment-variants.md).
+
+Platform setup and checks: [`deploy/k8s/README.md`](../../deploy/k8s/README.md) ·
+[Kubernetes](../getting-started/kubernetes.md).
+Lab Ingress, external PG, GitOps ConfigMap, OIDC:
+[deployment variants](deployment-variants.md).

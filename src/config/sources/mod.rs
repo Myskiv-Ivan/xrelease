@@ -24,6 +24,47 @@ pub use preset::{
 /// Default Docker registry when a source omits one.
 const DEFAULT_REGISTRY: &str = "https://registry-1.docker.io";
 
+/// Map a configured `registry` URL onto a [`ContainerRegistry`] preset.
+///
+/// Blank / Hub aliases → Docker Hub (so an empty UI `registry` field and common
+/// mistakes like `docker.io` without a scheme do not become a relative URL that
+/// reqwest rejects as `builder error`). Any other value gets an `https://`
+/// scheme when missing.
+fn resolve_docker_registry(registry: Option<&str>) -> ContainerRegistry {
+    let Some(raw) = registry.map(str::trim).filter(|url| !url.is_empty()) else {
+        return ContainerRegistry::DockerHub;
+    };
+    let with_scheme = if raw.contains("://") {
+        raw.to_owned()
+    } else {
+        format!("https://{raw}")
+    };
+    let base = with_scheme.trim_end_matches('/').to_owned();
+    if is_docker_hub_registry(&base) {
+        ContainerRegistry::DockerHub
+    } else {
+        ContainerRegistry::Custom(base)
+    }
+}
+
+fn is_docker_hub_registry(url: &str) -> bool {
+    if url == DEFAULT_REGISTRY {
+        return true;
+    }
+    let Some(host) = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .and_then(|rest| rest.split('/').next())
+        .map(|host| host.split(':').next().unwrap_or(host))
+    else {
+        return false;
+    };
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "registry-1.docker.io" | "docker.io" | "index.docker.io" | "hub.docker.com"
+    )
+}
+
 fn build_watch(
     id: String,
     provider: Provider,
@@ -479,11 +520,7 @@ impl SourceConfig {
                 build_watch(id.clone(), provider, c.common, defaults, presets)
             }
             SourceConfig::Docker(c) => {
-                let registry = match c.registry {
-                    None => ContainerRegistry::DockerHub,
-                    Some(url) if url == DEFAULT_REGISTRY => ContainerRegistry::DockerHub,
-                    Some(url) => ContainerRegistry::Custom(url),
-                };
+                let registry = resolve_docker_registry(c.registry.as_deref());
                 build_container_watch(
                     c.id,
                     c.image,
@@ -733,9 +770,16 @@ pub(crate) fn prepare_organization_sources(organization_id: &str, config: &mut C
 
     let defaults = config.defaults.clone();
     for source in &mut config.sources {
-        let label = source_label(source);
+        let default_id = default_source_id(source);
         let id_slot = source_explicit_id_mut(source);
-        let base = id_slot.clone().unwrap_or(label);
+        // Prefer an explicit custom id, but rewrite the legacy shared
+        // `package:` / `registry:` prefixes that multi-org prepare used to bake
+        // in — those break advisory coordinate parsing and webhook lookups.
+        let base = match id_slot.as_deref().map(bare_source_id) {
+            Some(bare) if is_legacy_shared_prefix_id(bare) => default_id,
+            Some(bare) => bare.to_owned(),
+            None => default_id,
+        };
         *id_slot = Some(namespace_source_id(organization_id, &base));
 
         let common = source_common_mut(source);
@@ -772,31 +816,51 @@ pub(crate) fn prepare_organization_sources(organization_id: &str, config: &mut C
 }
 
 pub(crate) fn source_label(source: &SourceConfig) -> String {
+    source_explicit_id(source)
+        .cloned()
+        .unwrap_or_else(|| default_source_id(source))
+}
+
+/// Stable default id derived from type + primary field (ignores any explicit `id`).
+///
+/// Multi-org prepare previously used a shared `package:` / `registry:` prefix for
+/// every package/container variant, which broke advisory enrichment
+/// (`coordinate_from_source_id` only recognises `npm:`, `pypi:`, …). Keep this in
+/// lockstep with [`build_package_watch`] / [`build_container_watch`].
+pub(crate) fn default_source_id(source: &SourceConfig) -> String {
     match source {
-        SourceConfig::Github(c) | SourceConfig::Codeberg(c) => {
-            c.id.clone().unwrap_or_else(|| format!("github:{}", c.repo))
-        }
-        SourceConfig::Gitea(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("gitea:{}:{}", c.host, c.repo))
-        }
-        SourceConfig::Gitlab(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("gitlab:{}", c.project))
-        }
-        SourceConfig::Bitbucket(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("bitbucket:{}", c.repo))
-        }
-        SourceConfig::Docker(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("docker:{}", c.image))
-        }
-        SourceConfig::Ghcr(c) | SourceConfig::Quay(c) | SourceConfig::Ecr(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("registry:{}", c.image))
-        }
-        SourceConfig::Feed(c) => c.id.clone().unwrap_or_else(|| format!("feed:{}", c.url)),
+        SourceConfig::Github(c) | SourceConfig::Codeberg(c) => format!("github:{}", c.repo),
+        SourceConfig::Gitea(c) => format!("gitea:{}:{}", c.host, c.repo),
+        SourceConfig::Gitlab(c) => format!("gitlab:{}", c.project),
+        SourceConfig::Bitbucket(c) => format!("bitbucket:{}", c.repo),
+        SourceConfig::Docker(c) => format!("docker:{}", c.image),
+        SourceConfig::Ghcr(c) => format!("ghcr:{}", c.image),
+        SourceConfig::Quay(c) => format!("quay:{}", c.image),
+        SourceConfig::Ecr(c) => format!("ecr:{}", c.image),
+        SourceConfig::Feed(c) => format!("feed:{}", c.url),
+        SourceConfig::Pypi(c) => format!("pypi:{}", c.name),
+        SourceConfig::Npm(c) => format!("npm:{}", c.name),
+        SourceConfig::Cargo(c) => format!("cargo:{}", c.name),
+        SourceConfig::Maven(c) => format!("maven:{}", c.name),
+        SourceConfig::Nuget(c) => format!("nuget:{}", c.name),
+        SourceConfig::Hex(c) => format!("hex:{}", c.name),
+        SourceConfig::Rubygems(c) => format!("rubygems:{}", c.name),
+        SourceConfig::Packagist(c) => format!("packagist:{}", c.name),
+        SourceConfig::Yarn(c) => format!("yarn:{}", c.name),
+        SourceConfig::Cpan(c) => format!("cpan:{}", c.name),
+        SourceConfig::Artifacthub(c) => format!("artifacthub:{}", c.name),
+    }
+}
+
+fn source_explicit_id(source: &SourceConfig) -> Option<&String> {
+    match source {
+        SourceConfig::Github(c) | SourceConfig::Codeberg(c) => c.id.as_ref(),
+        SourceConfig::Gitea(c) => c.id.as_ref(),
+        SourceConfig::Gitlab(c) => c.id.as_ref(),
+        SourceConfig::Bitbucket(c) => c.id.as_ref(),
+        SourceConfig::Docker(c) => c.id.as_ref(),
+        SourceConfig::Ghcr(c) | SourceConfig::Quay(c) | SourceConfig::Ecr(c) => c.id.as_ref(),
+        SourceConfig::Feed(c) => c.id.as_ref(),
         SourceConfig::Pypi(c)
         | SourceConfig::Npm(c)
         | SourceConfig::Cargo(c)
@@ -806,15 +870,22 @@ pub(crate) fn source_label(source: &SourceConfig) -> String {
         | SourceConfig::Rubygems(c)
         | SourceConfig::Packagist(c)
         | SourceConfig::Yarn(c)
-        | SourceConfig::Cpan(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("package:{}", c.name))
-        }
-        SourceConfig::Artifacthub(c) => {
-            c.id.clone()
-                .unwrap_or_else(|| format!("artifacthub:{}", c.name))
-        }
+        | SourceConfig::Cpan(c) => c.id.as_ref(),
+        SourceConfig::Artifacthub(c) => c.id.as_ref(),
     }
+}
+
+/// Bare id after stripping a possible `org::` prefix.
+fn bare_source_id(source_id: &str) -> &str {
+    source_id
+        .split_once(super::organizations::ORGANIZATION_SEP)
+        .map_or(source_id, |(_, rest)| rest)
+}
+
+/// Whether a stored bare id is the old shared `package:` / `registry:` prefix
+/// that must be rewritten to the type-specific default.
+fn is_legacy_shared_prefix_id(bare: &str) -> bool {
+    bare.starts_with("package:") || bare.starts_with("registry:")
 }
 
 #[cfg(test)]
@@ -983,6 +1054,38 @@ mod tests {
     }
 
     #[test]
+    fn resolve_docker_registry_should_treat_blank_and_hub_aliases_as_docker_hub() {
+        assert!(matches!(
+            resolve_docker_registry(None),
+            ContainerRegistry::DockerHub
+        ));
+        assert!(matches!(
+            resolve_docker_registry(Some("")),
+            ContainerRegistry::DockerHub
+        ));
+        assert!(matches!(
+            resolve_docker_registry(Some("docker.io")),
+            ContainerRegistry::DockerHub
+        ));
+        assert!(matches!(
+            resolve_docker_registry(Some("https://hub.docker.com")),
+            ContainerRegistry::DockerHub
+        ));
+        assert!(matches!(
+            resolve_docker_registry(Some("https://registry-1.docker.io")),
+            ContainerRegistry::DockerHub
+        ));
+        match resolve_docker_registry(Some("ghcr.example.com")) {
+            ContainerRegistry::Custom(url) => assert_eq!(url, "https://ghcr.example.com"),
+            other => panic!("expected custom registry, got {other:?}"),
+        }
+        match resolve_docker_registry(Some("https://registry.example.com/")) {
+            ContainerRegistry::Custom(url) => assert_eq!(url, "https://registry.example.com"),
+            other => panic!("expected custom registry, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn into_watches_should_derive_ids() {
         let toml = r#"
  [[notifiers]]
@@ -997,6 +1100,69 @@ mod tests {
         let config: Config = toml::from_str(toml).expect("parse");
         let watches = config.into_watches().expect("watches");
         assert_eq!(watches[0].provider.id(), "github:tokio-rs/tokio");
+    }
+
+    #[test]
+    fn default_source_id_should_use_registry_specific_prefixes() {
+        let npm: SourceConfig = toml::from_str(
+            r#"
+ type = "npm"
+ name = "axios"
+ "#,
+        )
+        .expect("parse");
+        assert_eq!(default_source_id(&npm), "npm:axios");
+
+        let docker: SourceConfig = toml::from_str(
+            r#"
+ type = "docker"
+ image = "library/nginx"
+ "#,
+        )
+        .expect("parse");
+        assert_eq!(default_source_id(&docker), "docker:library/nginx");
+
+        let ghcr: SourceConfig = toml::from_str(
+            r#"
+ type = "ghcr"
+ image = "org/app"
+ "#,
+        )
+        .expect("parse");
+        assert_eq!(default_source_id(&ghcr), "ghcr:org/app");
+    }
+
+    #[test]
+    fn prepare_organization_sources_should_rewrite_legacy_package_prefix() {
+        let mut config: Config = toml::from_str(
+            r#"
+ [[sources]]
+ type = "npm"
+ name = "axios"
+ id = "package:axios"
+ "#,
+        )
+        .expect("parse");
+        prepare_organization_sources("platform", &mut config);
+        assert_eq!(source_label(&config.sources[0]), "platform::npm:axios");
+    }
+
+    #[test]
+    fn prepare_organization_sources_should_rewrite_legacy_registry_prefix() {
+        let mut config: Config = toml::from_str(
+            r#"
+ [[sources]]
+ type = "docker"
+ image = "library/nginx"
+ id = "registry:library/nginx"
+ "#,
+        )
+        .expect("parse");
+        prepare_organization_sources("platform", &mut config);
+        assert_eq!(
+            source_label(&config.sources[0]),
+            "platform::docker:library/nginx"
+        );
     }
 
     #[test]

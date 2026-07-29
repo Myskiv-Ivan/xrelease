@@ -23,7 +23,8 @@
 	} from '$lib/config/source-presentation';
 	import { toneMutedTextClass } from '$lib/components/kit/surface-styles';
 	import { t } from '$lib/i18n';
-	import { EMPTY_VALUE, formatDateTime, formatInterval, formatNumber } from '$lib/core/format';
+	import { EMPTY_VALUE, formatInterval, formatNumber } from '$lib/core/format';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -139,13 +140,18 @@
 					</td>
 					<td class={TABLE_DATE_CELL}>
 						{#if release.at}
+							<!--
+								Italic still marks a *synced* time standing in for a missing
+								upstream publish date — the tooltip alone would hide that a
+								whole column mixes two different meanings.
+							-->
 							<span
 								class={release.published ? '' : 'italic'}
 								title={release.published
 									? t('sources.lastReleasePublished')
 									: t('sources.lastReleaseSynced')}
 							>
-								{formatDateTime(release.at)}
+								<Timestamp value={release.at} />
 							</span>
 						{:else}
 							{EMPTY_VALUE}
@@ -155,7 +161,7 @@
 						{formatInterval(source.interval_secs)}
 					</td>
 					<td class={TABLE_DATE_CELL}>
-						{formatDateTime(source.last_polled_at)}
+						<Timestamp value={source.last_polled_at} />
 					</td>
 					<td class="{TABLE_BODY_CELL} tabular-nums">{formatNumber(source.seen_count)}</td>
 					<td class="{TABLE_BODY_CELL} tabular-nums">

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	formatBoolean,
 	formatInterval,
-	formatDateTime,
+	formatDateTimeFull,
 	formatRelative,
 	formatUptime,
 	EMPTY_VALUE
@@ -28,23 +28,45 @@ describe('formatInterval', () => {
 	});
 });
 
-describe('formatDateTime', () => {
+describe('formatDateTimeFull', () => {
 	it('returns a dash for empty input', () => {
-		expect(formatDateTime(null)).toBe(EMPTY_VALUE);
-		expect(formatDateTime('   ')).toBe(EMPTY_VALUE);
+		expect(formatDateTimeFull(null)).toBe(EMPTY_VALUE);
+		expect(formatDateTimeFull('   ')).toBe(EMPTY_VALUE);
 	});
 
 	it('returns the raw value for unparseable input', () => {
-		expect(formatDateTime('not-a-date')).toBe('not-a-date');
+		expect(formatDateTimeFull('not-a-date')).toBe('not-a-date');
 	});
 
 	it('formats absolute month day year time', () => {
-		const label = formatDateTime('2026-07-23T13:05:00.000Z');
+		const label = formatDateTimeFull('2026-07-23T13:05:00.000Z');
 		expect(label).toMatch(/Jul/);
 		expect(label).toMatch(/23/);
 		expect(label).toMatch(/2026/);
-		expect(label).toMatch(/\d{2}:\d{2}/);
 		expect(label).not.toMatch(/^\d+[mhd]$/);
+	});
+
+	it('always includes seconds — two events a minute apart must differ', () => {
+		const a = formatDateTimeFull('2026-07-23T13:05:07.000Z');
+		const b = formatDateTimeFull('2026-07-23T13:05:42.000Z');
+		expect(a).toMatch(/\d{2}:\d{2}:\d{2}/);
+		expect(a).not.toBe(b);
+	});
+
+	it('pins the locale so the shape does not follow the operator OS', () => {
+		// `toLocaleString()` would render differently per machine; ops tables and
+		// screenshots have to be comparable.
+		expect(formatDateTimeFull('2026-07-23T13:05:07.000Z')).toBe(
+			new Intl.DateTimeFormat('en', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: false
+			}).format(new Date('2026-07-23T13:05:07.000Z'))
+		);
 	});
 });
 
@@ -70,8 +92,10 @@ describe('formatRelative', () => {
 		expect(formatRelative(new Date('2026-07-17T12:00:00.000Z'), now)).toBe('2d');
 	});
 
-	it('falls back to absolute formatting after a week', () => {
+	it('falls back to the one absolute format after a week', () => {
+		// Same format as every other timestamp — "63d" stops being useful, and a
+		// second absolute shape would defeat the point of unifying them.
 		const older = new Date('2026-07-01T12:00:00.000Z');
-		expect(formatRelative(older, now)).toBe(formatDateTime(older.toISOString()));
+		expect(formatRelative(older, now)).toBe(formatDateTimeFull(older));
 	});
 });

@@ -4,11 +4,15 @@
 //! Preset constructors cover Docker Hub, GHCR, and Quay; [`DockerSource::new`]
 //! accepts any registry base URL.
 
+use std::collections::BTreeMap;
+
+use chrono::{DateTime, Utc};
 use reqwest::header::{ETAG, IF_NONE_MATCH, LINK, WWW_AUTHENTICATE};
 use reqwest::StatusCode;
 use serde::Deserialize;
 
 use super::http::FetchOutcome;
+use super::parse_rfc3339;
 use crate::error::SourceError;
 use crate::model::Release;
 
@@ -260,7 +264,103 @@ impl DockerSource {
                 Release::new(tag).with_url(Some(url))
             })
             .collect();
-        Ok(FetchOutcome::fresh(releases, etag))
+        let outcome = FetchOutcome::fresh(releases, etag);
+
+        // The Registry v2 `tags/list` response is names only — no timestamps
+        // exist anywhere in that API, which is why docker sources rendered an
+        // empty "Released" column. Docker Hub exposes push dates through its
+        // own Hub API, so the Hub preset folds them in; other registries have
+        // no anonymous date endpoint (GHCR none at all) and keep dates unknown.
+        if self.registry == REGISTRY_DOCKER_HUB {
+            return Ok(self.attach_hub_pushed(http, outcome).await);
+        }
+        Ok(outcome)
+    }
+
+    /// Best-effort: fold Docker Hub tag push dates into already-fetched tags.
+    ///
+    /// Any failure returns the tags untouched — a missing date is cosmetic, and
+    /// must never turn a successful poll into an error (same contract as the
+    /// NuGet registration lookup).
+    async fn attach_hub_pushed(
+        &self,
+        http: &reqwest::Client,
+        mut outcome: FetchOutcome,
+    ) -> FetchOutcome {
+        if outcome.releases.is_empty() {
+            return outcome;
+        }
+        match self.fetch_hub_pushed(http).await {
+            Ok(dates) if !dates.is_empty() => {
+                for release in &mut outcome.releases {
+                    if let Some(pushed) = dates.get(&release.id) {
+                        release.published_at = Some(*pushed);
+                    }
+                }
+            }
+            Ok(_) => {}
+            Err(err) => tracing::debug!(
+                source = %self.id,
+                error = %err,
+                "docker hub tag-date lookup failed — tags kept without publish dates"
+            ),
+        }
+        outcome
+    }
+
+    /// Tag → last-push time from the Docker Hub API.
+    ///
+    /// One page only, newest pushes first (the API's default order): that dates
+    /// the tags a release monitor actually surfaces, and the store's
+    /// `COALESCE(seen_release.published_at, …)` upsert keeps filling older tags
+    /// in on later polls as they rotate through the newest page. A tag's push
+    /// time is the closest thing OCI has to a publish date — re-pushing a tag
+    /// moves it, but the store only records the first value it sees.
+    async fn fetch_hub_pushed(
+        &self,
+        http: &reqwest::Client,
+    ) -> Result<BTreeMap<String, DateTime<Utc>>, SourceError> {
+        #[derive(Deserialize)]
+        struct HubTagsResponse {
+            #[serde(default)]
+            results: Vec<HubTag>,
+        }
+
+        #[derive(Deserialize)]
+        struct HubTag {
+            name: String,
+            /// When this tag last received a push (the date the UI wants).
+            #[serde(default)]
+            tag_last_pushed: Option<String>,
+            /// Older field; kept as fallback — some mirrors omit `tag_last_pushed`.
+            #[serde(default)]
+            last_updated: Option<String>,
+        }
+
+        let url = format!(
+            "https://hub.docker.com/v2/repositories/{}/tags?page_size={TAGS_PAGE_SIZE}",
+            self.image
+        );
+        let response = http.get(&url).send().await?;
+        if !response.status().is_success() {
+            return Err(SourceError::Registry {
+                status: response.status().as_u16(),
+                url,
+            });
+        }
+        let body: HubTagsResponse = response.json().await?;
+        Ok(body
+            .results
+            .into_iter()
+            .filter_map(|tag| {
+                let pushed = tag
+                    .tag_last_pushed
+                    .as_deref()
+                    .or(tag.last_updated.as_deref())
+                    .and_then(parse_rfc3339)?;
+                Some((tag.name, pushed))
+            })
+            .collect())
     }
 
     /// Fetch one `tags/list` page. Returns `None` on `304 Not Modified`.
@@ -287,7 +387,13 @@ impl DockerSource {
     }
 
     /// Send a registry GET, transparently performing the Docker v2 token
-    /// handshake (`401` + `WWW-Authenticate` → bearer) when no token is set.
+    /// handshake (`401` + `WWW-Authenticate` → bearer).
+    ///
+    /// The handshake runs even when a static token is configured: sending a Hub
+    /// PAT / wrong `DOCKER_TOKEN` as `Authorization: Bearer` on the registry
+    /// itself is rejected with 401, and skipping the challenge left public
+    /// `library/*` pulls permanently broken. Credentials (when set) are offered
+    /// to the *token realm* as HTTP Basic, which is how Docker Hub expects them.
     async fn send_authenticated(
         &self,
         http: &reqwest::Client,
@@ -305,13 +411,16 @@ impl DockerSource {
             req
         };
 
-        let response = make(self.token.as_deref()).send().await?;
-        if response.status() == StatusCode::UNAUTHORIZED && self.token.is_none() {
-            let challenge = header_string(&response, WWW_AUTHENTICATE).unwrap_or_default();
-            let token = obtain_token(http, &challenge).await?;
-            return Ok(make(Some(token.as_str())).send().await?);
+        let response = make(None).send().await?;
+        if response.status() != StatusCode::UNAUTHORIZED {
+            return Ok(response);
         }
-        Ok(response)
+        let challenge = header_string(&response, WWW_AUTHENTICATE).unwrap_or_default();
+        if challenge.is_empty() {
+            return Ok(response);
+        }
+        let token = obtain_token(http, &challenge, self.token.as_deref()).await?;
+        Ok(make(Some(token.as_str())).send().await?)
     }
 }
 
@@ -394,10 +503,15 @@ fn ghcr_release_url(image: &str, tag: &str) -> String {
     }
 }
 
-async fn obtain_token(http: &reqwest::Client, challenge: &str) -> Result<String, SourceError> {
+async fn obtain_token(
+    http: &reqwest::Client,
+    challenge: &str,
+    identity: Option<&str>,
+) -> Result<String, SourceError> {
     let challenge = challenge
         .trim()
         .strip_prefix("Bearer ")
+        .or_else(|| challenge.trim().strip_prefix("bearer "))
         .unwrap_or(challenge);
 
     let mut realm: Option<String> = None;
@@ -416,15 +530,38 @@ async fn obtain_token(http: &reqwest::Client, challenge: &str) -> Result<String,
     let realm =
         realm.ok_or_else(|| SourceError::Other("registry auth challenge missing realm".into()))?;
 
-    let token: TokenResponse = http
-        .get(&realm)
-        .query(&query)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    // Anonymous first — covers every public Hub image. Only if that fails and
+    // the source has credentials do we retry with HTTP Basic against the realm
+    // (Docker Hub PATs: `username:PAT` in `token` / `DOCKER_TOKEN`).
+    let anonymous = http.get(&realm).query(&query).send().await?;
+    if anonymous.status().is_success() {
+        return token_from_response(anonymous).await;
+    }
 
+    if let Some(secret) = identity.map(str::trim).filter(|value| !value.is_empty()) {
+        let mut req = http.get(&realm).query(&query);
+        req = match secret.split_once(':') {
+            Some((user, pass)) => req.basic_auth(user, Some(pass)),
+            None => req.basic_auth(secret, Some("")),
+        };
+        let authed = req.send().await?;
+        if authed.status().is_success() {
+            return token_from_response(authed).await;
+        }
+        return Err(SourceError::Registry {
+            status: authed.status().as_u16(),
+            url: realm,
+        });
+    }
+
+    Err(SourceError::Registry {
+        status: anonymous.status().as_u16(),
+        url: realm,
+    })
+}
+
+async fn token_from_response(response: reqwest::Response) -> Result<String, SourceError> {
+    let token: TokenResponse = response.error_for_status()?.json().await?;
     token
         .token
         .or(token.access_token)
@@ -529,12 +666,61 @@ mod tests {
             .mount(&server)
             .await;
 
-        let source = DockerSource::new("docker:lib/app", server.uri(), "lib/app", Some("t".into()));
+        let source = DockerSource::new("docker:lib/app", server.uri(), "lib/app", None);
         let outcome = source
             .fetch(&reqwest::Client::new(), None)
             .await
             .expect("fetch");
-
         assert_eq!(outcome.etag.as_deref(), Some("\"etag-2\""));
+    }
+
+    /// A configured (but useless) bearer must not skip the anonymous Hub-style
+    /// challenge — that is what left public `library/*` pulls stuck on 401 when
+    /// `DOCKER_TOKEN` was set to something the registry does not accept as Bearer.
+    #[tokio::test]
+    async fn fetch_should_handshake_even_when_a_static_token_is_configured() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v2/library/nginx/tags/list"))
+            .respond_with(
+                ResponseTemplate::new(401).insert_header(
+                    "WWW-Authenticate",
+                    &format!(
+                        "Bearer realm=\"{}/token\",service=\"test\",scope=\"repository:library/nginx:pull\"",
+                        server.uri()
+                    ),
+                ),
+            )
+            .up_to_n_times(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "exchange-ok"
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v2/library/nginx/tags/list"))
+            .and(header("authorization", "Bearer exchange-ok"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({ "tags": ["1.27.0"] })),
+            )
+            .mount(&server)
+            .await;
+
+        let source = DockerSource::new(
+            "docker:library/nginx",
+            server.uri(),
+            "library/nginx",
+            Some("bogus-static-token".into()),
+        );
+        let outcome = source
+            .fetch(&reqwest::Client::new(), None)
+            .await
+            .expect("fetch after handshake");
+        assert_eq!(outcome.releases.len(), 1);
+        assert_eq!(outcome.releases[0].raw_tag, "1.27.0");
     }
 }

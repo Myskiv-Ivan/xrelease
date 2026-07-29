@@ -1,0 +1,83 @@
+{{- if .Values.ui.enabled }}
+{{- /*
+  Kept in its own file so templates/ui.yaml can hash the rendered result into a
+  pod annotation. Inlined in the Deployment's file it could not — `include` of
+  the template you are standing in recurses.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xrelease.fullname" . }}-ui-nginx
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+data:
+  default.conf: |
+    map $http_x_forwarded_proto $xrelease_forwarded_proto {
+        default $http_x_forwarded_proto;
+        ""      $scheme;
+    }
+
+    server {
+        listen 8080;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+        client_max_body_size 10m;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location = /ui-config.js {
+            add_header Cache-Control "no-store";
+        }
+
+        location /api/ {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_read_timeout 120s;
+        }
+
+        location = /health {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/health;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location = /ready {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/ready;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        {{- if .Values.ui.exposeMetrics }}
+        # ui.exposeMetrics=true — backend /metrics is unauthenticated and this
+        # server sits behind the public Ingress. Prefer metrics.serviceMonitor.
+        location = /metrics {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/metrics;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        {{- else }}
+        # Not proxied by default: /metrics needs no auth, so exposing it here
+        # publishes source names and poll counters to anyone who reaches the
+        # Ingress. In-cluster Prometheus scrapes the backend Service instead.
+        # The dashboard's "Open /metrics" button needs ui.exposeMetrics=true.
+        location = /metrics {
+            return 404;
+        }
+        {{- end }}
+        location = /openapi.json {
+            proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/openapi.json;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $xrelease_forwarded_proto;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+{{- end }}

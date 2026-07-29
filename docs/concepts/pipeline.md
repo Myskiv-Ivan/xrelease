@@ -6,8 +6,11 @@
 2. **Filter** — prerelease and regex gates
 3. **Diff** against `seen_release` (known version identities)
 4. **Outbox** — queue a notification per new identity; record in `seen_release`
-5. **Deliver** — send to matching sinks; each sink retries independently
-6. **Complete** — mark outbox row sent on success
+5. **Enrich** *(optional)* — if `[advisories]` is enabled, attach known CVEs /
+   GHSAs for package versions (never blocks delivery) — see
+   [Security advisories](../configuration/overview.md#security-advisories)
+6. **Deliver** — send to matching sinks; each sink retries independently
+7. **Complete** — mark outbox row sent on success
 
 Failed deliveries stay in the outbox; a background flush claims due rows about
 every 60s, and each failed attempt backs off exponentially before the next try.
@@ -18,7 +21,7 @@ moment and combined into a digest when several land on the same moment — see
 
 ## Webhook path
 
-Same steps 2–6, but step 1 is replaced by parsing the inbound JSON payload,
+Same steps 2–7, but step 1 is replaced by parsing the inbound JSON payload,
 deduplicating via `webhook_delivery`, and mapping to a configured watch.
 
 ## First run

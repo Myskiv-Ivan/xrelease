@@ -86,6 +86,14 @@ pub struct DatabaseConfig {
     /// Drop sent `notification_outbox` rows older than N days (`0` = disabled).
     #[serde(default)]
     pub prune_outbox_sent_after_days: u32,
+    /// Drop `release_advisory` rows older than N days (`0` = disabled).
+    ///
+    /// Independent of `prune_seen_after_days`: advisories are keyed by package
+    /// coordinate, not by source, so they do not share `seen_release`'s
+    /// lifecycle — several sources across organizations can reference the same
+    /// `(ecosystem, package, version)` cache entry.
+    #[serde(default)]
+    pub prune_advisories_after_days: u32,
     /// Run [`Store::prune`] on this interval while `serve` is up (`0` = startup only).
     #[serde(default)]
     pub prune_interval_hours: u32,

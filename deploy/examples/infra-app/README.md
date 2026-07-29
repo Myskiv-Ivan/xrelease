@@ -50,9 +50,16 @@ kubectl create configmap xrelease-config \
 
 kubectl apply -f deploy/k8s/secret.example.yaml
 
+# values.local.yaml — own ConfigMap + Secret (chart still uses CNPG + Gateway)
+#   config:
+#     existingConfigMap: xrelease-config
+#   secrets:
+#     existingSecret: xrelease-secrets
+
 helm upgrade --install xrelease ./deploy/helm/xrelease \
   --namespace xrelease \
-  -f deploy/k8s/values-gitops.example.yaml
+  -f deploy/k8s/values.yaml \
+  -f values.local.yaml
 ```
 
 With `source=api`, the mounted file is a **seed** until the first apply; later

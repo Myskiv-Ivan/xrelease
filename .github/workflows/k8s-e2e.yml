@@ -1,0 +1,152 @@
+# Runtime proof for the Helm chart on a real cluster: images boot, the Service
+# label selectors resolve to exactly one workload each, UI nginx proxies to the
+# backend, and the backend reaches PostgreSQL.
+#
+# Split out of ci.yml and gated on paths because it rebuilds both images that
+# the `docker` job already builds (~5 min). Nothing outside deploy/ or docker/
+# can change what it proves.
+
+name: k8s-e2e
+
+# The two path lists are duplicated on purpose: GitHub Actions does not
+# resolve YAML anchors in workflow files.
+on:
+  push:
+    branches: [main]
+    paths:
+      - deploy/**
+      - docker/**
+      - front/nginx.conf
+      - .github/workflows/k8s-e2e.yml
+  pull_request:
+    paths:
+      - deploy/**
+      - docker/**
+      - front/nginx.conf
+      - .github/workflows/k8s-e2e.yml
+
+concurrency:
+  group: k8s-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.21.3
+
+      # Same gha cache scopes as ci.yml's docker job, so a run that follows one
+      # of those reuses its layers instead of building from scratch.
+      - name: Build backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: xrelease:dev
+          cache-from: type=gha,scope=backend
+
+      - name: Build UI image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./front
+          file: ./docker/Dockerfile.ui
+          platforms: linux/amd64
+          load: true
+          tags: xrelease-ui:dev
+          cache-from: type=gha,scope=ui
+
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: xrelease-e2e
+
+      - name: Load images into kind
+        run: kind load docker-image xrelease:dev xrelease-ui:dev --name xrelease-e2e
+
+      - name: Install chart
+        run: |
+          # kind: local images + builtin PG (no CNPG/Gateway in the e2e cluster).
+          cat > /tmp/kind-values.yaml <<'EOF'
+          image:
+            repository: xrelease
+            tag: "dev"
+            pullPolicy: Never
+          ui:
+            image:
+              repository: xrelease-ui
+              tag: "dev"
+              pullPolicy: Never
+            replicaCount: 1
+          ingress:
+            enabled: false
+          gateway:
+            enabled: false
+          postgresql:
+            mode: builtin
+            enabled: true
+          networkPolicy:
+            enabled: false
+          metrics:
+            serviceMonitor:
+              enabled: false
+          secrets:
+            adminPassword: ci
+          EOF
+          helm upgrade --install xrelease deploy/helm/xrelease \
+            --namespace xrelease --create-namespace \
+            -f /tmp/kind-values.yaml \
+            --wait --timeout 6m
+
+      - name: Endpoints are component-scoped
+        run: |
+          set -e
+          for svc in xrelease xrelease-ui xrelease-apprise xrelease-postgresql; do
+            n=$(kubectl -n xrelease get endpointslice \
+              -l "kubernetes.io/service-name=$svc" \
+              -o jsonpath='{range .items[*].endpoints[*]}{.targetRef.name}{"\n"}{end}' \
+              | grep -c . || true)
+            echo "$svc endpoints: $n"
+            kubectl -n xrelease get endpointslice -l "kubernetes.io/service-name=$svc" \
+              -o jsonpath='{range .items[*].endpoints[*]}  {.targetRef.name}{"\n"}{end}'
+            # Regression guard: the backend Service used to also collect the UI
+            # and Apprise pods, which share name+instance labels.
+            [ "$n" -eq 1 ] || { echo "$svc must have exactly 1 endpoint, got $n" >&2; exit 1; }
+          done
+
+      - name: API answers through the Service and through UI nginx
+        run: |
+          set -e
+          kubectl -n xrelease run smoke --image=curlimages/curl:8.11.1 --restart=Never \
+            --command -- sleep 300
+          kubectl -n xrelease wait --for=condition=Ready pod/smoke --timeout=120s
+          # Direct backend Service — the path that used to hit Apprise.
+          for i in $(seq 1 10); do
+            kubectl -n xrelease exec smoke -- curl -sf -o /dev/null -w '%{http_code}\n' \
+              http://xrelease:8080/ready
+          done
+          # Through the UI proxy — the path that used to loop back on itself.
+          for i in $(seq 1 10); do
+            kubectl -n xrelease exec smoke -- curl -sf -o /dev/null -w '%{http_code}\n' \
+              http://xrelease-ui/ready
+          done
+          # /metrics must NOT be reachable through the UI (ui.exposeMetrics=false).
+          code=$(kubectl -n xrelease exec smoke -- curl -s -o /dev/null -w '%{http_code}' \
+            http://xrelease-ui/metrics)
+          [ "$code" = "404" ] || { echo "UI exposed /metrics: HTTP $code" >&2; exit 1; }
+          # …while in-cluster scraping of the backend still works.
+          kubectl -n xrelease exec smoke -- curl -sf http://xrelease:8080/metrics \
+            | grep -q '^xrelease_'
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl -n xrelease get pods,svc,endpointslice -o wide || true
+          kubectl -n xrelease describe pods || true
+          kubectl -n xrelease logs -l app.kubernetes.io/component=server --tail=200 || true
+          kubectl -n xrelease logs -l app.kubernetes.io/component=postgresql --tail=100 || true
+

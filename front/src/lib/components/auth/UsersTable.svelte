@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AuthUserView } from '$lib/api/types';
 	import Badge from '$lib/components/kit/Badge.svelte';
-	import RelativeTime from '$lib/components/kit/RelativeTime.svelte';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
 	import TableShell from '$lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
@@ -87,11 +87,11 @@
 					</div>
 				</td>
 				<td class={TABLE_DATE_CELL}>
-					<RelativeTime value={user.created_at} format="full" />
+					<Timestamp value={user.created_at} />
 				</td>
 				<td class={TABLE_DATE_CELL}>
 					{#if user.last_login_at}
-						<RelativeTime value={user.last_login_at} format="full" />
+						<Timestamp value={user.last_login_at} />
 					{:else}
 						{t('users.neverLoggedIn')}
 					{/if}

@@ -7,8 +7,8 @@
 	} from '$lib/auth/config';
 	import { getDisplayName } from '$lib/auth/session';
 	import AuthModeBadge from '$lib/components/auth/AuthModeBadge.svelte';
-	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
+	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
 	import Input from '$lib/components/kit/Input.svelte';
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
@@ -142,7 +142,7 @@
 		{/if}
 
 		{#if error}
-			<ErrorAlert message={error} />
+			<StatusBanner tone="danger">{error}</StatusBanner>
 		{/if}
 		{#if saved}
 			<p class={TYPE_STATUS_SUCCESS}>{t('settings.apiKeySaved')}</p>

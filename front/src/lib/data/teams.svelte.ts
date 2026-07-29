@@ -1,13 +1,8 @@
 import { api } from '$lib/api/client';
 import type { TeamListResponse, TeamView } from '$lib/api/types';
+import { organizationParam } from '$lib/data/organization-scope';
 import { createResourceStore } from '$lib/data/resource.svelte';
 import { t } from '$lib/i18n';
-import { getOrganizationsState } from '$lib/stores/organizations.svelte';
-
-function organizationParam(): string | null {
-	const orgs = getOrganizationsState();
-	return orgs.isMultiOrg ? orgs.selectedId : null;
-}
 
 const resource = createResourceStore<TeamListResponse>({
 	fetcher: () => api.listTeams(organizationParam()),

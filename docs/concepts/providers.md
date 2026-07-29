@@ -40,6 +40,10 @@ when running `xrelease serve` — see [Webhooks](../api/webhooks.md).
 | `packagist` | PHP (Packagist) |
 | `cpan` | Perl (MetaCPAN) |
 
+Package kinds (except `cpan`) can optionally receive [OSV advisory
+enrichment](../configuration/overview.md#security-advisories) when
+`[advisories]` is enabled in bootstrap.
+
 ## Other
 
 | type | Upstream |

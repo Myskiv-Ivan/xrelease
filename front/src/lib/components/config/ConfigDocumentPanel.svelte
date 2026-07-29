@@ -2,6 +2,7 @@
 	import type { ConfigView } from '$lib/api/types';
 	import Button from '$lib/components/kit/Button.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
+	import SegmentedControl from '$lib/components/kit/SegmentedControl.svelte';
 	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
 	import { TYPE_CODE, TYPE_BODY, TYPE_HINT } from '$lib/components/kit/layout-styles';
 	import {
@@ -40,6 +41,10 @@
 	const empty = $derived(
 		layer === 'bootstrap' ? t('config.bootstrapEmpty') : t('config.desiredEmpty')
 	);
+	const layerOptions = [
+		{ value: 'bootstrap', label: t('config.docViewBootstrap') },
+		{ value: 'app', label: t('config.docViewApp') }
+	];
 
 	async function copy() {
 		if (!content) return;
@@ -57,38 +62,12 @@
 
 <Panel {title}>
 	{#snippet actions()}
-		<div
-			class="inline-flex rounded-md border border-border p-0.5"
-			role="group"
+		<SegmentedControl
+			bind:value={() => layer, (next) => (layer = next as ConfigDocView)}
+			options={layerOptions}
+			size="sm"
 			aria-label={t('config.tabTechnical')}
-		>
-			<button
-				type="button"
-				class={cn(
-					'cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors',
-					layer === 'bootstrap'
-						? 'bg-muted text-foreground'
-						: 'text-muted-foreground hover:text-foreground'
-				)}
-				aria-pressed={layer === 'bootstrap'}
-				onclick={() => (layer = 'bootstrap')}
-			>
-				{t('config.docViewBootstrap')}
-			</button>
-			<button
-				type="button"
-				class={cn(
-					'cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors',
-					layer === 'app'
-						? 'bg-muted text-foreground'
-						: 'text-muted-foreground hover:text-foreground'
-				)}
-				aria-pressed={layer === 'app'}
-				onclick={() => (layer = 'app')}
-			>
-				{t('config.docViewApp')}
-			</button>
-		</div>
+		/>
 		{#if content}
 			<Button variant="ghost" size="sm" onclick={copy}>
 				{copied ? t('config.copied') : t('config.copy')}

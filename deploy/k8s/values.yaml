@@ -1,0 +1,17 @@
+# Site overlay — only what you edit per cluster.
+# Chart defaults already ship CNPG + Gateway + NetworkPolicy + ServiceMonitor.
+#
+#   cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
+#   # set secrets.adminPassword; edit gateway.hostnames below
+#   helm upgrade --install xrelease ./deploy/helm/xrelease \
+#     --namespace xrelease --create-namespace \
+#     -f deploy/k8s/values.yaml \
+#     -f deploy/k8s/values.secrets.yaml
+
+image:
+  # Pinned by scripts/bump-version.py (empty would track Chart.appVersion).
+  tag: "0.1.4"
+
+gateway:
+  hostnames:
+    - xrelease.example.com

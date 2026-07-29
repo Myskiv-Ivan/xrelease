@@ -2,6 +2,12 @@
 {{- $fullname := include "xrelease.fullname" . -}}
 {{- $pgName := include "xrelease.postgresqlName" . -}}
 {{- if not .Values.postgresql.existingSecret }}
+{{- /*
+  Nobody ever types this password: the chart owns the database and hands the
+  backend a ready connection URL. Generated on first install, read back from
+  the cluster on upgrade so the volume keeps matching the credential.
+*/ -}}
+{{- $pgPassword := include "xrelease.machineSecret" (dict "ctx" . "secret" $pgName "key" "postgres-password" "value" .Values.postgresql.auth.password "gen" (randAlphaNum 32)) -}}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -11,9 +17,9 @@ metadata:
     app.kubernetes.io/component: postgresql
 type: Opaque
 stringData:
-  postgres-password: {{ .Values.postgresql.auth.password | quote }}
+  postgres-password: {{ $pgPassword | quote }}
   # urlquery encodes reserved characters in the password (@ : / # …).
-  connection-url: {{ printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username (.Values.postgresql.auth.password | urlquery) $pgName .Values.postgresql.auth.database | quote }}
+  connection-url: {{ printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username ($pgPassword | urlquery) $pgName .Values.postgresql.auth.database | quote }}
 ---
 {{- end }}
 apiVersion: v1
@@ -30,8 +36,7 @@ spec:
       targetPort: postgres
       name: postgres
   selector:
-    {{- include "xrelease.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: postgresql
+    {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 4 }}
 ---
 {{- if .Values.postgresql.persistence.enabled }}
 apiVersion: v1
@@ -41,6 +46,12 @@ metadata:
   labels:
     {{- include "xrelease.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
+  {{- if .Values.postgresql.persistence.retain }}
+  annotations:
+    # Survive `helm uninstall` — dropping the release must not drop the data.
+    # Delete the PVC by hand to reclaim the volume.
+    helm.sh/resource-policy: keep
+  {{- end }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -60,21 +71,30 @@ metadata:
     {{- include "xrelease.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
 spec:
+  # Not headless: one replica is reached through the ClusterIP above, and
+  # serviceName is immutable — changing it would break `helm upgrade`.
   serviceName: {{ $pgName }}
   replicas: 1
   selector:
     matchLabels:
-      {{- include "xrelease.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: postgresql
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "xrelease.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: postgresql
+        {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 8 }}
     spec:
+      automountServiceAccountToken: false
+      {{- with .Values.postgresql.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: postgresql
           image: {{ .Values.postgresql.image | quote }}
+          {{- with .Values.postgresql.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: postgres
               containerPort: 5432
@@ -112,6 +132,20 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      # Let PostgreSQL finish a shutdown checkpoint before SIGKILL.
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - name: data
           {{- if .Values.postgresql.persistence.enabled }}

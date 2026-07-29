@@ -1,26 +1,25 @@
-# Default values — ready stack (published GHCR images).
-# Same product shape as repo-root docker-compose.yaml: PG + UI + Apprise + Ingress.
+# xrelease — default deploy: CNPG + Gateway API + UI + Apprise.
 #
-#   cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
-#   # edit secrets, then:
+# Site overlay (hostname + image tag): deploy/k8s/values.yaml
+# Password:           deploy/k8s/values.secrets.example.yaml → values.secrets.yaml
+#
 #   helm upgrade --install xrelease ./deploy/helm/xrelease \
 #     --namespace xrelease --create-namespace \
+#     -f deploy/k8s/values.yaml \
 #     -f deploy/k8s/values.secrets.yaml
 #
-# Production GitOps: -f deploy/k8s/values-gitops.example.yaml
-# OIDC: -f deploy/k8s/values-oidc.example.yaml
+# Platform once: docs/getting-started/kubernetes.md
 
-# MUST stay 1 — chart fails if higher (one poller per DB).
 replicaCount: 1
 
 image:
   repository: ghcr.io/myskiv-ivan/xrelease
-  # Empty → Chart.appVersion.
   tag: ""
   pullPolicy: Always
 
 imagePullSecrets: []
-# - name: ghcr-pull
+nameOverride: ""
+fullnameOverride: ""
 
 command:
   - serve
@@ -28,7 +27,6 @@ command:
 config:
   existingConfigMap: ""
   bootstrapInline: |
-    # XRELEASE_DATABASE_URL from the chart PostgreSQL Secret overrides this URL.
     [database]
     postgres_url = "postgres://xrelease@xrelease-postgresql:5432/xrelease"
 
@@ -44,7 +42,6 @@ config:
     api_config = true
     source = "api"
     ui_config = true
-  # Optional first-boot seed (source=api). Idle until UI / xrctl Apply.
   appInline: |
     defaults:
       interval_secs: 86400
@@ -61,7 +58,7 @@ service:
   port: 8080
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: {}
   hosts:
@@ -85,12 +82,73 @@ ingress:
             pathType: Prefix
     tls: []
 
-postgresql:
+gateway:
   enabled: true
+  parentRef:
+    name: xrelease-gateway
+    namespace: ""
+    sectionName: ""
+  hostnames:
+    - xrelease.example.com
+  annotations: {}
+  filters: []
+  timeouts:
+    request: 120s
+  api:
+    enabled: false
+    parentRef:
+      name: ""
+      namespace: ""
+      sectionName: ""
+    hostnames:
+      - hooks.example.com
+    paths:
+      - /api/v1/webhooks
+      - /health
+      - /ready
+
+postgresql:
+  mode: cnpg
+  enabled: false
+  cnpg:
+    create: true
+    clusterName: xrelease-db
+    namespace: ""
+    instances: 1
+    imageName: ""
+    database: xrelease
+    owner: xrelease
+    storage:
+      size: 20Gi
+      storageClass: ""
+    walStorage:
+      enabled: false
+      size: 10Gi
+      storageClass: ""
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    postgresql:
+      parameters: {}
+    affinity:
+      enablePodAntiAffinity: true
+      topologyKey: kubernetes.io/hostname
+    monitoring:
+      enablePodMonitor: true
+    sslMode: require
+    backup:
+      enabled: false
+      destinationPath: ""
+      endpointURL: ""
+      retentionPolicy: 30d
+      credentialsSecret: ""
   image: postgres:18-alpine
   auth:
     username: xrelease
-    # Required — set in values.secrets.yaml
     password: ""
     database: xrelease
   existingSecret: ""
@@ -98,16 +156,41 @@ postgresql:
     enabled: true
     size: 8Gi
     storageClass: ""
-  resources: {}
+    retain: true
+  podSecurityContext:
+    fsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
 
 apprise:
   enabled: true
   image: caronc/apprise:1.5.1
   service:
     port: 8000
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
 ui:
   enabled: true
+  replicaCount: 1
   image:
     repository: ghcr.io/myskiv-ivan/xrelease-ui
     tag: ""
@@ -115,26 +198,69 @@ ui:
   service:
     type: ClusterIP
     port: 80
+  exposeMetrics: false
   env:
     VITE_API_URL: ""
     VITE_AUTH_MODE: local
     VITE_API_KEY_DEFAULT_ROLE: admin
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 
 env:
   XRELEASE_LOG: info
 
 secrets:
   existingSecret: ""
-  apiKey: ""
-  databaseUrl: ""
-  webhookSecret: ""
-  expressAccessToken: ""
-  configEncryptionKey: ""
-  sessionSecret: ""
   adminUser: "admin"
   adminPassword: ""
+  apiKey: ""
+  webhookSecret: ""
+  sessionSecret: ""
+  configEncryptionKey: ""
+  databaseUrl: ""
+  expressAccessToken: ""
 
-resources: {}
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+serviceAccount:
+  automountServiceAccountToken: false
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+networkPolicy:
+  enabled: true
+  ingressControllerNamespace: envoy-gateway-system
+  monitoringNamespace: monitoring
+  blockPrivateEgress: true
+  extraEgressCIDRs: []
 
 nodeSelector: {}
 tolerations: []

@@ -41,6 +41,43 @@ pub struct SourceMetricsView {
     pub notifications: u64,
 }
 
+/// One security advisory affecting a released version, for JSON output.
+///
+/// Mirrors [`crate::advisory::Advisory`] but renders [`crate::advisory::Severity`]
+/// as its lowercase label rather than relying on serde's default enum
+/// serialization — the derive would emit the Rust variant name (`"Critical"`),
+/// which is not the stable API contract this type owns.
+#[derive(Debug, Clone, Serialize)]
+pub struct AdvisoryView {
+    /// Primary database id (`GHSA-…`, `RUSTSEC-…`, `PYSEC-…`).
+    pub id: String,
+    /// Preferred human-facing id: a `CVE-…` alias when the database has one.
+    pub display_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub severity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvss_vector: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+impl From<crate::advisory::Advisory> for AdvisoryView {
+    fn from(advisory: crate::advisory::Advisory) -> Self {
+        Self {
+            id: advisory.id,
+            display_id: advisory.display_id,
+            summary: advisory.summary,
+            severity: advisory
+                .severity
+                .map(|severity| severity.as_str().to_owned()),
+            cvss_vector: advisory.cvss_vector,
+            url: advisory.url,
+        }
+    }
+}
+
 /// One release identity recorded in the seen-release catalogue.
 #[derive(Debug, Clone, Serialize)]
 pub struct SeenReleaseView {
@@ -50,6 +87,12 @@ pub struct SeenReleaseView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     pub first_seen_at: String,
+    /// Known security advisories for this exact version. Empty for every
+    /// source that is not a package registry, and for package sources until
+    /// `[advisories]` is enabled and a delivery has looked this version up —
+    /// see [`crate::advisory`].
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub advisories: Vec<AdvisoryView>,
 }
 
 /// Config plus live runtime state — consumed by the read-only observability UI.

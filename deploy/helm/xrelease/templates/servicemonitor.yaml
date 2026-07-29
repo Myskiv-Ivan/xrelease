@@ -1,0 +1,30 @@
+{{- if .Values.metrics.serviceMonitor.enabled }}
+{{- /*
+  Prometheus Operator scrape of the backend Service. Deliberately targets the
+  API pod directly rather than the UI nginx, so /metrics never has to be
+  published through the public Ingress (see ui.exposeMetrics).
+  Requires the monitoring.coreos.com CRDs.
+*/ -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "xrelease.fullname" . }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout }}
+{{- end }}

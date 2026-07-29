@@ -5,6 +5,8 @@
 	import SeenReleasesPanel from '$lib/components/sources/SeenReleasesPanel.svelte';
 	import SourceKindBadge from '$lib/components/sources/SourceKindBadge.svelte';
 	import SourceStatGrid from '$lib/components/sources/SourceStatGrid.svelte';
+	import { sourceSupportsAdvisories } from '$lib/config/advisory-presentation';
+	import { getStatusStore } from '$lib/data/status.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -14,9 +16,19 @@
 	}
 
 	let { source, isPolling = false, onPoll }: Props = $props();
+
+	const statusStore = getStatusStore();
+	const expectAdvisories = $derived(
+		sourceSupportsAdvisories(source.kind) && Boolean(statusStore.status?.advisories.enabled)
+	);
 </script>
 
-<SourceDetailActions {isPolling} {onPoll} />
+<SourceDetailActions
+	sourceId={source.id}
+	showAdvisories={expectAdvisories}
+	{isPolling}
+	{onPoll}
+/>
 
 <div class="mb-4 flex flex-wrap items-center gap-3">
 	<SourceKindBadge kind={source.kind} label={source.kind_label} />
@@ -25,7 +37,7 @@
 			href={source.source_page_url}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="text-sm text-primary hover:underline"
+			class="text-sm"
 		>
 			{t('sources.sourceCatalog')} ↗
 		</a>
@@ -35,7 +47,12 @@
 <SourceStatGrid {source} />
 
 <div class="mt-4">
-	<SeenReleasesPanel releases={source.seen_releases} seenCount={source.seen_count} />
+	<SeenReleasesPanel
+		sourceId={source.id}
+		releases={source.seen_releases}
+		seenCount={source.seen_count}
+		{expectAdvisories}
+	/>
 </div>
 
 <div class="mt-4">

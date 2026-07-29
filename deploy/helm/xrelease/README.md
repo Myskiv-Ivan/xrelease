@@ -1,44 +1,50 @@
 # xrelease Helm chart
 
-Images: `ghcr.io/myskiv-ivan/xrelease` and `ghcr.io/myskiv-ivan/xrelease-ui`.
+Images: `ghcr.io/myskiv-ivan/xrelease` · `ghcr.io/myskiv-ivan/xrelease-ui`  
+OCI chart: `oci://ghcr.io/myskiv-ivan/charts/xrelease`
 
-**Defaults = ready operator stack** (same idea as `docker-compose.yaml`):
-in-cluster PostgreSQL + UI + Apprise + Ingress + **API + UI** authoring.
-Secrets only via overlay — see [`deploy/k8s/README.md`](../../k8s/README.md).
+**Defaults = deploy target:** CloudNativePG + Gateway API + NetworkPolicy +
+ServiceMonitor + UI×2. Site overlay: [`deploy/k8s/values.yaml`](../../k8s/values.yaml)
+(hostname + image tag) + [`values.secrets.yaml`](../../k8s/values.secrets.example.yaml).
 
 ```bash
 cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
+# edit gateway.hostnames in values.yaml; set adminPassword in values.secrets.yaml
 helm upgrade --install xrelease ./deploy/helm/xrelease \
   --namespace xrelease --create-namespace \
+  -f deploy/k8s/values.yaml \
   -f deploy/k8s/values.secrets.yaml
 ```
 
-## Chart constraints
+Platform setup: [`docs/getting-started/kubernetes.md`](../../../docs/getting-started/kubernetes.md).
 
-- **`replicaCount` must be `1`**.
-- **`[api].listen = "0.0.0.0:8080"`** in bootstrap.
-- Set **either** `secrets.existingSecret` **or** `secrets.*` — not both.
-- ConfigMap keys: `bootstrap.toml` + `releases.yaml`.
-- Local UI login needs `sessionSecret` + `adminPassword`; `source=api` needs
-  `configEncryptionKey`. Empty / `CHANGE_ME*` fail install.
-- Empty `image.tag` → `Chart.AppVersion`; default `pullPolicy: Always`.
+## Constraints
 
-## Values map (short)
+- `replicaCount` must be `1`
+- Either `secrets.existingSecret` **or** `secrets.*` — not both
+- Local UI needs `secrets.adminPassword` (everything else is generated)
+- Empty `image.tag` → `Chart.AppVersion`; images are **linux/amd64** only
 
-| Key | Default purpose |
-|---|---|
-| `image` / `ui.image` | GHCR; tag empty → appVersion |
-| `postgresql.enabled` | `true` (operators); GitOps turns off |
-| `apprise.enabled` | Sidecar |
-| `ui.enabled` / `ui.env` | Dashboard; `VITE_*` runtime |
-| `ingress` | `xrelease.local` / class `nginx` |
-| `secrets.*` | Via `values.secrets.yaml` |
+## Generated secrets
 
-## Optional
+`apiKey`, `webhookSecret`, `sessionSecret`, `configEncryptionKey` (and builtin
+PG password when used) are generated on first install and preserved on upgrade.
+Render-only pipelines (ArgoCD / `helm template`) must set `secrets.existingSecret`
+— see [`secret.example.yaml`](../../k8s/secret.example.yaml).
 
-| Feature | How |
-|---|---|
-| TLS | `kubectl create secret tls` + [`values-tls.example.yaml`](../../k8s/values-tls.example.yaml) — [tls.md](../../../docs/operations/tls.md) |
-| OIDC | `values-oidc.example.yaml` — [oidc.md](../../../docs/operations/oidc.md) |
-| GitOps | `values-gitops.example.yaml` + Secret |
-| Grafana | [`deploy/grafana/`](../../grafana/) |
+```bash
+kubectl -n xrelease get secret xrelease-secrets \
+  -o jsonpath='{.data.XRELEASE_API_KEY}' | base64 -d
+```
+
+## `/metrics`
+
+Unauthenticated on the backend. Not proxied through the UI by default
+(`ui.exposeMetrics=false`). Scrape the backend Service or enable
+`metrics.serviceMonitor`.
+
+## Values reference
+
+Full key list lives in [`values.yaml`](values.yaml). Optional switches
+(Ingress instead of Gateway, external PG, OIDC, TLS):
+[deployment variants](../../../docs/operations/deployment-variants.md).

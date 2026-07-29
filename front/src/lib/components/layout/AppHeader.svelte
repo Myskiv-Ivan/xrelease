@@ -24,6 +24,8 @@
 	);
 	const primaryNav = $derived(visibleNavItems.filter((item) => item.group === 'primary'));
 	const moreNav = $derived(visibleNavItems.filter((item) => item.group === 'more'));
+	/** The mobile row is flat — one scrollable list, no overflow menu. */
+	const mobileNav = $derived([...primaryNav, ...moreNav]);
 
 	function isActive(href: string): boolean {
 		if (href === '/') return page.url.pathname === '/';
@@ -53,7 +55,7 @@
 			</a>
 			{#if auth.isAuthenticated}
 				<nav class="hidden items-center gap-1 lg:flex" aria-label={t('nav.main')}>
-					{#each primaryNav as item}
+					{#each primaryNav as item (item.href)}
 						<a
 							href={item.href}
 							aria-current={isActive(item.href) ? 'page' : undefined}
@@ -78,7 +80,7 @@
 								<ChevronDownIcon class="size-3.5 opacity-70" />
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="start" class="min-w-44">
-								{#each moreNav as item}
+								{#each moreNav as item (item.href)}
 									<DropdownMenu.Item
 										class={isActive(item.href) ? 'bg-muted font-medium' : ''}
 										onclick={() => void goto(item.href)}
@@ -108,7 +110,7 @@
 			class="flex gap-1.5 overflow-x-auto border-t border-border px-4 py-2 lg:hidden"
 			aria-label={t('nav.mobile')}
 		>
-			{#each [...primaryNav, ...moreNav] as item}
+			{#each mobileNav as item (item.href)}
 				<a
 					href={item.href}
 					aria-current={isActive(item.href) ? 'page' : undefined}

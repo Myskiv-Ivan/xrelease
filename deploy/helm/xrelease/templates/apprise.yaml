@@ -12,8 +12,7 @@ spec:
       targetPort: http
       name: http
   selector:
-    {{- include "xrelease.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: apprise
+    {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,18 +25,52 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "xrelease.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: apprise
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "xrelease.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: apprise
+        {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 8 }}
     spec:
+      automountServiceAccountToken: false
+      # Upstream image defaults to root; 1000 is verified to boot gunicorn and
+      # serve /status. Stateless here — no /config volume is mounted.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: apprise
           image: {{ .Values.apprise.image }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: {{ .Values.apprise.service.port }}
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.apprise.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}

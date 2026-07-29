@@ -25,7 +25,7 @@ pub const DEFAULT_OUTBOX_FLUSH_CONCURRENCY: usize = 8;
 pub const DEFAULT_OUTBOX_RETRY_BACKOFF_MAX_SECS: u32 = 3_600;
 
 // Crate-visible helpers shared across submodules / tests.
-pub(crate) use outbox::attempt_notification_delivery;
+pub(crate) use outbox::{attempt_notification_delivery, persist_advisory_result, DeliveryContext};
 #[cfg(test)]
 pub(crate) use outbox::{backoff_secs, build_digest_event, partition_for_digest, DeliveryUnit};
 #[cfg(test)]

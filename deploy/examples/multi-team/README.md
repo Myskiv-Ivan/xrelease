@@ -9,7 +9,8 @@ Per-team eXpress bots, Apprise tags, and webhooks. Desired state lives in
 | `app/releases.yaml` | Teams, notifiers, sources |
 | [`.env.example`](../../../.env.example) | Docker secrets (shared) |
 
-K8s Secret: [`deploy/k8s/secret.multi-team.example.yaml`](../../k8s/secret.multi-team.example.yaml)
+K8s Secret: extend [`deploy/k8s/secret.example.yaml`](../../k8s/secret.example.yaml)
+with per-team `XRELEASE_EXPRESS_TOKEN_*` keys.
 
 ## Routing model
 
@@ -68,17 +69,22 @@ kubectl create configmap xrelease-config \
   --from-file=bootstrap.toml=deploy/examples/multi-team/bootstrap.toml \
   --from-file=releases.yaml=deploy/examples/multi-team/app/releases.yaml
 
-kubectl apply -f deploy/k8s/secret.multi-team.example.yaml
+kubectl apply -f deploy/k8s/secret.example.yaml   # add XRELEASE_EXPRESS_TOKEN_* keys
+
+# values.local.yaml:
+#   config:
+#     existingConfigMap: xrelease-config
+#   secrets:
+#     existingSecret: xrelease-secrets
 
 helm upgrade --install xrelease ./deploy/helm/xrelease \
   --namespace xrelease \
-  -f deploy/k8s/values-gitops.example.yaml
+  -f deploy/k8s/values.yaml \
+  -f values.local.yaml
 ```
 
-Default chart install is **API + UI**. For this **Local** example use
-`values-gitops.example.yaml` (above) or override `config.bootstrapInline` /
-`config.appInline` (or `config.existingConfigMap`) plus secrets so
-`source=local` matches this example.
+Default chart install is **API + UI**. For this **Local** example the ConfigMap
+must match `source=local` in bootstrap (this example's files).
 
 ---
 

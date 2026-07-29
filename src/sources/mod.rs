@@ -29,7 +29,7 @@ pub use gitlab::GitlabSource;
 pub use http::FetchOutcome;
 pub use package::{PackageRegistry, PackageSource};
 
-pub(crate) use time::parse_rfc3339;
+pub(crate) use time::{parse_rfc3339, parse_timestamp_millis};
 
 use crate::error::SourceError;
 

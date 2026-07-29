@@ -1,109 +1,91 @@
 # Kubernetes deployment
 
-Helm chart: PostgreSQL + UI + Apprise + Ingress (same idea as Docker Compose).
-Secrets stay in an overlay.
+**xrelease + CloudNativePG + Gateway API** (chart defaults).
 
-Canonical install notes: [`deploy/k8s/README.md`](../../deploy/k8s/README.md) ·
-chart: [`deploy/helm/xrelease/`](../../deploy/helm/xrelease/).
+## Install
 
-## Quick start (HTTP)
+### Platform (once per cluster)
 
-```sh
+```bash
+helm repo add cnpg https://cloudnative-pg.github.io/charts
+helm upgrade --install cnpg cnpg/cloudnative-pg \
+  --namespace cnpg-system --create-namespace
+
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+helm install eg oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.2.4 -n envoy-gateway-system --create-namespace
+
+kubectl create namespace xrelease
+# edit hostname + gatewayClassName first
+kubectl apply -f deploy/k8s/gateway/gateway.yaml
+```
+
+### Release
+
+```bash
+TAG=v0.1.4
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.yaml"
+curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.secrets.example.yaml"
+cp values.secrets.example.yaml values.secrets.yaml
+# edit gateway.hostnames in values.yaml; set secrets.adminPassword in values.secrets.yaml
+helm upgrade --install xrelease oci://ghcr.io/myskiv-ivan/charts/xrelease \
+  --version "${TAG#v}" \
+  --namespace xrelease --create-namespace \
+  -f values.yaml \
+  -f values.secrets.yaml
+```
+
+From a checkout:
+
+```bash
 cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml
-$EDITOR deploy/k8s/values.secrets.yaml
+# edit deploy/k8s/values.yaml + values.secrets.yaml
 helm upgrade --install xrelease ./deploy/helm/xrelease \
   --namespace xrelease --create-namespace \
+  -f deploy/k8s/values.yaml \
   -f deploy/k8s/values.secrets.yaml
 ```
 
-Open `http://xrelease.local/` (map the host to the Ingress IP). Sign in with
-`secrets.adminUser` / `secrets.adminPassword`.
-[Authentication](../operations/authentication.md).
+Site overlay is only hostname + image tag. Password is the one secret you set;
+API key / webhook / session / encryption keys are generated:
 
-Needs an Ingress controller (default class `nginx` — set `ingress.className`
-if yours differs).
+```bash
+kubectl -n xrelease get secret xrelease-secrets \
+  -o jsonpath='{.data.XRELEASE_API_KEY}' | base64 -d
+```
 
-## Ingress routing
+ArgoCD / `helm template` must use `secrets.existingSecret` —
+[`secret.example.yaml`](../../deploy/k8s/secret.example.yaml).
 
-When `ui.enabled=true` (chart default), the **main Ingress** sends all paths to
-the UI Service. UI nginx proxies API and probes to the backend:
+Point DNS at the Gateway. Sign in with `admin` / your password.
+Images are **linux/amd64**.
 
-| Path | Destination |
+## What you get
+
+| Layer | Detail |
 |---|---|
-| `/` (dashboard) | UI `:8080` (Service often `:80` → pod) |
-| `/api/…`, `/ready`, `/health`, `/openapi.json`, `/metrics` | UI → backend `:8080` |
+| App | one poller + UI×2 + Apprise |
+| Database | CloudNativePG HA |
+| Front door | HTTPRoute → UI nginx → `/api` |
+| Hardening | NetworkPolicy, non-root, RO rootfs |
+| Observability | ServiceMonitor + CNPG PodMonitor |
 
-Leave `ui.env.VITE_API_URL` **empty** (same-origin `/api`).
+`/metrics` is **404** on the public UI — scrape the backend Service.
 
-```sh
-curl -sH "Authorization: Bearer $API_KEY" http://xrelease.local/ready
-xrctl --api-url http://xrelease.local --api-key "$API_KEY" status
-```
+## TLS
 
-Optional **`ingress.api`**: second Ingress for forge webhooks on another host
-(direct to the backend Service). See
-[`values-tls.example.yaml`](../../deploy/k8s/values-tls.example.yaml).
+Uncomment the `https` listener in [`gateway.yaml`](../../deploy/k8s/gateway/gateway.yaml),
+create the TLS Secret, set `gateway.parentRef.sectionName: https` in a local
+overlay. [Gateway API](../operations/gateway.md).
 
-## HTTPS (certificate files)
+## Backups
 
-1. Create a TLS Secret from your PEMs:
-
-```bash
-kubectl -n xrelease create secret tls xrelease-tls \
-  --cert=cert.pem --key=key.pem
-```
-
-2. Enable Ingress TLS (edit the host to match the certificate):
-
-```bash
-helm upgrade --install xrelease ./deploy/helm/xrelease \
-  --namespace xrelease --create-namespace \
-  -f deploy/k8s/values.secrets.yaml \
-  -f deploy/k8s/values-tls.example.yaml
-```
-
-Full checklist: [TLS & Ingress](../operations/tls.md).
-
-```bash
-xrctl --api-url https://xrelease.example.com --api-key "$API_KEY" status
-```
-
-## Authoring
-
-Chart default = **API + UI** (single-document ledger). Samples:
-[authoring variants](../configuration/overview.md#authoring-variants) ·
-[`deploy/examples/`](../../deploy/examples/).
-
-## Runtime UI config
-
-| Change | Where | Action |
-|---|---|---|
-| Auth / OIDC client | `ui.env.VITE_*` | `helm upgrade` (+ optional `values-oidc.example.yaml`) |
-| Backend JWT | Secret `XRELEASE_OIDC_*` | Update Secret + restart backend |
-| Local admin | `sessionSecret` + admin keys | `values.secrets.yaml` only |
-
-```bash
-helm upgrade xrelease ./deploy/helm/xrelease \
-  -f deploy/k8s/values.secrets.yaml \
-  -f deploy/k8s/values-oidc.example.yaml
-```
-
-[OIDC](../operations/oidc.md) · [Helm README](../../deploy/helm/xrelease/README.md).
-
-## What's mounted
-
-| Source | Purpose |
-|---|---|
-| ConfigMap `bootstrap.toml` + `releases.yaml` | Infra + optional seed |
-| Secret | DB URL, API key, session/admin, OIDC, tokens |
-| TLS Secret (`xrelease-tls`) | Ingress HTTPS (when using the TLS overlay) |
-| `ui.env` | Runtime dashboard (`/ui-config.js`) |
+Enable `postgresql.cnpg.backup.*` — [CloudNativePG](../operations/cloudnativepg.md).
+`helm uninstall` keeps the Cluster (`helm.sh/resource-policy: keep`).
 
 ## Next
 
 | Topic | Doc |
 |---|---|
-| TLS & Ingress | [TLS](../operations/tls.md) |
-| OIDC | [OIDC](../operations/oidc.md) |
-| GitOps overlays | [`deploy/k8s/README.md`](../../deploy/k8s/README.md) |
-| Apply from CI | [CI/CD integration](../operations/ci-cd.md) |
+| Optional overrides | [Deployment variants](../operations/deployment-variants.md) |
+| Apply from CI | [CI/CD](../operations/ci-cd.md) |

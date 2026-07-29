@@ -5,6 +5,7 @@ metadata:
   name: {{ include "xrelease.fullname" . }}
   labels:
     {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
@@ -18,28 +19,75 @@ spec:
         # Restart when inline ConfigMap changes (bootstrap / app seed).
         # Constant when config.existingConfigMap is set — use Reloader or a manual rollout.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        # Restart when chart-managed Secret values change (api key, session, admin, …).
-        checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        # Restart when the operator changes a secret. Hashes the values, not the
+        # rendered Secret: including secret.yaml here would run its generators a
+        # second time, so a fresh install would annotate one random set while
+        # storing another. Generated values never change after first install.
+        checksum/secrets: {{ .Values.secrets | toYaml | sha256sum }}
       labels:
         {{- include "xrelease.selectorLabels" . | nindent 8 }}
+        # Narrows the Service selector so it cannot pick up UI / Apprise pods,
+        # which share name+instance. Not in spec.selector — that field is
+        # immutable and changing it would break `helm upgrade`.
+        app.kubernetes.io/component: server
     spec:
       serviceAccountName: {{ include "xrelease.fullname" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.postgresql.enabled }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $cnpg := eq .Values.postgresql.mode "cnpg" }}
+      {{- if or .Values.postgresql.enabled $cnpg }}
       initContainers:
         - name: wait-postgresql
           image: {{ .Values.postgresql.image | quote }}
+          # Bounded wait: fail the pod after ~5 min so the deadline surfaces as
+          # a restart loop with logs instead of a pod stuck in Init forever.
+          {{- if $cnpg }}
+          # CloudNativePG: the -rw Service follows the elected primary, so this
+          # also covers a failover happening during rollout.
           command:
             - sh
             - -c
             - |
-              until pg_isready -h {{ include "xrelease.postgresqlName" . }} -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}; do
-                echo "waiting for postgresql..."
+              for i in $(seq 1 150); do
+                if pg_isready -h {{ include "xrelease.cnpgRwService" . }} -p 5432 -d {{ .Values.postgresql.cnpg.database }}; then
+                  exit 0
+                fi
+                echo "waiting for cloudnativepg primary... ($i/150)"
                 sleep 2
               done
+              echo "cloudnativepg primary not ready after 300s" >&2
+              exit 1
+          {{- else }}
+          command:
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 150); do
+                if pg_isready -h {{ include "xrelease.postgresqlName" . }} -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}; then
+                  exit 0
+                fi
+                echo "waiting for postgresql... ($i/150)"
+                sleep 2
+              done
+              echo "postgresql not ready after 300s" >&2
+              exit 1
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.postgresql.securityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
       {{- end }}
       containers:
         - name: xrelease
@@ -52,6 +100,10 @@ spec:
             - "--app"
             - "/etc/xrelease/app/releases.yaml"
             - {{ index .Values.command 0 | quote }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -60,6 +112,11 @@ spec:
               value: /etc/xrelease/bootstrap.toml
             - name: XRELEASE_APP_CONFIG
               value: /etc/xrelease/app/releases.yaml
+            # Env wins over bootstrap.toml. The built-in default is
+            # 127.0.0.1:8080, which would make the probes fail — pin it here so
+            # an operator-supplied config.existingConfigMap cannot get it wrong.
+            - name: XRELEASE_API_LISTEN
+              value: "0.0.0.0:{{ .Values.service.port }}"
             {{- range $key, $value := .Values.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
@@ -68,7 +125,20 @@ spec:
             - name: XRELEASE_APPRISE_ENDPOINT
               value: http://{{ include "xrelease.fullname" . }}-apprise:{{ .Values.apprise.service.port }}
             {{- end }}
-            {{- if .Values.postgresql.enabled }}
+            {{- if $cnpg }}
+            # CloudNativePG's app Secret carries a libpq URI for the -rw
+            # Service. Wins over bootstrap.toml and over envFrom.
+            - name: XRELEASE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xrelease.cnpgAppSecret" . }}
+                  key: uri
+            {{- with .Values.postgresql.cnpg.sslMode }}
+            # The URI has no sslmode; set it explicitly (config/env wins).
+            - name: XRELEASE_DATABASE_SSL_MODE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- else if .Values.postgresql.enabled }}
             # Wins over bootstrap.toml postgres_url and over envFrom DATABASE_URL.
             - name: XRELEASE_DATABASE_URL
               valueFrom:
@@ -86,54 +156,25 @@ spec:
               value: {{ .Values.database.url | quote }}
             {{- end }}
             {{- if eq (include "xrelease.createSecret" .) "true" }}
-            {{- if .Values.secrets.apiKey }}
-            - name: XRELEASE_API_KEY
+            {{- $secretName := include "xrelease.secretsName" . }}
+            {{- /* Always present — templates/secret.yaml generates what values leave empty. */}}
+            {{- $always := list "XRELEASE_API_KEY" "XRELEASE_WEBHOOK_SECRET" "XRELEASE_SESSION_SECRET" "XRELEASE_CONFIG_ENCRYPTION_KEY" }}
+            {{- $optional := dict "XRELEASE_ADMIN_USER" .Values.secrets.adminUser "XRELEASE_ADMIN_PASSWORD" .Values.secrets.adminPassword "XRELEASE_EXPRESS_ACCESS_TOKEN" .Values.secrets.expressAccessToken }}
+            {{- range $key := $always }}
+            - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_API_KEY
+                  name: {{ $secretName }}
+                  key: {{ $key }}
             {{- end }}
-            {{- if .Values.secrets.webhookSecret }}
-            - name: XRELEASE_WEBHOOK_SECRET
+            {{- range $key, $value := $optional }}
+            {{- if $value }}
+            - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_WEBHOOK_SECRET
+                  name: {{ $secretName }}
+                  key: {{ $key }}
             {{- end }}
-            {{- if .Values.secrets.expressAccessToken }}
-            - name: XRELEASE_EXPRESS_ACCESS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_EXPRESS_ACCESS_TOKEN
-            {{- end }}
-            {{- if .Values.secrets.configEncryptionKey }}
-            - name: XRELEASE_CONFIG_ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_CONFIG_ENCRYPTION_KEY
-            {{- end }}
-            {{- if .Values.secrets.sessionSecret }}
-            - name: XRELEASE_SESSION_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_SESSION_SECRET
-            {{- end }}
-            {{- if .Values.secrets.adminUser }}
-            - name: XRELEASE_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_ADMIN_USER
-            {{- end }}
-            {{- if .Values.secrets.adminPassword }}
-            - name: XRELEASE_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "xrelease.secretsName" . }}
-                  key: XRELEASE_ADMIN_PASSWORD
             {{- end }}
             {{- end }}
           {{- if .Values.secrets.existingSecret }}
@@ -148,28 +189,61 @@ spec:
             - name: config
               mountPath: /etc/xrelease
               readOnly: true
+            # readOnlyRootFilesystem — WORKDIR and /tmp must stay writable even
+            # though the backend keeps all state in PostgreSQL.
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
           {{- if eq (index .Values.command 0) "serve" }}
+          # startupProbe absorbs first-boot migrations so a slow schema apply
+          # cannot trip liveness and restart-loop the pod (30 × 5s = 150s).
+          startupProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: {{ .Values.readinessProbe.port }}
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: {{ .Values.livenessProbe.path }}
               port: {{ .Values.livenessProbe.port }}
-            initialDelaySeconds: 15
             periodSeconds: 60
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.path }}
               port: {{ .Values.readinessProbe.port }}
-            initialDelaySeconds: 5
             periodSeconds: 30
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      # Graceful shutdown drains in-flight polls and the outbox (up to 30s) —
+      # see docs/operations/scaling.md.
+      terminationGracePeriodSeconds: 45
+      {{- include "xrelease.nodeSelector" . | nindent 6 }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ .Values.config.existingConfigMap | default (printf "%s-config" (include "xrelease.fullname" .)) }}
+            # optional: a missing key is skipped instead of wedging the pod in
+            # ContainerCreating. The chart-rendered ConfigMap always has both;
+            # an operator-supplied one carrying only bootstrap.toml then fails
+            # visibly in the container logs.
+            optional: true
             items:
               - key: bootstrap.toml
                 path: bootstrap.toml
               - key: releases.yaml
                 path: app/releases.yaml
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

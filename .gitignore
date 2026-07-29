@@ -12,8 +12,8 @@ Cargo.lock.orig
 config.local.toml
 .env
 deploy/k8s/values.secrets.yaml
-deploy/k8s/values-lab.secrets.yaml
 deploy/k8s/values-*.local.yaml
+values.local.yaml
 docker/certs/*.pem
 !docker/certs/*.pem.example
 !docker/certs/README.md

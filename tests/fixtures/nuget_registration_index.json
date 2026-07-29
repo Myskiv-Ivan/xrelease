@@ -1,0 +1,23 @@
+{
+  "count": 2,
+  "items": [
+    {
+      "@id": "https://api.nuget.org/v3/registration5-semver1/newtonsoft.json/page/1.0.0/12.0.3.json",
+      "lower": "1.0.0",
+      "upper": "12.0.3"
+    },
+    {
+      "@id": "https://api.nuget.org/v3/registration5-semver1/newtonsoft.json/page/13.0.1/13.0.5-beta1.json",
+      "lower": "13.0.1",
+      "upper": "13.0.5-beta1",
+      "items": [
+        {
+          "catalogEntry": { "version": "13.0.3", "published": "2023-03-08T10:12:24.913Z" }
+        },
+        {
+          "catalogEntry": { "version": "13.0.5-beta1", "published": "2025-12-18T09:04:41.207Z" }
+        }
+      ]
+    }
+  ]
+}

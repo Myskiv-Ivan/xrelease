@@ -147,6 +147,99 @@ source = "local"
 Docker Compose lab uses **API + UI** (ledger + `[[organizations]]`) — see the
 repo-root [`bootstrap.toml`](../../bootstrap.toml).
 
+## Security advisories
+
+Optional enrichment via bootstrap `[advisories]`: when a **package** release is
+delivered, the notification can list known CVEs / GHSAs for that exact version.
+**Disabled by default** in the binary (omit the table or set `enabled = false`).
+The Compose lab [`bootstrap.toml`](../../bootstrap.toml) turns it **on**; Helm
+`bootstrapInline` does not — add `[advisories]` there if you want enrichment.
+
+```toml
+[advisories]
+enabled = true
+# endpoint = "https://api.osv.dev"   # self-hosted OSV mirror avoids third-party disclosure
+# timeout_secs = 5
+# cache_ttl_secs = 3600
+# breaker_threshold = 5
+# breaker_cooldown_secs = 300
+# sweep_interval_secs = 3600   # background sweep; 0 disables it
+# sweep_batch = 10             # versions per source per round; 0 disables it
+```
+
+> **Privacy.** Enabling this sends watched package names and versions to the
+> configured OSV endpoint. Use a self-hosted mirror if that disclosure is
+> unacceptable.
+
+| Covered | Not queried |
+|---|---|
+| `pypi`, `npm`, `yarn` (as npm), `cargo`, `maven`, `nuget`, `hex`, `rubygems`, `packagist` | `cpan`, Git forges, containers, Artifact Hub, feeds |
+
+**Why containers are not covered.** A `docker` / `ghcr` / `quay` / `ecr` source
+reads `GET /v2/<image>/tags/list` — a list of tag *names* and nothing else. A
+tag is not a package coordinate, so there is nothing to ask OSV about. Finding
+CVEs in an image means resolving the tag to a manifest, pulling its layers or
+an attached SBOM, enumerating the OS and language packages inside, and querying
+each one (OSV does index `Debian:*`, `Alpine:*`, `Ubuntu:*` …). That is image
+scanning — Trivy / Grype / Docker Scout territory — not something xrelease does,
+and guessing an ecosystem from a tag name would produce confident nonsense. The
+dashboard therefore hides the severity column entirely for container sources
+rather than showing a permanently empty one.
+
+Enrichment never blocks delivery: timeouts, HTTP errors, or an open circuit
+breaker leave the notification unenriched. Digest messages are not enriched
+(several releases in one message). Withdrawn advisories are omitted. A
+notification lists at most eight findings (`…and N more`); the full set is in
+the dashboard.
+
+**Dashboard:** severity chips on a source’s release table (`C` / `H` / `M` /
+`L` / `I` — `I` = severity unknown) and **Advisories** on the source page
+(`/sources/{id}/advisories`). Cached findings also appear on
+`GET /api/v1/sources/{id}` (not on the sources list). Retention:
+[`prune_advisories_after_days`](../operations/scaling.md#postgresql-growth-control),
+which covers both the findings and the check ledger below.
+
+### Which releases actually get looked up
+
+Not every release, and not all at once — the lookups are bounded so neither a
+delivery nor a page load can stall on a third party.
+
+| Path | Scope | Bound |
+|---|---|---|
+| Delivery enrichment | Only versions that produced a notification | Baseline (first) polls notify nothing, so their versions are never enriched this way; digests are skipped |
+| **Background sweep** | **Every synced release of every watched package source** | `sweep_batch` (10) versions per source per round, every `sweep_interval_secs` (1 h) |
+| Source-detail page | Newest **200** synced releases | **5** OSV lookups per request, run concurrently |
+| Repeat lookups | — | In-process cache for `cache_ttl_secs`; results and "checked, nothing found" both persisted |
+
+Every verified answer — including a clean one — is recorded, so each pass
+resumes where the last stopped instead of re-confirming the same newest
+releases. A lookup that never reached OSV (disabled, breaker open, timeout) is
+deliberately *not* recorded, so an outage cannot silently mark a version clean.
+
+### Background sweep
+
+Delivery-time enrichment only covers versions that actually notified, and a
+source's first poll is a silent baseline — so without a sweep, everything a
+source was already publishing when you added it stays unchecked unless a human
+opens its detail page. The sweep closes that gap on its own.
+
+- **On by default** whenever `[advisories] enabled = true`. Enabling enrichment
+  already discloses the watched package names; the sweep only adds more
+  versions of those same packages.
+- Walks sources one at a time, `sweep_batch` versions of each concurrently, so
+  peak in-flight requests stay at `sweep_batch` no matter how many sources are
+  configured.
+- First round starts 60 s after boot, so it does not pile onto startup polling.
+- Converges and then costs nothing: a source with 200 synced releases is fully
+  covered in under a day, after which each round reads one indexed anti-join
+  per source and returns no work.
+- Follows the watch list — a config apply restarts it against the new set, and
+  a source with no OSV coordinate (container, Git forge, feed) never enters it.
+- Self-limiting during an OSV outage: once the circuit breaker opens, the rest
+  of the round short-circuits without touching the network and records nothing.
+
+Set either `sweep_interval_secs = 0` or `sweep_batch = 0` to turn it off.
+
 ## Desired-state example
 
 Paste into UI Apply, or save as `app/releases.yaml` for GitOps. Full sample:

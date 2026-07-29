@@ -45,7 +45,9 @@
 
 #![forbid(unsafe_code)]
 
+pub mod advisory;
 pub mod api;
+pub(crate) mod breaker;
 pub mod config;
 pub mod config_apply;
 pub mod crypto;

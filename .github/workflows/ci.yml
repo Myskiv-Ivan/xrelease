@@ -144,6 +144,9 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Chart correctness without a cluster. Runtime proof (images boot, nginx
+  # proxies, endpoints resolve) lives in .github/workflows/k8s-e2e.yml, which
+  # only fires when deploy/ or docker/ changes.
   helm:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
@@ -152,40 +155,106 @@ jobs:
         with:
           version: v3.21.3
 
-      - name: Lint chart
-        run: helm lint deploy/helm/xrelease -f deploy/k8s/ci/values-secrets.yaml
-
-      - name: Template render (operator defaults)
+      - name: Lint, render default + lab, check shape
         run: |
-          helm template xrelease deploy/helm/xrelease \
-            -f deploy/k8s/ci/values-secrets.yaml \
-            > /tmp/xrelease-manifests.yaml
-          grep -q 'kind: Deployment' /tmp/xrelease-manifests.yaml
-          grep -q 'kind: StatefulSet' /tmp/xrelease-manifests.yaml
-          grep -q 'kind: Ingress' /tmp/xrelease-manifests.yaml
-          grep -q 'xrelease-apprise' /tmp/xrelease-manifests.yaml
+          set -e
+          C=deploy/helm/xrelease
+          # Fixed secrets so two renders of the same input compare equal.
+          cat > /tmp/ci-secrets.yaml <<'EOF'
+          secrets:
+            adminPassword: ci
+          EOF
+          # kind/lab override: builtin PG, no Gateway/CNPG/NP (CI + e2e smoke).
+          cat > /tmp/lab.yaml <<'EOF'
+          ingress:
+            enabled: false
+          gateway:
+            enabled: false
+          postgresql:
+            mode: builtin
+            enabled: true
+            auth:
+              password: ci-pg
+          ui:
+            replicaCount: 1
+          networkPolicy:
+            enabled: false
+          metrics:
+            serviceMonitor:
+              enabled: false
+          EOF
 
-      - name: Template dev overlay (local images)
+          helm lint $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml
+          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml >/tmp/default.yaml
+          helm template xrelease $C -f /tmp/ci-secrets.yaml -f /tmp/lab.yaml >/tmp/lab-render.yaml
+          printf 'ui:\n  enabled: false\n' >/tmp/no-ui.yaml
+          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml -f /tmp/no-ui.yaml >/dev/null
+
+          for k in 'kind: Cluster' 'kind: HTTPRoute' 'kind: ServiceMonitor' \
+                   'kind: PodDisruptionBudget' 'key: uri' 'helm.sh/resource-policy: keep'; do
+            grep -q "$k" /tmp/default.yaml || { echo "default render missing: $k" >&2; exit 1; }
+          done
+          ! grep -qE '^kind: (Ingress|StatefulSet)' /tmp/default.yaml
+          # lab has builtin StatefulSet, no PDB (ui×1), no HTTPRoute/Cluster
+          grep -q 'kind: StatefulSet' /tmp/lab-render.yaml
+          ! grep -q 'kind: PodDisruptionBudget' /tmp/lab-render.yaml
+          ! grep -q 'proxy_pass .*:8080/metrics' /tmp/default.yaml
+          printf 'ui:\n  exposeMetrics: true\n' >/tmp/expose-metrics.yaml
+          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml \
+            -f /tmp/expose-metrics.yaml | grep -q 'proxy_pass .*:8080/metrics'
+          [ "$(grep -m1 checksum/ui-nginx /tmp/default.yaml)" \
+            != "$(helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml \
+                 -f /tmp/expose-metrics.yaml | grep -m1 checksum/ui-nginx)" ]
+          helm package $C -d /tmp/xrelease-chart
+          test -f /tmp/xrelease-chart/xrelease-*.tgz
+
+      - name: Broken values are rejected with an actionable message
         run: |
-          helm template xrelease deploy/helm/xrelease \
-            -f deploy/k8s/values.dev.yaml \
-            -f deploy/k8s/ci/values-secrets.yaml \
-            > /tmp/xrelease-dev.yaml
-          grep -q 'image: "xrelease:dev"' /tmp/xrelease-dev.yaml
-          grep -q 'image: "xrelease-ui:dev"' /tmp/xrelease-dev.yaml
+          set -e
+          cat > /tmp/ci-secrets.yaml <<'EOF'
+          secrets:
+            adminPassword: ci
+          EOF
+          V="-f /tmp/ci-secrets.yaml"
+          fails() { m="$1"; shift
+            if helm template xrelease deploy/helm/xrelease $V "$@" >/dev/null 2>/tmp/e; then
+              echo "expected failure: $*" >&2; exit 1; fi
+            grep -qi "$m" /tmp/e || { echo "wrong error for $*:" >&2; cat /tmp/e >&2; exit 1; }; }
+          fails 'replicaCount must be 1'                   --set replicaCount=2
+          fails 'either ingress.enabled OR gateway'        --set ingress.enabled=true
+          fails 'requires gateway.parentRef.name'          --set gateway.parentRef.name=
+          fails 'requires postgresql.enabled=false'        --set postgresql.enabled=true
+          fails 'requires postgresql.cnpg.clusterName'     --set postgresql.cnpg.clusterName=
+          fails 'no database configured'                   --set postgresql.mode=external
+          fails 'either secrets.existingSecret OR secrets' --set secrets.existingSecret=mine
+          fails 'still the CHANGE_ME placeholder'          --set secrets.webhookSecret=CHANGE_ME
+          if helm template xrelease deploy/helm/xrelease >/dev/null 2>/tmp/e; then exit 1; fi
+          grep -qi 'requires secrets.adminPassword' /tmp/e
 
-      - name: Reject replicaCount > 1
+      - name: Policy scope and generated secrets
         run: |
-          if helm template xrelease deploy/helm/xrelease \
-            -f deploy/k8s/ci/values-bad-replicas.yaml \
-            -f deploy/k8s/ci/values-secrets.yaml \
-            2>/tmp/helm-fail.txt; then
-            echo "expected helm template to fail for replicaCount=2" >&2
-            exit 1
-          fi
-          grep -qi 'replicaCount must be 1' /tmp/helm-fail.txt
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml
+          python3 - <<'PY'
+          import sys, yaml
+          docs = [d for d in yaml.safe_load_all(open('/tmp/default.yaml')) if d]
+          for p in (d for d in docs if d['kind'] == 'NetworkPolicy'):
+              for way, peer in (('ingress', 'from'), ('egress', 'to')):
+                  if any(not r.get(peer) for r in p['spec'].get(way) or []):
+                      sys.exit(f"{p['metadata']['name']}: unscoped {way} rule")
+          data = {k: v for d in docs if d['kind'] == 'Secret' for k, v in d['stringData'].items()}
+          env = {e['name'] for d in docs if d['kind'] == 'Deployment'
+                 and d['metadata']['name'] == 'xrelease'
+                 for e in d['spec']['template']['spec']['containers'][0]['env']}
+          gen = {'XRELEASE_API_KEY', 'XRELEASE_WEBHOOK_SECRET',
+                 'XRELEASE_SESSION_SECRET', 'XRELEASE_CONFIG_ENCRYPTION_KEY'}
+          if gen - env:
+              sys.exit(f'generated secrets never reach the pod: {sorted(gen - env)}')
+          k = data['XRELEASE_CONFIG_ENCRYPTION_KEY']
+          if len(k) != 64 or k.strip('0123456789abcdef'):
+              sys.exit('ledger key is not the 64-char hex the backend parses')
+          print('policy scope and generated secrets ok')
+          PY
 
-  # Compose validity does not need rust/front — run in parallel with them.
   compose:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:

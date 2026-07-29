@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SourceDetail } from '$lib/api/types';
 	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
+	import OrgScopeNotice from '$lib/components/layout/OrgScopeNotice.svelte';
 	import SourcesTable from '$lib/components/sources/SourcesTable.svelte';
 	import EmptyState from '$lib/components/kit/EmptyState.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
@@ -22,17 +22,14 @@
 		passesSelectFilter,
 		passesTeamFilter
 	} from '$lib/core/table-filters';
-	import { belongsToOrganization } from '$lib/core/organization';
+	import { scopeToOrganization } from '$lib/data/organization-scope';
 	import { getSourcesStore } from '$lib/data/sources.svelte';
 	import { getTeamsStore } from '$lib/data/teams.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
 	import { getAuthState } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
 
 	const sourcesStore = getSourcesStore();
 	const teamsStore = getTeamsStore();
-	const orgs = getOrganizationsState();
 	const auth = getAuthState();
 
 	let sort = $state<SortState<SourceSortKey>>({
@@ -44,12 +41,9 @@
 	let search = $state('');
 
 	/** Multi-org runtime is composed; switcher scopes this view to `{org}::…` ids. */
-	const orgScopedSources = $derived.by(() => {
-		if (!orgs.isMultiOrg || !orgs.selectedId) return sourcesStore.sources;
-		return sourcesStore.sources.filter((source) =>
-			belongsToOrganization(source.id, orgs.selectedId)
-		);
-	});
+	const orgScopedSources = $derived(
+		scopeToOrganization(sourcesStore.sources, (source) => source.id)
+	);
 
 	const kindOptions = $derived.by(() => {
 		const kinds = new Set(orgScopedSources.map((source) => source.kind));
@@ -125,12 +119,7 @@
 	lastUpdated={sourcesStore.lastUpdated}
 	onRefresh={() => sourcesStore.refresh()}
 >
-	{#if orgs.isMultiOrg && orgs.selected}
-		<p class="mb-3 {TYPE_HINT}">
-			{t('org.filterActive').replace('{org}', orgs.selected.name)}
-			<span class="text-muted-foreground"> — {t('org.filterAllHint')}</span>
-		</p>
-	{/if}
+	<OrgScopeNotice />
 	{#if orgScopedSources.length === 0}
 		<EmptyState title={t('sources.emptyTitle')} description={t('sources.emptyDescription')}>
 			{#snippet actions()}

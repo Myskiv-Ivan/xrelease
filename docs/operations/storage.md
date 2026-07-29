@@ -36,6 +36,8 @@ See [Scaling](scaling.md) for retention (`prune_*`) and growth expectations.
 | `config_revision` | Applied app config history (`source = api`) | Append-only; structure + `*_env` refs; stream via `organization_id` |
 | `app_secret` | UI/API secret values keyed by env-var name | Encrypted at rest when a key is set |
 | `app_user` | Local + OIDC UI principals / session version | Small |
+| `release_advisory` | Cached OSV findings per package coordinate | When `[advisories]` enabled; prune via `prune_advisories_*` |
+| `advisory_check` | “Looked up, nothing found” markers | Same retention as `release_advisory` |
 | `schema_meta` | Applied schema version | 1 row |
 
 Desired-state authority and how CLI/API/UI interact with `config_revision`:
@@ -73,8 +75,10 @@ xrelease first.
 
 ## Docker storage
 
-Postgres data lives in the `postgres-data` Compose volume. The xrelease
-container is **stateless** — no application data volume.
+Postgres data lives in the `postgres-data` Compose volume, mounted at
+`/var/lib/postgresql` with the image's default `PGDATA`
+(`/var/lib/postgresql/18/docker`). The xrelease container is **stateless** —
+its root filesystem is read-only with `tmpfs` for `/data` and `/tmp`.
 
 Lab reset (wipes all state):
 
@@ -85,9 +89,25 @@ docker compose up -d
 
 ## Kubernetes storage
 
-- **PostgreSQL:** managed service, chart StatefulSet (default), or operator PVC
-- **xrelease pod:** ConfigMap for config files only
-- **Apprise:** optional PVC for persistent channel registration
+- **PostgreSQL:** CloudNativePG (`values.yaml`), managed service (GitOps variant), or chart StatefulSet (lab)
+- **xrelease pod:** ConfigMap for config files, `emptyDir` for `/data` + `/tmp`
+- **Apprise:** stateless in the chart; add a PVC for persistent channel registration
+
+The chart's PVC (`{release}-postgresql`) carries
+`helm.sh/resource-policy: keep`, so `helm uninstall` leaves the data behind.
+Reclaim it deliberately:
+
+```bash
+kubectl -n xrelease delete pvc xrelease-postgresql
+```
+
+Set `postgresql.persistence.retain=false` for throwaway clusters.
+
+### Volumes are not interchangeable between Compose and Helm
+
+The chart pins `PGDATA=/var/lib/postgresql/pgdata` while Compose keeps the
+image default. A volume written by one will not be picked up by the other —
+move data with `pg_dump` / `psql`, not by copying the filesystem.
 
 ## Per-sink delivery
 

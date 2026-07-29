@@ -1,0 +1,246 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fullName := include "xrelease.fullname" . -}}
+{{- $pgName := include "xrelease.postgresqlName" . -}}
+{{- /*
+  Namespace-scoped zero trust. Requires a CNI that enforces NetworkPolicy
+  (Calico, Cilium, …) — with a non-enforcing CNI these objects are inert.
+
+  Egress to the public internet stays open for the backend: polling upstream
+  registries and delivering to SaaS sinks is the product. Only lateral traffic
+  inside the namespace is constrained.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-server
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # UI nginx proxies /api and the probes.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "ui") | nindent 14 }}
+      ports:
+        - port: http
+          protocol: TCP
+    # Ingress controller / Gateway data plane — needed for the api route
+    # (forge webhooks) and for ui.enabled=false, where the front door points
+    # straight at the backend. Set ingressControllerNamespace to wherever your
+    # controller actually runs (envoy-gateway-system, nginx-gateway, istio-system, …).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressControllerNamespace }}
+      ports:
+        - port: http
+          protocol: TCP
+    {{- with .Values.networkPolicy.monitoringNamespace }}
+    # Prometheus scrape of /metrics. Scoped to one namespace on purpose: a rule
+    # with no `from` matches every source, which would undo the two above.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+      ports:
+        - port: http
+          protocol: TCP
+    {{- end }}
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if .Values.postgresql.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 14 }}
+      ports:
+        - port: 5432
+          protocol: TCP
+    {{- end }}
+    {{- if eq .Values.postgresql.mode "cnpg" }}
+    # CloudNativePG labels every instance pod with cnpg.io/cluster.
+    - to:
+        {{- if .Values.postgresql.cnpg.namespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.postgresql.cnpg.namespace }}
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.postgresql.cnpg.clusterName }}
+        {{- else }}
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.postgresql.cnpg.clusterName }}
+        {{- end }}
+      ports:
+        - port: 5432
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.apprise.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 14 }}
+      ports:
+        - port: {{ .Values.apprise.service.port }}
+          protocol: TCP
+    {{- end }}
+    # Upstream registries, forge APIs, SaaS sinks and external PostgreSQL.
+    - to:
+        - ipBlock:
+            {{- include "xrelease.internetIpBlock" . | nindent 12 }}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+        - port: 5432
+          protocol: TCP
+        - port: 587
+          protocol: TCP
+        - port: 465
+          protocol: TCP
+    {{- range .Values.networkPolicy.extraEgressCIDRs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . | quote }}
+    {{- end }}
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $pgName }}
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 6 }}
+  # Ingress-only: nothing else in the namespace may reach the database.
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 14 }}
+      ports:
+        - port: 5432
+          protocol: TCP
+{{- end }}
+{{- if .Values.ui.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-ui
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "ui") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressControllerNamespace }}
+      ports:
+        - port: http
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 14 }}
+      ports:
+        # Numeric, not the `http` name: named ports in EGRESS rules resolve
+        # against the destination pods and are unevenly supported across CNIs.
+        - port: {{ .Values.service.port }}
+          protocol: TCP
+{{- end }}
+{{- if .Values.apprise.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-apprise
+  labels:
+    {{- include "xrelease.labels" . | nindent 4 }}
+    app.kubernetes.io/component: apprise
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 14 }}
+      ports:
+        - port: http
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Apprise fans out to Slack / Telegram / SMTP / … on the public internet.
+    - to:
+        - ipBlock:
+            {{- include "xrelease.internetIpBlock" . | nindent 12 }}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+        - port: 587
+          protocol: TCP
+        - port: 465
+          protocol: TCP
+        - port: 25
+          protocol: TCP
+    {{- /* Same escape hatch as the backend: an internal SMTP relay or webhook
+           sink lives in RFC1918 space that blockPrivateEgress just removed. */}}
+    {{- range .Values.networkPolicy.extraEgressCIDRs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}

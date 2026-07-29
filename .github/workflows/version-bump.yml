@@ -58,9 +58,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # bump-version.py also updates pinned image.tag overlays; compose.dev
+          # builds from source (xrelease:dev) and has no release tag to commit.
           git add Cargo.toml Cargo.lock api/openapi.json front/package.json front/package-lock.json \
             front/src/lib/api/schema.d.ts \
-            deploy/helm/xrelease/Chart.yaml docker-compose.yaml docker/docker-compose.dev.yaml
+            deploy/helm/xrelease/Chart.yaml docker-compose.yaml \
+            deploy/k8s/values.yaml
           git commit -m "chore: release v${VERSION}"
           git tag "v${VERSION}"
           git push origin HEAD

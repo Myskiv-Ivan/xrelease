@@ -40,6 +40,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::future::join_all;
 
+use crate::breaker::Breaker;
 use crate::error::NotifyError;
 
 /// Default consecutive failures before [`CompositeNotifier`] trips a sink's
@@ -291,71 +292,18 @@ impl Default for BreakerConfig {
     }
 }
 
-/// Per-sink failure tracking for [`CompositeNotifier::notify_partial`].
-///
-/// Three conceptual states without a separate enum tag: `open_until` is `None`
-/// in the closed state; once set, calls are rejected until [`Instant::now`]
-/// reaches it (open), at which point exactly one trial call is meant to pass
-/// through (half-open) — success clears `open_until`, failure re-arms it for
-/// another cooldown. Under concurrent delivery to the same sink index, two
-/// callers can both observe the cooldown as elapsed and both proceed as the
-/// "one" trial call; the consequence is at most one extra probe against a
-/// possibly-still-broken sink, not a correctness issue, so this is accepted
-/// rather than solved with a compare-and-swap permit.
-#[derive(Debug)]
-struct SinkBreaker {
-    consecutive_failures: u32,
-    open_until: Option<Instant>,
-}
-
-impl SinkBreaker {
-    fn new() -> Self {
-        Self {
-            consecutive_failures: 0,
-            open_until: None,
-        }
-    }
-
-    /// Whether a call should be attempted right now.
-    fn allows(&self, now: Instant) -> bool {
-        match self.open_until {
-            None => true,
-            Some(until) => now >= until,
-        }
-    }
-
-    /// Record a call outcome, transitioning state.
-    ///
-    /// Returns `true` when this call newly opens (or re-opens after a failed
-    /// half-open trial) the breaker — used for ops meta-alerts.
-    fn record(&mut self, now: Instant, success: bool, config: &BreakerConfig) -> bool {
-        if success {
-            self.consecutive_failures = 0;
-            self.open_until = None;
-            return false;
-        }
-        self.consecutive_failures = self.consecutive_failures.saturating_add(1);
-        if self.consecutive_failures >= config.failure_threshold {
-            let already_open = self.open_until.is_some_and(|until| now < until);
-            self.open_until = Some(now + config.cooldown);
-            return !already_open;
-        }
-        false
-    }
-}
-
 /// Fan-out notifier with per-sink team tag routing.
 ///
 /// Per-sink delivery is tracked in `notification_sink_delivery` so retries only
 /// hit sinks that have not yet acknowledged the event. When all matching sinks
 /// succeed, the parent outbox row is marked `sent`. Each sink also carries its
-/// own [`SinkBreaker`]: a sink that fails repeatedly is skipped for a cooldown
+/// own [`Breaker`]: a sink that fails repeatedly is skipped for a cooldown
 /// instead of paying a connect/request timeout on every call (see
 /// [`Self::notify_partial`]).
 #[derive(Clone)]
 pub struct CompositeNotifier {
     sinks: Vec<RoutedSink>,
-    breakers: Vec<Arc<Mutex<SinkBreaker>>>,
+    breakers: Vec<Arc<Mutex<Breaker>>>,
     breaker_config: BreakerConfig,
     /// Labels of sinks whose breakers newly opened; drained by outbox flush.
     newly_opened: Arc<Mutex<Vec<String>>>,
@@ -375,7 +323,7 @@ impl CompositeNotifier {
     pub fn with_breaker_config(sinks: Vec<RoutedSink>, breaker_config: BreakerConfig) -> Self {
         let breakers = sinks
             .iter()
-            .map(|_| Arc::new(Mutex::new(SinkBreaker::new())))
+            .map(|_| Arc::new(Mutex::new(Breaker::new())))
             .collect();
         Self {
             sinks,
@@ -574,7 +522,12 @@ impl CompositeNotifier {
     fn record_breaker_outcome(&self, index: usize, success: bool) -> Option<String> {
         let breaker = self.breakers.get(index)?;
         let mut state = breaker.lock().unwrap_or_else(|e| e.into_inner());
-        let newly_opened = state.record(Instant::now(), success, &self.breaker_config);
+        let newly_opened = state.record(
+            Instant::now(),
+            success,
+            self.breaker_config.failure_threshold,
+            self.breaker_config.cooldown,
+        );
         newly_opened.then(|| self.label_at(index))
     }
 
@@ -636,167 +589,6 @@ mod tests {
             url: None,
             routing_tag: tag.map(ToOwned::to_owned),
         }
-    }
-
-    // --- SinkBreaker state machine: pure, no sleeping — time is an explicit
-    // parameter, same pattern as `pipeline::backoff_secs`. ---
-
-    #[test]
-    fn breaker_should_allow_calls_when_closed() {
-        let breaker = SinkBreaker::new();
-        assert!(breaker.allows(Instant::now()));
-    }
-
-    #[tokio::test]
-    async fn describe_should_list_sink_metadata() {
-        use std::collections::HashMap;
-
-        use crate::notify::webhook::{WebhookMethod, WebhookNotifier};
-
-        let webhook = WebhookNotifier::new(
-            reqwest::Client::new(),
-            "hooks",
-            "https://example.test/hook",
-            WebhookMethod::Post,
-            &HashMap::new(),
-            None,
-            None,
-        )
-        .expect("webhook");
-        let notifier = CompositeNotifier::new(vec![RoutedSink::new(
-            Sink::Webhook(webhook),
-            vec!["platform".into()],
-        )]);
-        let views = notifier.describe();
-        assert_eq!(views.len(), 1);
-        assert_eq!(views[0].index, 0);
-        assert_eq!(views[0].kind, "webhook");
-        assert_eq!(views[0].name, "hooks");
-        assert_eq!(views[0].tags, vec!["platform"]);
-    }
-
-    #[tokio::test]
-    async fn test_at_should_reject_out_of_range_index() {
-        use std::collections::HashMap;
-
-        use crate::notify::webhook::{WebhookMethod, WebhookNotifier};
-
-        let webhook = WebhookNotifier::new(
-            reqwest::Client::new(),
-            "hooks",
-            "https://example.test/hook",
-            WebhookMethod::Post,
-            &HashMap::new(),
-            None,
-            None,
-        )
-        .expect("webhook");
-        let notifier =
-            CompositeNotifier::new(vec![RoutedSink::new(Sink::Webhook(webhook), Vec::new())]);
-        let err = notifier
-            .test_at(3, &event(None))
-            .await
-            .expect_err("index 3");
-        assert!(err.to_string().contains("out of range"));
-    }
-
-    #[test]
-    fn breaker_should_stay_closed_below_threshold() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 3,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        breaker.record(now, false, &config);
-        assert!(breaker.allows(now));
-    }
-
-    #[test]
-    fn breaker_should_open_after_threshold_consecutive_failures() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 3,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        breaker.record(now, false, &config);
-        breaker.record(now, false, &config);
-        assert!(!breaker.allows(now));
-    }
-
-    #[test]
-    fn breaker_should_reject_while_cooldown_has_not_elapsed() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 1,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        assert!(!breaker.allows(now + Duration::from_secs(30)));
-    }
-
-    #[test]
-    fn breaker_should_allow_trial_call_once_cooldown_elapses() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 1,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        assert!(breaker.allows(now + Duration::from_secs(60)));
-    }
-
-    #[test]
-    fn breaker_should_reset_consecutive_failures_on_success() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 3,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        breaker.record(now, false, &config);
-        breaker.record(now, true, &config);
-        assert_eq!(breaker.consecutive_failures, 0);
-        // Two more failures after the reset stay below the threshold again.
-        breaker.record(now, false, &config);
-        breaker.record(now, false, &config);
-        assert!(breaker.allows(now));
-    }
-
-    #[test]
-    fn breaker_should_close_again_after_a_successful_trial() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 1,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        let trial_at = now + Duration::from_secs(60);
-        assert!(breaker.allows(trial_at));
-        breaker.record(trial_at, true, &config);
-        assert!(breaker.allows(trial_at));
-    }
-
-    #[test]
-    fn breaker_should_reopen_after_a_failed_trial() {
-        let mut breaker = SinkBreaker::new();
-        let config = BreakerConfig {
-            failure_threshold: 1,
-            cooldown: Duration::from_secs(60),
-        };
-        let now = Instant::now();
-        breaker.record(now, false, &config);
-        let trial_at = now + Duration::from_secs(60);
-        breaker.record(trial_at, false, &config);
-        assert!(!breaker.allows(trial_at));
-        assert!(breaker.allows(trial_at + Duration::from_secs(60)));
     }
 
     // --- CompositeNotifier integration: the breaker actually skips the

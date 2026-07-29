@@ -1,7 +1,19 @@
 //! Integration tests for the PostgreSQL store (require a running Postgres).
 
+use crate::advisory::{Advisory, Severity};
 use crate::notify::Event;
 use crate::store::{OutboxMeta, SeenUpsert, Store};
+
+fn advisory(id: &str, severity: Option<Severity>) -> Advisory {
+    Advisory {
+        id: id.to_owned(),
+        display_id: id.to_owned(),
+        summary: Some(format!("{id} summary")),
+        severity,
+        cvss_vector: None,
+        url: Some(format!("https://osv.dev/vulnerability/{id}")),
+    }
+}
 
 fn seen<'a>(identity: &'a str, content_digest: Option<&'a str>) -> SeenUpsert<'a> {
     SeenUpsert {
@@ -529,7 +541,10 @@ fn open_should_stamp_schema_meta_baseline() {
         return;
     };
     let version = store.schema_version().expect("schema_meta");
-    assert_eq!(version, 1, "greenfield baseline is schema version 1");
+    assert_eq!(
+        version, 2,
+        "open must run every migration (v2 = sentinel publish-date cleanup)"
+    );
 }
 
 #[test]
@@ -760,4 +775,661 @@ fn set_user_oidc_link_email_should_reject_address_owned_by_another_user() {
         err.to_string().contains("already used by user"),
         "unexpected error: {err}"
     );
+}
+
+#[test]
+fn record_advisories_should_round_trip_severity_and_optional_fields() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("crates.io");
+    store
+        .record_advisories(
+            &ecosystem,
+            "serde",
+            "1.0.0",
+            &[
+                advisory("RUSTSEC-2024-0001", Some(Severity::Critical)),
+                advisory("RUSTSEC-2024-0002", None),
+            ],
+        )
+        .expect("record");
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "serde", &["1.0.0"])
+        .expect("read");
+    let mut versions = found.get("1.0.0").cloned().unwrap_or_default();
+    versions.sort_by(|a, b| a.id.cmp(&b.id));
+
+    assert_eq!(versions.len(), 2);
+    assert_eq!(versions[0].id, "RUSTSEC-2024-0001");
+    assert_eq!(versions[0].severity, Some(Severity::Critical));
+    assert_eq!(
+        versions[0].summary.as_deref(),
+        Some("RUSTSEC-2024-0001 summary")
+    );
+    assert_eq!(
+        versions[0].url.as_deref(),
+        Some("https://osv.dev/vulnerability/RUSTSEC-2024-0001")
+    );
+    assert_eq!(
+        versions[1].severity, None,
+        "an advisory with no stated severity must not resurrect one on read"
+    );
+}
+
+#[test]
+fn record_advisories_should_replace_the_prior_set_not_accumulate_it() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("npm");
+    store
+        .record_advisories(
+            &ecosystem,
+            "left-pad",
+            "1.3.0",
+            &[advisory("GHSA-old", None)],
+        )
+        .expect("first write");
+
+    // A later lookup can legitimately return a different set (a false positive
+    // withdrawn, a correction) — the second write must fully replace the first,
+    // not merge with it.
+    store
+        .record_advisories(
+            &ecosystem,
+            "left-pad",
+            "1.3.0",
+            &[advisory("GHSA-new", Some(Severity::Low))],
+        )
+        .expect("second write");
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "left-pad", &["1.3.0"])
+        .expect("read");
+    let versions = found.get("1.3.0").expect("version present");
+    assert_eq!(
+        versions.len(),
+        1,
+        "stale entry must not survive the replace"
+    );
+    assert_eq!(versions[0].id, "GHSA-new");
+}
+
+#[test]
+fn record_advisories_with_empty_slice_should_clear_existing_rows() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("pypi");
+    store
+        .record_advisories(
+            &ecosystem,
+            "requests",
+            "2.32.0",
+            &[advisory("PYSEC-1", None)],
+        )
+        .expect("seed");
+    store
+        .record_advisories(&ecosystem, "requests", "2.32.0", &[])
+        .expect("clear");
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "requests", &["2.32.0"])
+        .expect("read");
+    assert!(
+        !found.contains_key("2.32.0"),
+        "a cleared version must be absent, not present with an empty Vec"
+    );
+}
+
+#[test]
+fn advisories_for_versions_should_batch_several_versions_in_one_call() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("maven");
+    store
+        .record_advisories(
+            &ecosystem,
+            "com.example:lib",
+            "1.0.0",
+            &[advisory("GHSA-a", None)],
+        )
+        .expect("v1");
+    store
+        .record_advisories(
+            &ecosystem,
+            "com.example:lib",
+            "2.0.0",
+            &[advisory("GHSA-b", None), advisory("GHSA-c", None)],
+        )
+        .expect("v2");
+
+    // "3.0.0" was never written — the batch call must still succeed and simply
+    // omit it, matching a source whose latest seen release has no advisories.
+    let found = store
+        .advisories_for_versions(&ecosystem, "com.example:lib", &["1.0.0", "2.0.0", "3.0.0"])
+        .expect("read");
+
+    assert_eq!(
+        found.len(),
+        2,
+        "undated version must be absent, not an error"
+    );
+    assert_eq!(found["1.0.0"].len(), 1);
+    assert_eq!(found["2.0.0"].len(), 2);
+}
+
+#[test]
+fn advisories_for_versions_should_scope_by_package_within_one_ecosystem() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("nuget");
+    store
+        .record_advisories(&ecosystem, "PackageA", "1.0.0", &[advisory("GHSA-a", None)])
+        .expect("package a");
+    store
+        .record_advisories(&ecosystem, "PackageB", "1.0.0", &[advisory("GHSA-b", None)])
+        .expect("package b");
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "PackageA", &["1.0.0"])
+        .expect("read");
+    assert_eq!(found["1.0.0"].len(), 1);
+    assert_eq!(
+        found["1.0.0"][0].id, "GHSA-a",
+        "a same-version row from a different package must not leak in"
+    );
+}
+
+#[test]
+fn prune_with_zero_advisories_after_days_should_not_touch_release_advisory() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("hex");
+    store
+        .record_advisories(
+            &ecosystem,
+            "phoenix",
+            "1.7.0",
+            &[advisory("GHSA-fresh", None)],
+        )
+        .expect("seed");
+
+    let report = store.prune(0, 0, 0, 0).expect("prune");
+    assert_eq!(
+        report.advisories_deleted, 0,
+        "advisories_after_days = 0 must disable that retention rule entirely"
+    );
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "phoenix", &["1.7.0"])
+        .expect("read");
+    assert_eq!(found["1.7.0"].len(), 1, "row must survive a disabled prune");
+}
+
+#[test]
+fn prune_with_advisories_retention_should_not_delete_a_row_just_written() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("rubygems");
+    store
+        .record_advisories(
+            &ecosystem,
+            "rails",
+            "7.1.0",
+            &[advisory("GHSA-fresh2", None)],
+        )
+        .expect("seed");
+
+    // A large retention window must not delete a row `fetched_at = now()`.
+    let report = store.prune(0, 0, 0, 365).expect("prune");
+    assert_eq!(report.advisories_deleted, 0);
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "rails", &["7.1.0"])
+        .expect("read");
+    assert_eq!(found["7.1.0"].len(), 1);
+}
+
+/// The whole point of `advisory_check`: a version OSV confirmed *clean* leaves
+/// no `release_advisory` row, so without this ledger it is indistinguishable
+/// from one that was never looked at — and the detail-page backfill would keep
+/// re-querying it forever instead of moving on to versions it has not seen.
+#[test]
+fn checked_versions_should_remember_a_version_with_no_findings() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("crates.io");
+    store
+        .record_advisories(&ecosystem, "serde", "1.0.0", &[])
+        .expect("clean findings");
+    store
+        .record_advisory_check(&ecosystem, "serde", "1.0.0")
+        .expect("mark checked");
+
+    let found = store
+        .advisories_for_versions(&ecosystem, "serde", &["1.0.0"])
+        .expect("read findings");
+    assert!(
+        !found.contains_key("1.0.0"),
+        "a clean version has no findings rows"
+    );
+
+    let checked = store
+        .checked_versions(&ecosystem, "serde", &["1.0.0"])
+        .expect("read checks");
+    assert!(
+        checked.contains("1.0.0"),
+        "…but it is still recorded as checked"
+    );
+}
+
+#[test]
+fn checked_versions_should_omit_versions_never_looked_up() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("npm");
+    store
+        .record_advisory_check(&ecosystem, "axios", "1.7.0")
+        .expect("mark checked");
+
+    let checked = store
+        .checked_versions(&ecosystem, "axios", &["1.7.0", "1.8.0"])
+        .expect("read checks");
+    assert!(checked.contains("1.7.0"));
+    assert!(
+        !checked.contains("1.8.0"),
+        "an unchecked version must stay a backfill candidate"
+    );
+}
+
+#[test]
+fn checked_versions_should_scope_by_package_within_one_ecosystem() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("pypi");
+    store
+        .record_advisory_check(&ecosystem, "requests", "2.32.0")
+        .expect("mark checked");
+
+    let other = store
+        .checked_versions(&ecosystem, "urllib3", &["2.32.0"])
+        .expect("read checks");
+    assert!(
+        other.is_empty(),
+        "a same-version marker from a different package must not leak in"
+    );
+}
+
+/// A registry listing one version twice must not fail the whole baseline.
+///
+/// `ON CONFLICT DO UPDATE` errors outright when a single statement touches the
+/// same row twice, so the batched insert dedupes with `DISTINCT ON`. The
+/// per-item loop it replaced tolerated duplicates for free.
+#[test]
+fn record_seen_batch_should_tolerate_a_duplicated_identity() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("npm:dupe");
+    store
+        .record_seen_batch(
+            &source,
+            &[
+                seen("1.0.0", None),
+                seen("1.0.0", None),
+                seen("1.1.0", None),
+            ],
+        )
+        .expect("duplicate identity must not fail the baseline");
+
+    let listed = store.list_seen_releases(&source, 10).expect("list");
+    assert_eq!(listed.len(), 2, "the duplicate collapses to one row");
+}
+
+#[test]
+fn enrich_seen_metadata_should_fill_missing_publication_details() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("github:org/enrich");
+    store
+        .record_seen_batch(&source, &[seen("v1.0.0", None)])
+        .expect("seed seen");
+
+    let published = chrono::DateTime::parse_from_rfc3339("2026-01-02T03:04:05Z")
+        .expect("timestamp")
+        .with_timezone(&chrono::Utc);
+    let release = crate::model::Release::new("v1.0.0")
+        .with_url(Some("https://example.test/v1.0.0".to_owned()))
+        .with_published(Some(published));
+    store
+        .enrich_seen_metadata(&source, &[&release])
+        .expect("enrich");
+
+    let listed = store.list_seen_releases(&source, 10).expect("list");
+    assert_eq!(
+        listed[0].url.as_deref(),
+        Some("https://example.test/v1.0.0")
+    );
+    assert!(listed[0].published_at.is_some());
+}
+
+/// `COALESCE(s.col, t.col)` — upstream re-reporting a release must never
+/// rewrite the timestamp or URL already recorded for it.
+#[test]
+fn enrich_seen_metadata_should_not_overwrite_recorded_values() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("github:org/stable");
+    let original = chrono::DateTime::parse_from_rfc3339("2020-01-01T00:00:00Z")
+        .expect("timestamp")
+        .with_timezone(&chrono::Utc);
+    store
+        .record_seen_batch(
+            &source,
+            &[SeenUpsert {
+                identity: "v1.0.0",
+                display_tag: None,
+                content_digest: None,
+                published_at: Some(original),
+                url: Some("https://example.test/original"),
+            }],
+        )
+        .expect("seed seen");
+
+    let later = chrono::DateTime::parse_from_rfc3339("2026-06-06T00:00:00Z")
+        .expect("timestamp")
+        .with_timezone(&chrono::Utc);
+    let release = crate::model::Release::new("v1.0.0")
+        .with_url(Some("https://example.test/rewritten".to_owned()))
+        .with_published(Some(later));
+    store
+        .enrich_seen_metadata(&source, &[&release])
+        .expect("enrich");
+
+    let listed = store.list_seen_releases(&source, 10).expect("list");
+    assert_eq!(
+        listed[0].url.as_deref(),
+        Some("https://example.test/original")
+    );
+    assert!(
+        listed[0]
+            .published_at
+            .as_deref()
+            .is_some_and(|at| at.starts_with("2020-01-01")),
+        "the first-recorded publication date wins: {:?}",
+        listed[0].published_at
+    );
+}
+
+/// The batched `UPDATE … FROM unnest(…)` joins on identity, so the `source_id`
+/// predicate is the only thing keeping two sources that saw the same tag apart.
+#[test]
+fn enrich_seen_metadata_should_only_touch_its_own_source() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let mine = unique("github:org/mine");
+    let theirs = unique("github:org/theirs");
+    store
+        .record_seen_batch(&mine, &[seen("v1.0.0", None)])
+        .expect("seed mine");
+    store
+        .record_seen_batch(&theirs, &[seen("v1.0.0", None)])
+        .expect("seed theirs");
+
+    let release =
+        crate::model::Release::new("v1.0.0").with_url(Some("https://example.test/mine".to_owned()));
+    store
+        .enrich_seen_metadata(&mine, &[&release])
+        .expect("enrich");
+
+    let other = store.list_seen_releases(&theirs, 10).expect("list");
+    assert!(
+        other[0].url.is_none(),
+        "another source's identical tag must be untouched"
+    );
+}
+
+/// The sources-list page anchors the tag and the date on the *same* release, so
+/// the batched pick must follow `source_state.latest_release_tag` — not simply
+/// the newest timestamp, which a backported patch release inverts.
+#[test]
+fn latest_seen_by_source_should_follow_the_stored_latest_tag() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("github:org/anchor");
+    store
+        .record_seen_batch(&source, &[seen("v2.0.0", None), seen("v1.9.1", None)])
+        .expect("seed seen");
+    store
+        .set_latest_release_tag(&source, "v2.0.0")
+        .expect("set latest");
+
+    let latest = store.latest_seen_by_source().expect("batch read");
+    assert_eq!(latest[&source].tag, "v2.0.0");
+}
+
+#[test]
+fn latest_seen_by_source_should_return_one_entry_per_source() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let first = unique("github:org/one");
+    let second = unique("github:org/two");
+    store
+        .record_seen_batch(&first, &[seen("v1.0.0", None), seen("v1.1.0", None)])
+        .expect("seed first");
+    store
+        .record_seen_batch(&second, &[seen("v3.0.0", None)])
+        .expect("seed second");
+
+    let latest = store.latest_seen_by_source().expect("batch read");
+    // One row each — the whole point is not shipping a source's catalogue to a
+    // page that renders a single release.
+    assert!(latest.contains_key(&first));
+    assert_eq!(latest[&second].tag, "v3.0.0");
+}
+
+#[test]
+fn latest_seen_by_source_should_fall_back_to_the_newest_row_without_a_stored_tag() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("github:org/untagged");
+    store
+        .record_seen_batch(&source, &[seen("v1.0.0", None)])
+        .expect("seed seen");
+
+    let latest = store.latest_seen_by_source().expect("batch read");
+    assert_eq!(
+        latest[&source].tag, "v1.0.0",
+        "a source polled before `latest_release_tag` was stored must still show a release"
+    );
+}
+
+#[test]
+fn latest_seen_by_source_should_omit_sources_with_nothing_seen() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let source = unique("github:org/empty");
+    store.touch_polled(&source).expect("touch");
+
+    let latest = store.latest_seen_by_source().expect("batch read");
+    assert!(
+        !latest.contains_key(&source),
+        "a polled-but-empty source has no release to anchor on"
+    );
+}
+
+/// The background sweep's work queue: everything seen for a source that OSV
+/// has never been asked about.
+#[test]
+fn unchecked_seen_versions_should_return_only_never_checked_releases() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("cargo-sweep");
+    store
+        .record_seen_batch(
+            "cargo:serde",
+            &[
+                seen("1.0.0", None),
+                seen("1.1.0", None),
+                seen("1.2.0", None),
+            ],
+        )
+        .expect("seed seen");
+    store
+        .record_advisory_check(&ecosystem, "serde", "1.1.0")
+        .expect("mark checked");
+
+    let pending = store
+        .unchecked_seen_versions("cargo:serde", &ecosystem, "serde", 10)
+        .expect("work queue");
+    assert_eq!(pending.len(), 2);
+    assert!(!pending.contains(&"1.1.0".to_owned()));
+}
+
+#[test]
+fn unchecked_seen_versions_should_be_empty_once_a_source_has_converged() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("npm-sweep");
+    store
+        .record_seen_batch("npm:axios", &[seen("1.7.0", None)])
+        .expect("seed seen");
+    store
+        .record_advisory_check(&ecosystem, "axios", "1.7.0")
+        .expect("mark checked");
+
+    assert!(
+        store
+            .unchecked_seen_versions("npm:axios", &ecosystem, "axios", 10)
+            .expect("work queue")
+            .is_empty(),
+        "a converged source must cost the sweep nothing"
+    );
+}
+
+#[test]
+fn unchecked_seen_versions_should_respect_the_batch_limit() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("pypi-sweep");
+    let versions: Vec<String> = (0..8).map(|n| format!("2.{n}.0")).collect();
+    let upserts: Vec<SeenUpsert<'_>> = versions.iter().map(|v| seen(v, None)).collect();
+    store
+        .record_seen_batch("pypi:requests", &upserts)
+        .expect("seed seen");
+
+    let pending = store
+        .unchecked_seen_versions("pypi:requests", &ecosystem, "requests", 3)
+        .expect("work queue");
+    assert_eq!(
+        pending.len(),
+        3,
+        "the sweep must not pull a source's whole history in one round"
+    );
+}
+
+#[test]
+fn unchecked_seen_versions_should_not_query_for_a_zero_batch() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("hex-sweep");
+    store
+        .record_seen_batch("hex:phoenix", &[seen("1.7.0", None)])
+        .expect("seed seen");
+
+    assert!(store
+        .unchecked_seen_versions("hex:phoenix", &ecosystem, "phoenix", 0)
+        .expect("work queue")
+        .is_empty());
+}
+
+#[test]
+fn record_advisory_check_should_be_idempotent() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("maven");
+    // Two writers can race for one coordinate (a delivery and a page backfill);
+    // the second must refresh the row, not fail on the primary key.
+    for _ in 0..2 {
+        store
+            .record_advisory_check(&ecosystem, "com.example:lib", "1.0.0")
+            .expect("mark checked");
+    }
+
+    let checked = store
+        .checked_versions(&ecosystem, "com.example:lib", &["1.0.0"])
+        .expect("read checks");
+    assert_eq!(checked.len(), 1);
+}
+
+#[test]
+fn checked_versions_should_be_empty_without_a_query_for_no_versions() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("packagist");
+    let checked = store
+        .checked_versions(&ecosystem, "monolog/monolog", &[])
+        .expect("read checks");
+    assert!(checked.is_empty());
+}
+
+#[test]
+fn prune_should_expire_check_markers_on_the_advisory_retention_window() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("nuget");
+    store
+        .record_advisory_check(&ecosystem, "Newtonsoft.Json", "13.0.3")
+        .expect("mark checked");
+
+    // Retention is shared with the findings: a fresh marker survives, so the
+    // backfill does not immediately re-query what it just confirmed.
+    let report = store.prune(0, 0, 0, 365).expect("prune");
+    assert_eq!(report.advisory_checks_deleted, 0);
+    assert!(store
+        .checked_versions(&ecosystem, "Newtonsoft.Json", &["13.0.3"])
+        .expect("read checks")
+        .contains("13.0.3"));
+}
+
+#[test]
+fn prune_with_zero_advisories_after_days_should_not_touch_check_markers() {
+    let Some(store) = open_store() else {
+        return;
+    };
+    let ecosystem = unique("hex");
+    store
+        .record_advisory_check(&ecosystem, "phoenix", "1.7.0")
+        .expect("mark checked");
+
+    let report = store.prune(0, 0, 0, 0).expect("prune");
+    assert_eq!(report.advisory_checks_deleted, 0);
+    assert!(store
+        .checked_versions(&ecosystem, "phoenix", &["1.7.0"])
+        .expect("read checks")
+        .contains("1.7.0"));
 }

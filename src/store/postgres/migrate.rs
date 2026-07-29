@@ -16,7 +16,7 @@ use crate::error::StoreError;
 
 /// Schema version embedded in this binary. Bump when adding a step to
 /// [`MIGRATIONS`].
-pub const CURRENT_SCHEMA_VERSION: i32 = 1;
+pub const CURRENT_SCHEMA_VERSION: i32 = 2;
 
 /// Advisory-lock class for schema migrate (distinct from the poller lease).
 const MIGRATE_LOCK_CLASS: i32 = 0x7852_656c; // "xRel"
@@ -30,6 +30,16 @@ const MIGRATE_LOCK_ID: i32 = 0x7363_686d; // "schm"
 const MIGRATIONS: &[&str] = &[
     "", // 0 — unused
     "", // 1 — greenfield stamp only
+    // 2 — drop placeholder publish dates already persisted before
+    // `sources::time::parse_rfc3339` learned to reject them (NuGet stamps
+    // unlisted versions `1900-01-01`, .NET APIs leak `0001-01-01`, zeroed
+    // structs serialise as the epoch). The `seen_release` upsert deliberately
+    // never overwrites a non-null `published_at`, so without this step the
+    // sentinels would survive the parser fix forever and keep rendering as
+    // "Jan 1, 1900" release dates. NULL is correct: these versions have no
+    // known publish date; a later poll may fill in a real one.
+    "UPDATE seen_release SET published_at = NULL
+      WHERE published_at < TIMESTAMPTZ '1980-01-01 00:00:00+00';",
 ];
 
 /// Apply greenfield DDL, then run any pending versioned upgrades.
@@ -143,5 +153,14 @@ mod tests {
     #[test]
     fn baseline_migration_slot_should_be_empty() {
         assert!(MIGRATIONS[1].trim().is_empty());
+    }
+
+    #[test]
+    fn upgrade_migration_slots_should_carry_sql() {
+        // Steps past the baseline must do real work; an empty slot would stamp
+        // a version bump that changed nothing.
+        for (version, sql) in MIGRATIONS.iter().enumerate().skip(2) {
+            assert!(!sql.trim().is_empty(), "migration step {version} is empty");
+        }
     }
 }

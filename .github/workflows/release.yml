@@ -216,9 +216,72 @@ jobs:
           IMAGE: ${{ steps.image.outputs.name }}
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
+  # OCI Helm chart → oci://ghcr.io/<owner>/charts/xrelease:<version>
+  # Overlays (deploy/k8s/values.yaml, …) stay in the git tag; pull them with
+  # curl or clone the tagged tree. Chart package itself is self-contained for lab install.
+  helm:
+    name: helm chart (OCI)
+    needs: preflight
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.preflight.outputs.tag }}
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.21.3
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package, push, sign
+        id: chart
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          owner_repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          owner="${owner_repo%%/*}"
+          # Same layout as nginx-gateway-fabric / common GHCR charts: …/charts/<name>
+          charts_oci="${{ env.REGISTRY }}/${owner}/charts"
+          helm lint deploy/helm/xrelease \
+            -f deploy/k8s/values.yaml \
+            --set secrets.adminPassword=ci
+          helm package deploy/helm/xrelease -d dist-chart
+          # helm push prints "Pushed: …" and "Digest: sha256:…"
+          push_out="$(helm push "dist-chart/xrelease-${VERSION}.tgz" "oci://${charts_oci}" 2>&1)"
+          echo "$push_out"
+          digest="$(echo "$push_out" | sed -n 's/^Digest: //p' | tail -n1)"
+          if [ -z "$digest" ]; then
+            echo "helm push did not report a digest" >&2
+            exit 1
+          fi
+          cosign sign --yes "${charts_oci}/xrelease@${digest}"
+          {
+            echo "oci=oci://${charts_oci}/xrelease"
+            echo "digest=${digest}"
+          } >> "$GITHUB_OUTPUT"
+          sha256sum "dist-chart/xrelease-${VERSION}.tgz" > "dist-chart/xrelease-${VERSION}.tgz.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: xrelease-helm-chart
+          path: |
+            dist-chart/xrelease-*.tgz
+            dist-chart/xrelease-*.tgz.sha256
+
   github-release:
     name: GitHub Release
-    needs: [preflight, binaries, docker]
+    needs: [preflight, binaries, docker, helm]
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/download-artifact@v8
@@ -231,13 +294,18 @@ jobs:
         run: |
           find dist -name 'checksums-*.sha256' -exec cat {} \; | sort -u > dist/checksums.sha256
           find dist -name 'checksums-*.sha256' -delete
+          # Keep the chart .tgz.sha256 next to the package (not folded into binary checksums).
 
       - name: Release notes body
         id: notes
         env:
           VERSION: ${{ needs.preflight.outputs.version }}
+          TAG: ${{ needs.preflight.outputs.tag }}
         run: |
           IMAGE="${REGISTRY}/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          OWNER="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)"
+          CHART_OCI="oci://${REGISTRY}/${OWNER}/charts/xrelease"
+          RAW="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${TAG}/deploy/k8s"
           {
             echo "## Docker images"
             echo
@@ -272,15 +340,34 @@ jobs:
             echo "docker compose up -d"
             echo '```'
             echo
-            echo "Helm (chart defaults + secrets overlay):"
+            echo "## Helm chart"
+            echo
+            echo "OCI (cosign-signed): \`${CHART_OCI}\` version \`${VERSION}\`."
+            echo "Default overlay pins \`image.tag: \"${VERSION}\"\` — fetch YAML from the tag, edit hostname + password, install:"
             echo
             echo '```bash'
-            echo "cp deploy/k8s/values.secrets.example.yaml deploy/k8s/values.secrets.yaml"
-            echo "# image.tag optional in values.secrets.yaml → Chart.AppVersion (${VERSION})"
-            echo "helm upgrade --install xrelease ./deploy/helm/xrelease \\"
+            echo "# platform once: docs/getting-started/kubernetes.md (CNPG + Gateway)"
+            echo "curl -fsSLO ${RAW}/values.yaml"
+            echo "curl -fsSLO ${RAW}/values.secrets.example.yaml"
+            echo "cp values.secrets.example.yaml values.secrets.yaml"
+            echo "# edit gateway.hostnames in values.yaml; set secrets.adminPassword in values.secrets.yaml"
+            echo "helm upgrade --install xrelease ${CHART_OCI} --version ${VERSION} \\"
             echo "  --namespace xrelease --create-namespace \\"
-            echo "  -f deploy/k8s/values.secrets.yaml"
+            echo "  -f values.yaml \\"
+            echo "  -f values.secrets.yaml"
             echo '```'
+            echo
+            echo "Chart \`.tgz\` is also attached to this release. Lab install (chart defaults + secrets file):"
+            echo
+            echo '```bash'
+            echo "curl -fsSLO ${RAW}/values.secrets.example.yaml"
+            echo "cp values.secrets.example.yaml values.secrets.yaml   # set adminPassword"
+            echo "helm upgrade --install xrelease ${CHART_OCI} --version ${VERSION} \\"
+            echo "  --namespace xrelease --create-namespace \\"
+            echo "  -f values.secrets.yaml"
+            echo '```'
+            echo
+            echo "Platform prerequisites and variants: docs/getting-started/kubernetes.md"
             echo
             echo "## Binary archives"
             echo
@@ -293,7 +380,7 @@ jobs:
             echo "tar xzf xrctl-*-linux-amd64.tar.gz && ./xrctl --help"
             echo '```'
             echo
-            echo "Verify with \`checksums.sha256\`."
+            echo "Verify with \`checksums.sha256\` (binaries) / \`xrelease-${VERSION}.tgz.sha256\` (chart)."
             echo
             echo "CI apply guide: docs/operations/ci-cd.md"
           } > release-body.md

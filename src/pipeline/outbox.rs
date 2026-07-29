@@ -199,6 +199,26 @@ pub(crate) async fn flush_notification_outbox_inner(
     Ok(sent)
 }
 
+/// What is being delivered, as opposed to the outbox bookkeeping around it.
+///
+/// Grouped rather than passed as five positional parameters: `source_id`,
+/// `kind`, and `package_name` are all `&str`, all three feed advisory
+/// coordinate resolution, and a swapped pair would compile cleanly — the only
+/// symptom would be enrichment quietly querying the wrong package.
+pub(crate) struct DeliveryContext<'a> {
+    /// The notification to send (before advisory enrichment).
+    pub event: &'a Event,
+    pub source_id: &'a str,
+    /// Source kind: the machine id (`cargo`) from a live [`crate::sources::Provider`],
+    /// or the stored kind label (`crates.io`) on the flush path. Advisory
+    /// coordinate resolution accepts either.
+    pub kind: &'a str,
+    /// Package-name hint for advisory lookup; empty when unknown.
+    pub package_name: &'a str,
+    /// `seen_release` upsert applied once the row is fully delivered.
+    pub seen: &'a SeenUpsert<'a>,
+}
+
 pub(crate) async fn deliver_claimed_outbox_row(
     engine: &Engine,
     row: OutboxRecord,
@@ -206,15 +226,38 @@ pub(crate) async fn deliver_claimed_outbox_row(
     let event = row.to_event();
     let seen = seen_upsert_for(&row);
     let attempts_before = i32::try_from(row.attempts).unwrap_or(i32::MAX);
+    // Flush has no live [`Provider`]: use the stored kind label plus a name
+    // hint from the event title (`{name}: new release …`) or a legacy
+    // `package:` id. Well-formed `npm:` / `pypi:` ids need neither.
+    let package_name = package_name_hint_for_advisory(&row.source_id, &event.title);
     attempt_notification_delivery(
         engine,
         row.id,
         attempts_before,
-        &event,
-        &row.source_id,
-        &seen,
+        &DeliveryContext {
+            event: &event,
+            source_id: &row.source_id,
+            kind: &row.source_kind,
+            package_name,
+            seen: &seen,
+        },
     )
     .await
+}
+
+/// Best-effort package name when the flush path has no live provider.
+fn package_name_hint_for_advisory<'a>(source_id: &'a str, event_title: &'a str) -> &'a str {
+    let bare = source_id
+        .split_once(crate::config::ORGANIZATION_SEP)
+        .map_or(source_id, |(_, rest)| rest);
+    if let Some(name) = bare.strip_prefix("package:") {
+        if !name.is_empty() {
+            return name;
+        }
+    }
+    event_title
+        .split_once(": new release ")
+        .map_or("", |(name, _)| name)
 }
 
 /// Build the `seen_release` upsert payload for a claimed outbox row (shared by
@@ -384,12 +427,17 @@ pub(crate) async fn attempt_notification_delivery(
     engine: &Engine,
     outbox_id: i64,
     attempts_before: i32,
-    event: &Event,
-    source_id: &str,
-    seen: &SeenUpsert<'_>,
+    context: &DeliveryContext<'_>,
 ) -> Result<bool, PipelineError> {
     let started = Instant::now();
-    let outcome = deliver_to_pending_sinks(engine, outbox_id, event, source_id, seen).await;
+    // Enrich here — the single funnel for both the inline poll delivery and the
+    // flush loop — so one hook covers every non-digest path. Deliberately at
+    // delivery rather than enqueue time: a retry then picks up advisories
+    // published *after* the release.
+    let enriched = enrich_with_advisories(engine, context).await;
+    let event = enriched.as_ref().unwrap_or(context.event);
+    let outcome =
+        deliver_to_pending_sinks(engine, outbox_id, event, context.source_id, context.seen).await;
     engine.metrics.record_notify_duration(started.elapsed());
     match &outcome {
         Ok(attempt) if attempt.delivered => {}
@@ -401,6 +449,109 @@ pub(crate) async fn attempt_notification_delivery(
         Err(_) => {}
     }
     outcome.map(|attempt| attempt.delivered)
+}
+
+/// Append known security advisories to a copy of `event`, or `None` to send the
+/// original untouched.
+///
+/// Returns `None` — not an error — whenever enrichment does not apply: disabled,
+/// a non-package source, or a lookup that failed. Enrichment must never be able
+/// to fail a delivery — the outbox exists to guarantee a notification is not
+/// lost, and a third-party lookup must not be able to weaken that.
+///
+/// The digest path (`deliver_claimed_outbox_digest`) is intentionally not
+/// enriched: one digest [`Event`] covers many releases, so a single advisory
+/// list attached to it could not say which release each advisory belongs to.
+async fn enrich_with_advisories(engine: &Engine, context: &DeliveryContext<'_>) -> Option<Event> {
+    if !engine.advisories.active() {
+        return None;
+    }
+    let source_id = context.source_id;
+    // The seen-release identity *is* the published version for every package
+    // source — the only kind `coordinate_from_source` resolves.
+    let version = context.seen.identity;
+    let (registry, name) =
+        crate::advisory::coordinate_from_source(source_id, context.kind, context.package_name)?;
+    let outcome = engine.advisories.lookup(registry, name, version).await;
+
+    // Persist so the API can show what was found without re-querying OSV per
+    // page load. Best-effort, same as the lookup itself: a write failure here
+    // must not touch `event` or the delivery outcome — only the read-side cache
+    // is stale, nothing about this notification's delivery.
+    //
+    // Written for a *clean* result too, not just a hit: `record_advisory_check`
+    // is what tells the source-detail backfill this version has been looked at,
+    // so a delivery that found nothing still saves that page a redundant OSV
+    // round trip later. `for_registry` is `None` only for `Cpan`, which
+    // `lookup` short-circuits before reaching OSV — checked rather than
+    // unwrapped anyway, so a future change to that invariant degrades the cache
+    // write instead of panicking the delivery path.
+    if outcome.verified {
+        if let Some(ecosystem) = crate::advisory::Ecosystem::for_registry(registry) {
+            persist_advisory_result(
+                engine,
+                ecosystem.as_str(),
+                name,
+                version,
+                &outcome.advisories,
+            );
+        }
+    }
+
+    if outcome.advisories.is_empty() {
+        return None;
+    }
+
+    let rendered = crate::advisory::render_markdown(&outcome.advisories);
+    tracing::info!(
+        source_id,
+        version,
+        count = outcome.advisories.len(),
+        "attached security advisories to notification"
+    );
+    let mut enriched = context.event.clone();
+    enriched.body.push_str(&rendered);
+    Some(enriched)
+}
+
+/// Persist one verified OSV answer: the findings plus the "this version has
+/// been checked" marker.
+///
+/// Both writes are best-effort and independent — a failure of either is logged
+/// at `debug!` and otherwise ignored, because the only consequence is a
+/// redundant lookup later, never a lost or delayed notification.
+///
+/// Shared by the delivery path and the source-detail backfill so the two cannot
+/// drift into recording one half of the pair.
+pub(crate) fn persist_advisory_result(
+    engine: &Engine,
+    ecosystem: &str,
+    package: &str,
+    version: &str,
+    advisories: &[crate::advisory::Advisory],
+) {
+    if let Err(err) = engine
+        .store
+        .record_advisories(ecosystem, package, version, advisories)
+    {
+        debug!(
+            package,
+            version,
+            error = %err,
+            "failed to persist advisory findings"
+        );
+    }
+    if let Err(err) = engine
+        .store
+        .record_advisory_check(ecosystem, package, version)
+    {
+        debug!(
+            package,
+            version,
+            error = %err,
+            "failed to persist advisory check marker — the version will be re-queried"
+        );
+    }
 }
 
 /// Push the next claim of `outbox_id` out after an unsuccessful attempt.

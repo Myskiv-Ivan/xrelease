@@ -3,6 +3,7 @@
 	import type { NotifierTestResult, NotifierView } from '$lib/api/types';
 	import Badge from '$lib/components/kit/Badge.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
+	import Checkbox from '$lib/components/kit/Checkbox.svelte';
 	import Input from '$lib/components/kit/Input.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
 	import Select from '$lib/components/kit/Select.svelte';
@@ -685,13 +686,11 @@
 										<p class="mb-2 {TYPE_HINT}">{t('config.notifiersTags')}</p>
 										<div class="flex flex-wrap gap-2">
 											{#each tagOptions(draft) as tag (tag)}
-												<label class="inline-flex items-center gap-1.5 text-sm">
-													<input
-														type="checkbox"
-														class="size-3.5 accent-accent"
+												<label class="inline-flex cursor-pointer items-center gap-1.5 text-sm">
+													<Checkbox
 														checked={selected.includes(tag)}
 														{disabled}
-														onchange={() => toggleTag(draft, tag)}
+														onCheckedChange={() => toggleTag(draft, tag)}
 													/>
 													<span class={TYPE_CODE}>{tag}</span>
 												</label>

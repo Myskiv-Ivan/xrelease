@@ -1,5 +1,6 @@
 # Paths to ignore when packaging the Helm chart.
+# README.md is kept on purpose — `helm show readme` reads it from the package.
 .DS_Store
-*.md
 charts/
 tmp/
+*.tgz

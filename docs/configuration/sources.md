@@ -47,7 +47,7 @@ and optional `id` / `token` / `token_env` where noted.
 | `gitea` | `host`, `repo` | `token`, `token_env` | Self-hosted Gitea / Forgejo |
 | `gitlab` | `project` | `host`, `token`, `token_env` | Default host `https://gitlab.com` |
 | `bitbucket` | `repo` | `edition` (`cloud`/`server`), `host`, `token`, `token_env` | Server edition needs `host` |
-| `docker` | `image` | `registry`, `token`, `token_env` | Default registry = Docker Hub |
+| `docker` | `image` | `registry`, `token`, `token_env` | Leave `registry` empty for Docker Hub. Do **not** put `hub.docker.com` / `docker.io` there (or you get poll errors). Tags are discovered automatically — `image` is the repo path only (`library/nginx`, not `nginx:latest`). |
 | `ghcr` / `quay` / `ecr` | `image` | `token`, `token_env` | Registry URL is implicit |
 | `pypi` / `npm` / `yarn` / `cargo` / `nuget` / `hex` / `rubygems` / `packagist` / `cpan` | `name` | — | Package / crate / gem id |
 | `maven` | `name` (`group:artifact`) | — | Warns if `:` is missing |

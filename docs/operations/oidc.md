@@ -9,8 +9,8 @@ OpenID Connect IdP (Keycloak, Authentik, Okta, Microsoft Entra ID, …).
 
 With OIDC enabled, the UI completes the IdP login, then calls
 `POST /api/v1/auth/oidc/sync`. That endpoint validates the access token,
-**creates or updates** the user in PostgreSQL (`app_user`), and assigns an
-application role from IdP groups/claims.
+**creates or updates** the dashboard user, and assigns an application role from
+IdP groups/claims.
 
 ## 1. Register a client in your IdP
 
@@ -51,7 +51,8 @@ The **backend container/pod** must reach `XRELEASE_OIDC_JWKS_URI` (or discovery)
 ## 3. UI (`VITE_*`, runtime — no image rebuild)
 
 Applied when the UI container starts (`/ui-config.js`). Compose: `.env` → `ui`
-service. Helm: `ui.env` / [`values-oidc.example.yaml`](../../deploy/k8s/values-oidc.example.yaml).
+service. Helm: set `ui.env.VITE_AUTH_MODE` / `VITE_OIDC_*` in a local overlay —
+[deployment variants](deployment-variants.md).
 
 ```bash
 VITE_AUTH_MODE=oidc          # or hybrid = local password + SSO
@@ -66,7 +67,7 @@ VITE_OIDC_ROLE_VIEWER=xrelease-viewer,viewer
 ```
 
 Keep UI role aliases in sync with `XRELEASE_OIDC_ROLE_*`. The **server** mapping
-is authoritative for what is stored in `app_user`.
+is authoritative for the role stored after login.
 
 Restart the UI after changing `VITE_*` (Compose / `helm upgrade`).
 
@@ -170,7 +171,7 @@ the access token is audience-bound for the backend.
 1. User signs in at the IdP (Authorization Code + PKCE).
 2. UI stores the IdP access token and calls `POST /api/v1/auth/oidc/sync`.
 3. Backend validates the JWT, reads `sub` (and email / name when present).
-4. **Upsert** into `app_user` by `oidc_sub` (create on first login, update later).
+4. **Upsert** the dashboard user by IdP `sub` (create on first login, update later).
 5. Role from claim path (`XRELEASE_OIDC_ROLE_CLAIM`): match admin / operator /
    viewer aliases; highest wins; else `XRELEASE_OIDC_DEFAULT_ROLE` (`viewer`).
 

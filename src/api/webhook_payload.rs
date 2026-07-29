@@ -1,8 +1,9 @@
 //! Webhook payload parsers for Git forges and registries.
 
-use chrono::{DateTime, Utc};
-
 use crate::model::Release;
+// The shared parser also rejects placeholder dates (1900-01-01 & co.), which a
+// local `DateTime::parse_from_rfc3339` wrapper silently accepted.
+use crate::sources::parse_rfc3339;
 
 /// GitHub / Gitea / Codeberg release webhook body.
 #[derive(Debug, serde::Deserialize)]
@@ -132,12 +133,6 @@ impl GitlabWebhook {
 pub struct GitlabProject {
     pub path_with_namespace: Option<String>,
     pub name: String,
-}
-
-fn parse_rfc3339(value: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(value)
-        .ok()
-        .map(|dt| dt.with_timezone(&Utc))
 }
 
 /// Bitbucket Cloud / Server `repo:push` webhook (tag pushes).

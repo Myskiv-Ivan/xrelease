@@ -40,19 +40,30 @@ impl WatchSupervisor {
         }
     }
 
-    /// Start (or replace) polling loops for `watches`.
+    /// Start (or replace) polling loops for `watches`, plus the background
+    /// advisory sweep over the same set.
     ///
     /// Infallible: stop drains (or aborts after timeout), then spawn replaces
     /// the handle list. Callers that previously treated this as fallible can
     /// drop the `?` — there is no partial failure to compensate.
+    ///
+    /// The sweep is replaced here rather than started once at boot because it
+    /// is bound to the watch list: a config apply that adds, removes, or
+    /// re-points a package source must change what gets swept, and it shares
+    /// this shutdown flag so `stop_watchers` already drains it.
     pub async fn replace(&self, watches: Vec<Watch>) {
         self.stop_watchers().await;
         self.shutdown.store(false, Ordering::SeqCst);
-        let handles = spawn_watchers(
+        let mut handles = spawn_watchers(
             Arc::clone(&self.engine),
-            watches,
+            watches.clone(),
             Arc::clone(&self.shutdown),
         );
+        handles.extend(spawn_advisory_sweep(
+            Arc::clone(&self.engine),
+            &watches,
+            Arc::clone(&self.shutdown),
+        ));
         *self.watchers.lock().await = handles;
     }
 
@@ -297,6 +308,180 @@ pub fn spawn_maintenance(
     }))
 }
 
+/// One watched package source resolved to its OSV coordinate.
+///
+/// Resolved once when the sweep starts rather than per round: the coordinate is
+/// a pure function of the watch, and the watch list only changes by way of a
+/// config apply — which replaces the sweep task wholesale.
+struct SweepTarget {
+    source_id: String,
+    registry: crate::sources::PackageRegistry,
+    ecosystem: &'static str,
+    package: String,
+}
+
+/// Delay before the first sweep round.
+///
+/// Startup already runs outbox recovery and the first poll of every source;
+/// adding third-party advisory traffic to that burst makes a cold start slower
+/// and buys nothing — the backlog this sweep drains is static.
+const SWEEP_START_DELAY: Duration = Duration::from_secs(60);
+
+/// Resolve a watch to a sweep target, or `None` when it has no OSV coordinate
+/// (Git forges, containers, feeds, CPAN — see [`crate::advisory`]).
+fn sweep_target(watch: &Watch) -> Option<SweepTarget> {
+    let provider = &watch.provider;
+    let (registry, package) = crate::advisory::coordinate_from_source(
+        provider.id(),
+        provider.kind(),
+        provider.display_name(),
+    )?;
+    let ecosystem = crate::advisory::Ecosystem::for_registry(registry)?;
+    Some(SweepTarget {
+        source_id: provider.id().to_owned(),
+        registry,
+        ecosystem: ecosystem.as_str(),
+        package: package.to_owned(),
+    })
+}
+
+/// Background advisory sweep: work through every watched package source's
+/// never-checked versions so coverage does not depend on someone opening a page.
+///
+/// Returns `None` — no task at all — when the sweep is disabled or no watched
+/// source has an OSV coordinate, so an instance that cannot use it does not
+/// carry an idle task.
+///
+/// Delivery-time enrichment only ever covers versions that produced a
+/// notification, and a baseline (first) poll notifies nothing. Without this,
+/// everything a source was already publishing when it was first added stays
+/// permanently unchecked unless a human visits its detail page.
+#[must_use]
+pub fn spawn_advisory_sweep(
+    engine: Arc<Engine>,
+    watches: &[Watch],
+    shutdown: Arc<AtomicBool>,
+) -> Option<tokio::task::JoinHandle<()>> {
+    let interval = engine.advisories.sweep_interval()?;
+    let batch = engine.advisories.sweep_batch();
+    let targets: Vec<SweepTarget> = watches.iter().filter_map(sweep_target).collect();
+    if targets.is_empty() {
+        return None;
+    }
+
+    info!(
+        sources = targets.len(),
+        interval_secs = interval.as_secs(),
+        batch,
+        "background advisory sweep enabled"
+    );
+
+    Some(tokio::spawn(async move {
+        if !sleep_interruptible(SWEEP_START_DELAY, &shutdown).await {
+            return;
+        }
+        loop {
+            if shutdown.load(Ordering::Relaxed) {
+                break;
+            }
+            let checked = sweep_advisories_once(&engine, &targets, batch, &shutdown).await;
+            if checked > 0 {
+                info!(checked, "advisory sweep round completed");
+            }
+            if !sleep_interruptible(interval, &shutdown).await {
+                break;
+            }
+        }
+    }))
+}
+
+/// Run one sweep round right now over `watches`, outside the background loop.
+///
+/// Returns how many versions got a verified answer recorded, `0` when the sweep
+/// is disabled or nothing is left to check. Exists so the round is reachable
+/// without waiting out [`SWEEP_START_DELAY`] — used by tests, and the hook a
+/// manual "sweep now" control would call.
+pub async fn sweep_advisories_now(engine: &Engine, watches: &[Watch]) -> usize {
+    if engine.advisories.sweep_interval().is_none() {
+        return 0;
+    }
+    let targets: Vec<SweepTarget> = watches.iter().filter_map(sweep_target).collect();
+    let never = AtomicBool::new(false);
+    sweep_advisories_once(engine, &targets, engine.advisories.sweep_batch(), &never).await
+}
+
+/// One sweep round: up to `batch` never-checked versions per target.
+///
+/// Returns how many versions got a verified answer recorded.
+///
+/// Sources are walked one at a time while each source's own batch runs
+/// concurrently — that keeps peak in-flight requests at `batch` regardless of
+/// how many sources are configured, instead of fanning out
+/// `sources × batch` at a third-party API.
+///
+/// A round is naturally self-limiting during an OSV outage: once the breaker
+/// opens, every remaining lookup returns unverified without touching the
+/// network, so the round finishes fast and records nothing.
+async fn sweep_advisories_once(
+    engine: &Engine,
+    targets: &[SweepTarget],
+    batch: usize,
+    shutdown: &AtomicBool,
+) -> usize {
+    let mut checked = 0usize;
+    for target in targets {
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+        let versions = match engine.store.unchecked_seen_versions(
+            &target.source_id,
+            target.ecosystem,
+            &target.package,
+            batch,
+        ) {
+            Ok(versions) => versions,
+            Err(err) => {
+                warn!(
+                    source = %target.source_id,
+                    error = %err,
+                    "advisory sweep skipped a source — work-queue read failed"
+                );
+                continue;
+            }
+        };
+        if versions.is_empty() {
+            continue;
+        }
+
+        let results = join_all(versions.into_iter().map(|version| async move {
+            let outcome = engine
+                .advisories
+                .lookup(target.registry, &target.package, &version)
+                .await;
+            (version, outcome)
+        }))
+        .await;
+
+        for (version, outcome) in results {
+            // Only a real OSV answer is recorded. Marking a failed or
+            // breaker-skipped lookup as checked would retire that version from
+            // every future round — permanently "clean" without ever asking.
+            if !outcome.verified {
+                continue;
+            }
+            crate::pipeline::persist_advisory_result(
+                engine,
+                target.ecosystem,
+                &target.package,
+                &version,
+                &outcome.advisories,
+            );
+            checked += 1;
+        }
+    }
+    checked
+}
+
 /// Spawn one Tokio task per watch. Caller is responsible for shutdown.
 pub fn spawn_watchers(
     engine: Arc<Engine>,
@@ -432,6 +617,7 @@ mod tests {
             seen_after_days: 365,
             webhooks_after_days: 0,
             outbox_sent_after_days: 0,
+            advisories_after_days: 0,
             interval_hours: 24,
         };
         assert!(enabled.periodic_enabled());
@@ -440,9 +626,19 @@ mod tests {
             seen_after_days: 0,
             webhooks_after_days: 0,
             outbox_sent_after_days: 0,
+            advisories_after_days: 0,
             interval_hours: 24,
         };
         assert!(!disabled.periodic_enabled());
+
+        // Advisories-only retention must gate periodic maintenance on its own,
+        // same as the other three flags — it is not merely present on the
+        // struct, it participates in the OR.
+        let advisories_only = PruneSettings {
+            advisories_after_days: 90,
+            ..disabled
+        };
+        assert!(advisories_only.periodic_enabled());
     }
 
     #[tokio::test]

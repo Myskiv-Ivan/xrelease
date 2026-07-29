@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Permission } from '$lib/auth/types';
-	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
 	import RefreshToolbar from '$lib/components/dashboard/RefreshToolbar.svelte';
+	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
 	import AuthGuard from '$lib/components/layout/AuthGuard.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import LoadingState from '$lib/components/kit/LoadingState.svelte';
@@ -71,7 +71,7 @@
 		{/if}
 
 		{#if error}
-			<ErrorAlert message={error} />
+			<StatusBanner tone="danger">{error}</StatusBanner>
 		{/if}
 
 		{#if isLoading && !hasContent}

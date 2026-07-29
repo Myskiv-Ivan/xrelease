@@ -31,6 +31,7 @@ use crate::notify::{
 };
 use crate::pipeline::Watch;
 
+mod advisories;
 mod api;
 mod config_api;
 mod database;
@@ -45,6 +46,10 @@ mod secrets;
 mod sources;
 mod vault;
 
+pub use advisories::{
+    AdvisoryConfig, DEFAULT_ADVISORY_BREAKER_COOLDOWN_SECS, DEFAULT_ADVISORY_BREAKER_THRESHOLD,
+    DEFAULT_ADVISORY_CACHE_TTL_SECS, DEFAULT_ADVISORY_TIMEOUT_SECS, DEFAULT_OSV_ENDPOINT,
+};
 pub use api::{ApiConfig, LocalAuthConfig, OidcConfig};
 pub use config_api::{ConfigApiConfig, ConfigSource};
 pub use database::{DatabaseConfig, DatabaseSslMode};
@@ -113,6 +118,9 @@ pub struct Config {
     /// State database settings.
     #[serde(default)]
     pub database: DatabaseConfig,
+    /// Security-advisory enrichment (`[advisories]`) — opt-in, bootstrap-only.
+    #[serde(default)]
+    pub advisories: AdvisoryConfig,
     /// Logging settings.
     #[serde(default)]
     pub log: LogConfig,

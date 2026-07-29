@@ -4,6 +4,7 @@
 	import Button from '$lib/components/kit/Button.svelte';
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
+	import { PANEL_GRID } from '$lib/components/kit/layout-styles';
 	import type { KeyValueItem } from '$lib/types/ui';
 	import { t } from '$lib/i18n';
 
@@ -79,14 +80,13 @@
 	]);
 </script>
 
-<div class="grid gap-4 lg:grid-cols-2">
+<div class={PANEL_GRID}>
 	<Panel title={t('overview.globalMetrics')}>
 		{#snippet actions()}
 			<Button
 				href={getMetricsUrl()}
 				variant="ghost"
 				size="sm"
-				class="text-xs"
 				target="_blank"
 				rel="noopener noreferrer"
 			>

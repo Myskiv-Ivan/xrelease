@@ -1,12 +1,13 @@
 # TLS & transport security
 
 HTTPS is terminated **at the edge**. On Docker that is the **UI nginx**
-container (same image as HTTP). On Kubernetes, Ingress terminates TLS. The
-`xrelease` API process always speaks HTTP on the private network.
+container (same image as HTTP). On Kubernetes, the **Gateway** listener
+(canonical) or Ingress terminates TLS. The `xrelease` API process always speaks
+HTTP on the private network.
 
 ```mermaid
 flowchart LR
-  Client[Browser / webhooks] -->|HTTPS cert+key| Edge[UI nginx / Ingress]
+  Client[Browser / webhooks] -->|HTTPS| Edge[UI nginx / Gateway / Ingress]
   Edge -->|HTTP + X-Forwarded-Proto| API[xrelease :8080]
   API --> PG[(PostgreSQL)]
 ```
@@ -72,22 +73,28 @@ Webhooks: `https://<host>/api/v1/webhooks/...`.
 
 ## Kubernetes — Ingress + TLS Secret
 
-Ingress terminates TLS; pods stay HTTP. When `ui.enabled=true`, Ingress targets
-the UI Service (nginx proxies `/api` and probes).
+For the **default** stack (Gateway API), terminate TLS on the Gateway
+listener — see [Gateway API](gateway.md). The example below is only if you
+switched to Ingress ([deployment variants](deployment-variants.md)).
 
 ```bash
 kubectl -n xrelease create secret tls xrelease-tls \
   --cert=cert.pem \
   --key=key.pem
 
+# values.local.yaml:
+#   ingress:
+#     enabled: true
+#     tls: [{ secretName: xrelease-tls, hosts: [xrelease.example.com] }]
+#     hosts: [{ host: xrelease.example.com, paths: [{ path: /, pathType: Prefix }] }]
+#   gateway:
+#     enabled: false
+
 helm upgrade --install xrelease ./deploy/helm/xrelease \
   --namespace xrelease --create-namespace \
   -f deploy/k8s/values.secrets.yaml \
-  -f deploy/k8s/values-tls.example.yaml
+  -f values.local.yaml
 ```
-
-Details: [Kubernetes](../getting-started/kubernetes.md) ·
-[`values-tls.example.yaml`](../../deploy/k8s/values-tls.example.yaml).
 
 ## PostgreSQL client TLS (managed DB)
 

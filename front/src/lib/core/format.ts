@@ -18,27 +18,13 @@ export function formatInterval(seconds: number): string {
 	return `${(seconds / 3600).toFixed(1)}h`;
 }
 
-export function formatDateTime(value: string | Date | null | undefined): string {
-	if (value == null || (typeof value === 'string' && value.trim() === '')) return EMPTY_VALUE;
-	const date = value instanceof Date ? value : new Date(value);
-	if (Number.isNaN(date.getTime())) {
-		return typeof value === 'string' ? value : EMPTY_VALUE;
-	}
-	// Fixed locale so ops tables stay consistent across browsers / OS locales:
-	// "Jul 23, 2026, 14:30"
-	return new Intl.DateTimeFormat('en', {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		hour12: false
-	}).format(date);
-}
-
 /**
- * Compact relative time for ops tables (“2m”, “3h”).
- * Falls back to absolute formatting for dates older than 7 days.
+ * Compact relative time (“2m”, “3h”).
+ *
+ * Used for the *secondary* representation — the tooltip on an absolute
+ * timestamp, and the refresh toolbar's freshness indicator. Falls back to
+ * absolute formatting for dates older than 7 days, where "63d" stops being
+ * useful.
  */
 export function formatRelative(
 	value: string | Date | null | undefined,
@@ -66,13 +52,21 @@ export function formatRelative(
 	const days = Math.round(hours / 24);
 	if (days < 7) return past ? `${days}d` : `in ${days}d`;
 
-	return formatDateTime(date.toISOString());
+	return formatDateTimeFull(date);
 }
 
 /**
- * Full timestamp for audit surfaces (revision ledger, provenance, last login):
- * "Jul 23, 2026, 14:30:07". Seconds included because two applies a minute apart
- * are indistinguishable otherwise, which defeats the point of an audit trail.
+ * The one absolute timestamp format: "Jul 23, 2026, 14:30:07".
+ *
+ * Every field and table renders this — a single format across the app, so a
+ * timestamp read in one table is directly comparable to one in another.
+ *
+ * The locale is pinned to `en` rather than the browser's: ops screenshots and
+ * copy-pasted values must not change shape with the operator's OS settings.
+ *
+ * Seconds are always included. Two config applies (or two deliveries) a minute
+ * apart are indistinguishable without them, which defeats the point of an
+ * audit surface.
  */
 export function formatDateTimeFull(value: string | Date | null | undefined): string {
 	if (value == null || (typeof value === 'string' && value.trim() === '')) return EMPTY_VALUE;

@@ -796,12 +796,30 @@ export interface components {
             /** Format: int64 */
             notifications: number;
         };
+        /** @description One security advisory affecting a released version (see [advisories]). Populated only when advisory enrichment is enabled and a delivery attempt has looked this exact version up. */
+        AdvisoryView: {
+            /** @description Primary database id (GHSA-…, RUSTSEC-…, PYSEC-…). */
+            id: string;
+            /** @description Preferred human-facing id: a CVE-… alias when the database has one, else the same value as id. */
+            display_id: string;
+            summary?: string | null;
+            /**
+             * @description Lowercase label, present only when the advisory database explicitly stated a severity.
+             * @enum {string|null}
+             */
+            severity?: "low" | "moderate" | "high" | "critical" | null;
+            /** @description Raw CVSS vector string, carried verbatim — never computed locally. Populated even when severity is null, as a fallback signal. */
+            cvss_vector?: string | null;
+            url?: string | null;
+        };
         SeenReleaseView: {
             tag: string;
             published_at?: string | null;
             /** @description Canonical upstream release page (stored at sync time or derived from provider template) */
             url?: string | null;
             first_seen_at: string;
+            /** @description Known security advisories for this exact version. Always empty on the sources-list endpoint (GET /api/v1/sources) — only the source-detail endpoint (GET /api/v1/sources/{id}) attaches them. */
+            advisories?: components["schemas"]["AdvisoryView"][];
         };
         SourceDetail: components["schemas"]["SourceSummary"] & {
             initialized: boolean;
@@ -870,6 +888,14 @@ export interface components {
             /** @description Pending/failed rows held until deliver_after (notify_schedule). */
             outbox_deferred: number;
             breakers: components["schemas"]["BreakerOpenView"][];
+            advisories: components["schemas"]["AdvisoryStatus"];
+        };
+        /** @description Advisory-enrichment status. Lets the dashboard tell an empty advisory column apart from a disabled feature — without it, "no known CVEs", "enrichment is off", and "not a package source" all render identically. */
+        AdvisoryStatus: {
+            /** @description True when [advisories] is enabled and has a usable endpoint. */
+            enabled: boolean;
+            /** @description Advisory database being queried — confirms a self-hosted OSV mirror is actually in use. Never carries credentials. */
+            endpoint: string;
         };
         ConfigApplyStatus: {
             /** @description Whether POST apply/rollback routes are mounted ([config_api].api_config). */

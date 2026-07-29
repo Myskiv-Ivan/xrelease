@@ -13,7 +13,6 @@
 	import { safeReturnTo } from '$lib/auth/return-to';
 	import type { AppRole } from '$lib/auth/types';
 	import AuthModeBadge from '$lib/components/auth/AuthModeBadge.svelte';
-	import ErrorAlert from '$lib/components/dashboard/ErrorAlert.svelte';
 	import AppBrand from '$lib/components/layout/AppBrand.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
 	import Input from '$lib/components/kit/Input.svelte';
@@ -21,7 +20,6 @@
 	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
 	import { FIELD_GROUP, FIELD_STACK, TYPE_PAGE_TITLE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
 	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { APP_VERSION } from '$lib/core/constants';
 	import { resolveApiError } from '$lib/core/errors';
 	import { t } from '$lib/i18n';
 	import {
@@ -144,7 +142,7 @@
 	{/if}
 
 	{#if error}
-		<ErrorAlert message={error} />
+		<StatusBanner tone="danger">{error}</StatusBanner>
 	{/if}
 
 	<div class={FIELD_STACK}>

@@ -25,7 +25,7 @@ Examples below use `:8080` (native). For Compose, substitute `:3000`.
 |---|---|---|---|
 | GET | `/health` | none | Liveness (process up; outbox counts best-effort) |
 | GET | `/ready` | none | Readiness (PostgreSQL + notifiers; Apprise live, others presence-based) |
-| GET | `/metrics` | none | Prometheus counters + latency histograms |
+| GET | `/metrics` | none | Prometheus counters + latency histograms — edge proxies drop it, [see below](#metrics-exposure) |
 | GET | `/openapi.json` | none | OpenAPI 3 spec |
 | GET | `/api/v1/auth/methods` | none | Available login methods |
 | POST | `/api/v1/auth/login` | none | Local username/password → session JWT |
@@ -37,7 +37,7 @@ Examples below use `:8080` (native). For Compose, substitute `:3000`.
 | POST | `/api/v1/auth/users/{id}/oidc` | admin | Link or unlink an OIDC subject on a local user |
 | GET | `/api/v1/status` | Bearer* | Dashboard summary |
 | GET | `/api/v1/sources` | Bearer* | Config + live runtime state |
-| GET | `/api/v1/sources/{id}` | Bearer* | Single source detail |
+| GET | `/api/v1/sources/{id}` | Bearer* | Single source detail (includes cached security advisories per seen release when `[advisories]` is enabled) |
 | GET | `/api/v1/outbox` | Bearer* | Notification outbox queue |
 | POST | `/api/v1/outbox/requeue` | Bearer* | Revive dead-letter outbox rows |
 | GET | `/api/v1/config` | Bearer* | Effective + desired config (redacted) |
@@ -111,12 +111,27 @@ curl -s -X POST -H "Authorization: Bearer $XRELEASE_API_KEY" \
 curl -s http://127.0.0.1:8080/ready | jq
 ```
 
+## Metrics exposure
+
+`/metrics` carries no auth, so deployments only proxy it where the front door
+is not reachable from outside the host:
+
+| Deployment | `/metrics` via the UI | Scrape instead |
+|---|---|---|
+| Compose (HTTP, `127.0.0.1:3000`) | proxied | `http://127.0.0.1:3000/metrics` |
+| Compose + `compose.tls.yaml` (`0.0.0.0:443`) | `404` | backend on the compose network |
+| Helm (public Ingress) | `404` unless `ui.exposeMetrics=true` | backend Service `:8080` / ServiceMonitor |
+
+The dashboard's "Open /metrics" button follows the same rule — it only works
+where the endpoint is proxied. Setup:
+[`deploy/grafana/`](../../deploy/grafana/README.md).
+
 ## Driving the API
 
-For humans and CI, [`xrctl`](cli.md#xrctl--remote-management) wraps the management routes
+For humans and CI, [`xrctl`](cli.md#xrctl-remote-management) wraps the management routes
 (`status`, `sources`, `outbox`, `organizations`, `show`, `schema`, `history`,
 `validate`, `apply`, `rollback`, `reload`). Local ops (`validate`, `sources`,
-`health`, `outbox-requeue`, `serve`) use the [`xrelease`](cli.md#xrelease--local-instance)
+`health`, `outbox-requeue`, `serve`) use the [`xrelease`](cli.md#xrelease-local-instance)
 binary. The optional dashboard covers observability; the `/config` editor needs
 the **API + UI** variant — see
 [authoring variants](../configuration/overview.md#authoring-variants).

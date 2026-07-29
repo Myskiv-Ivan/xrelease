@@ -1,5 +1,4 @@
 <script lang="ts">
-	import StatCard from '$lib/components/dashboard/StatCard.svelte';
 	import OverviewExtras from '$lib/components/dashboard/OverviewExtras.svelte';
 	import ConfigApplyPanel from '$lib/components/dashboard/ConfigApplyPanel.svelte';
 	import MetricsSummary from '$lib/components/dashboard/MetricsSummary.svelte';
@@ -7,10 +6,12 @@
 	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
 	import Button from '$lib/components/kit/Button.svelte';
 	import Panel from '$lib/components/kit/Panel.svelte';
+	import Section from '$lib/components/kit/Section.svelte';
+	import StatCard from '$lib/components/kit/StatCard.svelte';
 	import StatGrid from '$lib/components/kit/StatGrid.svelte';
 	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
 	import type { KeyValueItem } from '$lib/types/ui';
-	import { PANEL_GRID, PAGE_STACK, TYPE_CODE, TYPE_SECTION } from '$lib/components/kit/layout-styles';
+	import { PANEL_GRID, PAGE_STACK, TYPE_CODE } from '$lib/components/kit/layout-styles';
 	import { pollAllSources, pollErrorToast } from '$lib/core/poll';
 	import { getStatusStore } from '$lib/data/status.svelte';
 	import { t } from '$lib/i18n';
@@ -85,8 +86,7 @@
 
 	{#if statusStore.status}
 		<div class={PAGE_STACK}>
-			<section class="flex flex-col gap-3">
-				<h2 class={TYPE_SECTION}>{t('overview.sectionStatus')}</h2>
+			<Section title={t('overview.sectionStatus')}>
 				<StatGrid columns={4}>
 					<StatCard
 						label={t('overview.sources')}
@@ -108,10 +108,9 @@
 						tone={openBreakers > 0 ? 'danger' : 'default'}
 					/>
 				</StatGrid>
-			</section>
+			</Section>
 
-			<section class="flex flex-col gap-3">
-				<h2 class={TYPE_SECTION}>{t('overview.sectionRuntime')}</h2>
+			<Section title={t('overview.sectionRuntime')}>
 				<StatGrid columns={4}>
 					<StatCard label={t('overview.version')} value={statusStore.status.version} mono />
 					<StatCard
@@ -128,7 +127,7 @@
 						tone={statusStore.status.outbox_deferred > 0 ? 'warning' : 'default'}
 					/>
 				</StatGrid>
-			</section>
+			</Section>
 
 			{#if statusStore.status.breakers.length > 0}
 				<Panel title={t('overview.breakers')}>

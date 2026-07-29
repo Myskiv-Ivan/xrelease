@@ -20,7 +20,7 @@
 
 {#if layout === 'grid'}
 	<dl class="grid gap-x-4 gap-y-3 text-sm {gridCols[columns]}">
-		{#each items as item}
+		{#each items as item (item.label)}
 			<div class="min-w-0">
 				<dt class={statLabelClass}>{item.label}</dt>
 				<dd
@@ -34,7 +34,7 @@
 	</dl>
 {:else}
 	<dl class="divide-y divide-border text-sm">
-		{#each items as item}
+		{#each items as item (item.label)}
 			<div class="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
 				<dt class="shrink-0 {statLabelClass}">{item.label}</dt>
 				<dd

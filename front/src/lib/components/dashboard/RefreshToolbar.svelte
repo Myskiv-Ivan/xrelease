@@ -10,8 +10,7 @@
 		setAutoRefresh,
 		setRefreshIntervalMs
 	} from '$lib/stores/settings.svelte';
-	import { getNowStore } from '$lib/stores/now.svelte';
-	import { formatRelative } from '$lib/core/format';
+	import Timestamp from '$lib/components/kit/Timestamp.svelte';
 	import { TYPE_MUTED, TYPE_HINT } from '$lib/components/kit/layout-styles';
 
 	interface Props {
@@ -23,10 +22,6 @@
 	let { lastUpdated = null, isRefreshing = false, onRefresh }: Props = $props();
 	const settings = getSettingsState();
 	const network = getNetworkState();
-	const now = getNowStore();
-	const updatedLabel = $derived(
-		lastUpdated ? formatRelative(lastUpdated, now.current) : null
-	);
 </script>
 
 <div
@@ -64,9 +59,15 @@
 		{/each}
 	</Select>
 
-	{#if lastUpdated && updatedLabel}
-		<span class="{TYPE_MUTED} sm:ml-auto" title={lastUpdated.toLocaleString()}>
-			{t('common.updated')} {updatedLabel}
+	{#if lastUpdated}
+		<!--
+			Freshness chrome, not a data field: relative reads better here, and
+			`Timestamp` keeps the exact instant in the tooltip using the same
+			pinned-locale format as every table (`toLocaleString()` would follow
+			the operator's OS and disagree with them).
+		-->
+		<span class="{TYPE_MUTED} sm:ml-auto">
+			{t('common.updated')} <Timestamp value={lastUpdated} format="relative" class="inline" />
 		</span>
 	{/if}
 </div>

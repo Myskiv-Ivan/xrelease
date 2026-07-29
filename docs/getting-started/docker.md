@@ -85,3 +85,19 @@ Default lab = **API + UI** (`bootstrap.toml` only). For **Local** (mount
 |---|---|
 | UI | `http://127.0.0.1:3000/health` |
 | API readiness | `http://127.0.0.1:3000/ready` |
+| Metrics | `http://127.0.0.1:3000/metrics` (loopback only — see below) |
+
+## Metrics exposure
+
+`/metrics` needs no authentication. The plain HTTP stack binds the UI to
+`127.0.0.1` only, so proxying it there is safe and the dashboard's
+"Open /metrics" button works. The edge-facing variants drop it:
+`docker/compose.tls.yaml` (published on `0.0.0.0:443`) and the Helm chart
+(public Ingress) both return `404`, and expect Prometheus to scrape the
+backend directly — [Grafana](../../deploy/grafana/README.md).
+
+## Hardening
+
+Services run with `no-new-privileges` and memory limits; the backend also
+drops all capabilities and uses a read-only root filesystem with `tmpfs` for
+`/data` and `/tmp`. Details: [docker/README](../../docker/README.md).
