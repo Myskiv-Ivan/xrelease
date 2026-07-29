@@ -47,9 +47,13 @@ jobs:
               echo
               echo "1. Settings → Code security → enable **Code scanning**"
               echo "   (private repos additionally need GitHub Advanced Security)"
-              echo "2. Settings → Secrets and variables → Actions → variable"
+              echo "2. If GitHub offers **Default setup**, switch to **Advanced**"
+              echo "   (or disable default) — this workflow is the advanced config."
+              echo "   Default + advanced together fails SARIF upload with:"
+              echo "   \"cannot be processed when the default setup is enabled\"."
+              echo "3. Settings → Secrets and variables → Actions → variable"
               echo "   \`CODE_SCANNING_ENABLED\` = \`true\`"
-              echo "3. Re-run this workflow"
+              echo "4. Re-run this workflow"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"

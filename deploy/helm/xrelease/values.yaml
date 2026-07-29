@@ -43,12 +43,10 @@ config:
     source = "api"
     ui_config = true
   appInline: |
+    # Idle seed — Configure via UI / xrctl Apply. Do not put an empty
+    # apprise notifier here: urls=[] fails start-up validation.
     defaults:
       interval_secs: 86400
-    notifiers:
-      - type: apprise
-        endpoint: http://xrelease-apprise:8000
-        urls: []
 
 database:
   url: ""
@@ -190,7 +188,7 @@ apprise:
 
 ui:
   enabled: true
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ghcr.io/myskiv-ivan/xrelease-ui
     tag: ""

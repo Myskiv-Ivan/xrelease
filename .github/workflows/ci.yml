@@ -157,32 +157,34 @@ jobs:
 
       - name: Lint, render default + lab, check shape
         run: |
-          set -e
+          set -euo pipefail
           C=deploy/helm/xrelease
-          # Fixed secrets so two renders of the same input compare equal.
-          cat > /tmp/ci-secrets.yaml <<'EOF'
-          secrets:
-            adminPassword: ci
-          EOF
-          # kind/lab override: builtin PG, no Gateway/CNPG/NP (CI + e2e smoke).
-          cat > /tmp/lab.yaml <<'EOF'
-          ingress:
-            enabled: false
-          gateway:
-            enabled: false
-          postgresql:
-            mode: builtin
-            enabled: true
-            auth:
-              password: ci-pg
-          ui:
-            replicaCount: 1
-          networkPolicy:
-            enabled: false
-          metrics:
-            serviceMonitor:
-              enabled: false
-          EOF
+          # Write values via Python so GHA `run: |` indent cannot nest YAML keys.
+          python3 - <<'PY'
+          from pathlib import Path
+          Path("/tmp/ci-secrets.yaml").write_text(
+              "secrets:\n  adminPassword: ci\n", encoding="utf-8"
+          )
+          Path("/tmp/lab.yaml").write_text(
+              "ingress:\n"
+              "  enabled: false\n"
+              "gateway:\n"
+              "  enabled: false\n"
+              "postgresql:\n"
+              "  mode: builtin\n"
+              "  enabled: true\n"
+              "  auth:\n"
+              "    password: ci-pg\n"
+              "ui:\n"
+              "  replicaCount: 1\n"
+              "networkPolicy:\n"
+              "  enabled: false\n"
+              "metrics:\n"
+              "  serviceMonitor:\n"
+              "    enabled: false\n",
+              encoding="utf-8",
+          )
+          PY
 
           helm lint $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml
           helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml >/tmp/default.yaml
@@ -195,7 +197,6 @@ jobs:
             grep -q "$k" /tmp/default.yaml || { echo "default render missing: $k" >&2; exit 1; }
           done
           ! grep -qE '^kind: (Ingress|StatefulSet)' /tmp/default.yaml
-          # lab has builtin StatefulSet, no PDB (ui×1), no HTTPRoute/Cluster
           grep -q 'kind: StatefulSet' /tmp/lab-render.yaml
           ! grep -q 'kind: PodDisruptionBudget' /tmp/lab-render.yaml
           ! grep -q 'proxy_pass .*:8080/metrics' /tmp/default.yaml
@@ -210,11 +211,8 @@ jobs:
 
       - name: Broken values are rejected with an actionable message
         run: |
-          set -e
-          cat > /tmp/ci-secrets.yaml <<'EOF'
-          secrets:
-            adminPassword: ci
-          EOF
+          set -euo pipefail
+          python3 -c 'from pathlib import Path; Path("/tmp/ci-secrets.yaml").write_text("secrets:\n  adminPassword: ci\n")'
           V="-f /tmp/ci-secrets.yaml"
           fails() { m="$1"; shift
             if helm template xrelease deploy/helm/xrelease $V "$@" >/dev/null 2>/tmp/e; then

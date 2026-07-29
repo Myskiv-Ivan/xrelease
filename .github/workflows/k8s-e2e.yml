@@ -71,32 +71,36 @@ jobs:
       - name: Install chart
         run: |
           # kind: local images + builtin PG (no CNPG/Gateway in the e2e cluster).
-          cat > /tmp/kind-values.yaml <<'EOF'
-          image:
-            repository: xrelease
-            tag: "dev"
-            pullPolicy: Never
-          ui:
-            image:
-              repository: xrelease-ui
-              tag: "dev"
-              pullPolicy: Never
-            replicaCount: 1
-          ingress:
-            enabled: false
-          gateway:
-            enabled: false
-          postgresql:
-            mode: builtin
-            enabled: true
-          networkPolicy:
-            enabled: false
-          metrics:
-            serviceMonitor:
-              enabled: false
-          secrets:
-            adminPassword: ci
-          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          Path("/tmp/kind-values.yaml").write_text(
+              "image:\n"
+              "  repository: xrelease\n"
+              "  tag: \"dev\"\n"
+              "  pullPolicy: Never\n"
+              "ui:\n"
+              "  image:\n"
+              "    repository: xrelease-ui\n"
+              "    tag: \"dev\"\n"
+              "    pullPolicy: Never\n"
+              "  replicaCount: 1\n"
+              "ingress:\n"
+              "  enabled: false\n"
+              "gateway:\n"
+              "  enabled: false\n"
+              "postgresql:\n"
+              "  mode: builtin\n"
+              "  enabled: true\n"
+              "networkPolicy:\n"
+              "  enabled: false\n"
+              "metrics:\n"
+              "  serviceMonitor:\n"
+              "    enabled: false\n"
+              "secrets:\n"
+              "  adminPassword: ci\n",
+              encoding="utf-8",
+          )
+          PY
           helm upgrade --install xrelease deploy/helm/xrelease \
             --namespace xrelease --create-namespace \
             -f /tmp/kind-values.yaml \

@@ -105,8 +105,9 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 | Packages | Actions can write to GHCR |
 | Optional secret `RELEASE_TOKEN` | Tag → release cascade |
 | Optional variable `ACTIONS_RUNS_ON` | Runner labels (below) |
-| Optional variable `CODE_SCANNING_ENABLED=true` | Required for CodeQL on **private** repos (needs GHAS) |
-| Code scanning | Settings → Code security → Code scanning (GHAS if private) |
+| Optional variable `CODE_SCANNING_ENABLED=true` | Turns on `codeql.yml` analyze jobs |
+| Code scanning | Settings → Code security → **Advanced** setup (this workflow). **Disable Default setup** — both together reject SARIF upload |
+| Code scanning (GHAS) | Required on **private** repos |
 
 ### Workflow triggers (rules)
 

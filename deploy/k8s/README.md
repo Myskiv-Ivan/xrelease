@@ -1,7 +1,6 @@
 # Kubernetes
 
-Default deploy is the **chart itself** (CNPG + Gateway). This folder holds only
-the site overlay and platform objects.
+Default deploy is the chart. This folder holds only the site overlay and platform objects.
 
 | File | Role |
 |------|------|

@@ -1,6 +1,6 @@
 # Quick start
 
-## Default labs (what you get out of the box)
+## Default
 
 | | **Docker** (`docker-compose.yaml`) | **Kubernetes** (`values.yaml`) |
 |---|---|---|
@@ -17,7 +17,7 @@ Lab-only Helm (builtin PG, no CNPG/Gateway): see
 
 Authoring flags: [Local / API / API + UI](../configuration/overview.md#authoring-variants).
 
-## Docker (recommended)
+## Docker
 
 ```sh
 git clone https://github.com/Myskiv-Ivan/xrelease.git && cd xrelease
