@@ -44,5 +44,8 @@
 		"@scalar/api-reference": "^1.63.0",
 		"smol-toml": "^1.7.1",
 		"yaml": "^2.9.0"
+	},
+	"overrides": {
+		"cookie": "^0.7.2"
 	}
 }
