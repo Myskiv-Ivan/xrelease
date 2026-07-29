@@ -159,38 +159,12 @@ jobs:
         run: |
           set -euo pipefail
           C=deploy/helm/xrelease
-          # Write values via Python so GHA `run: |` indent cannot nest YAML keys.
-          python3 - <<'PY'
-          from pathlib import Path
-          Path("/tmp/ci-secrets.yaml").write_text(
-              "secrets:\n  adminPassword: ci\n", encoding="utf-8"
-          )
-          Path("/tmp/lab.yaml").write_text(
-              "ingress:\n"
-              "  enabled: false\n"
-              "gateway:\n"
-              "  enabled: false\n"
-              "postgresql:\n"
-              "  mode: builtin\n"
-              "  enabled: true\n"
-              "  auth:\n"
-              "    password: ci-pg\n"
-              "ui:\n"
-              "  replicaCount: 1\n"
-              "networkPolicy:\n"
-              "  enabled: false\n"
-              "metrics:\n"
-              "  serviceMonitor:\n"
-              "    enabled: false\n",
-              encoding="utf-8",
-          )
-          PY
+          S=.github/ci/helm-secrets.yaml
 
-          helm lint $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml
-          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml >/tmp/default.yaml
-          helm template xrelease $C -f /tmp/ci-secrets.yaml -f /tmp/lab.yaml >/tmp/lab-render.yaml
-          printf 'ui:\n  enabled: false\n' >/tmp/no-ui.yaml
-          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml -f /tmp/no-ui.yaml >/dev/null
+          helm lint $C -f $S -f deploy/k8s/values.yaml
+          helm template xrelease $C -f $S -f deploy/k8s/values.yaml >/tmp/default.yaml
+          helm template xrelease $C -f $S -f .github/ci/helm-lab.yaml >/tmp/lab-render.yaml
+          helm template xrelease $C -f $S -f deploy/k8s/values.yaml -f .github/ci/helm-no-ui.yaml >/dev/null
 
           for k in 'kind: Cluster' 'kind: HTTPRoute' 'kind: ServiceMonitor' \
                    'kind: PodDisruptionBudget' 'key: uri' 'helm.sh/resource-policy: keep'; do
@@ -200,20 +174,18 @@ jobs:
           grep -q 'kind: StatefulSet' /tmp/lab-render.yaml
           ! grep -q 'kind: PodDisruptionBudget' /tmp/lab-render.yaml
           ! grep -q 'proxy_pass .*:8080/metrics' /tmp/default.yaml
-          printf 'ui:\n  exposeMetrics: true\n' >/tmp/expose-metrics.yaml
-          helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml \
-            -f /tmp/expose-metrics.yaml | grep -q 'proxy_pass .*:8080/metrics'
+          helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
+            -f .github/ci/helm-expose-metrics.yaml | grep -q 'proxy_pass .*:8080/metrics'
           [ "$(grep -m1 checksum/ui-nginx /tmp/default.yaml)" \
-            != "$(helm template xrelease $C -f /tmp/ci-secrets.yaml -f deploy/k8s/values.yaml \
-                 -f /tmp/expose-metrics.yaml | grep -m1 checksum/ui-nginx)" ]
+            != "$(helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
+                 -f .github/ci/helm-expose-metrics.yaml | grep -m1 checksum/ui-nginx)" ]
           helm package $C -d /tmp/xrelease-chart
           test -f /tmp/xrelease-chart/xrelease-*.tgz
 
       - name: Broken values are rejected with an actionable message
         run: |
           set -euo pipefail
-          python3 -c 'from pathlib import Path; Path("/tmp/ci-secrets.yaml").write_text("secrets:\n  adminPassword: ci\n")'
-          V="-f /tmp/ci-secrets.yaml"
+          V="-f .github/ci/helm-secrets.yaml"
           fails() { m="$1"; shift
             if helm template xrelease deploy/helm/xrelease $V "$@" >/dev/null 2>/tmp/e; then
               echo "expected failure: $*" >&2; exit 1; fi

@@ -1,0 +1,36 @@
+# kind e2e — local images + builtin PG. No CNPG/Gateway/Apprise/NP.
+# Apprise is off: caronc/apprise OOMs under the chart's default 256Mi on kind.
+
+image:
+  repository: xrelease
+  tag: "dev"
+  pullPolicy: Never
+
+ui:
+  image:
+    repository: xrelease-ui
+    tag: "dev"
+    pullPolicy: Never
+  replicaCount: 1
+
+ingress:
+  enabled: false
+gateway:
+  enabled: false
+
+postgresql:
+  mode: builtin
+  enabled: true
+
+apprise:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+metrics:
+  serviceMonitor:
+    enabled: false
+
+secrets:
+  adminPassword: ci

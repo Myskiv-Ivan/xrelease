@@ -255,7 +255,7 @@ jobs:
           charts_oci="${{ env.REGISTRY }}/${owner}/charts"
           helm lint deploy/helm/xrelease \
             -f deploy/k8s/values.yaml \
-            --set secrets.adminPassword=ci
+            -f .github/ci/helm-secrets.yaml
           helm package deploy/helm/xrelease -d dist-chart
           # helm push prints "Pushed: …" and "Digest: sha256:…"
           push_out="$(helm push "dist-chart/xrelease-${VERSION}.tgz" "oci://${charts_oci}" 2>&1)"

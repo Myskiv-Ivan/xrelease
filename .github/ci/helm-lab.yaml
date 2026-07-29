@@ -1,0 +1,19 @@
+# Lab render profile for helm CI — builtin PG, no Gateway/CNPG/NP.
+# Pair with .github/ci/helm-secrets.yaml.
+
+ingress:
+  enabled: false
+gateway:
+  enabled: false
+postgresql:
+  mode: builtin
+  enabled: true
+  auth:
+    password: ci-pg
+ui:
+  replicaCount: 1
+networkPolicy:
+  enabled: false
+metrics:
+  serviceMonitor:
+    enabled: false
