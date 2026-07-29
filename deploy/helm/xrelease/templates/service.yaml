@@ -12,7 +12,5 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-  # Component-scoped: UI, Apprise and PostgreSQL pods carry the same
-  # name+instance labels and would otherwise land in these endpoints.
   selector:
     {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 4 }}

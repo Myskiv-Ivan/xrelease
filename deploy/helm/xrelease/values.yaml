@@ -1,14 +1,6 @@
-# xrelease — default deploy: CNPG + Gateway API + UI + Apprise.
-#
-# Site overlay (hostname + image tag): deploy/k8s/values.yaml
-# Password:           deploy/k8s/values.secrets.example.yaml → values.secrets.yaml
-#
-#   helm upgrade --install xrelease ./deploy/helm/xrelease \
-#     --namespace xrelease --create-namespace \
-#     -f deploy/k8s/values.yaml \
-#     -f deploy/k8s/values.secrets.yaml
-#
-# Platform once: docs/getting-started/kubernetes.md
+# Default: CNPG + Gateway API + UI + Apprise.
+# Overlay: deploy/k8s/values.yaml + values.secrets.yaml
+# Platform: docs/getting-started/kubernetes.md
 
 replicaCount: 1
 
@@ -43,8 +35,7 @@ config:
     source = "api"
     ui_config = true
   appInline: |
-    # Idle seed — Configure via UI / xrctl Apply. Do not put an empty
-    # apprise notifier here: urls=[] fails start-up validation.
+    # Idle until UI / xrctl Apply. Do not add apprise with urls: [].
     defaults:
       interval_secs: 86400
 
@@ -176,7 +167,6 @@ postgresql:
 apprise:
   enabled: true
   image: caronc/apprise:1.5.1
-  # gunicorn default (2*CPU)+1 OOMs under the memory limit — keep at 1.
   workerCount: 1
   statefulMode: simple
   service:

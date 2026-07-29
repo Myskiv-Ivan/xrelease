@@ -30,9 +30,6 @@ spec:
   template:
     metadata:
       annotations:
-        # Restart UI when the nginx ConfigMap changes (proxy target, /metrics
-        # exposure) and when runtime VITE_* change so docker-entrypoint
-        # regenerates /ui-config.js (no image rebuild).
         checksum/ui-nginx: {{ include (print $.Template.BasePath "/ui-nginx.yaml") . | sha256sum }}
         checksum/ui-env: {{ .Values.ui.env | toYaml | sha256sum }}
       labels:
@@ -43,7 +40,6 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      # nginx-unprivileged runs as UID 101 and listens on 8080.
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
@@ -61,8 +57,6 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-            # Not read-only: docker-entrypoint.d regenerates /ui-config.js in
-            # the web root on every start.
           {{- with .Values.ui.env }}
           env:
             {{- range $key, $value := . }}
@@ -77,9 +71,6 @@ spec:
           {{- if gt (int .Values.ui.replicaCount) 1 }}
           lifecycle:
             preStop:
-              # Let the Endpoints update propagate to the front door before
-              # nginx stops accepting — otherwise a rollout drops in-flight
-              # requests that were already routed to this pod.
               exec:
                 command: ["sleep", "5"]
           {{- end }}
@@ -106,7 +97,6 @@ spec:
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
       {{- else if gt (int .Values.ui.replicaCount) 1 }}
-      # Soft spread: two UI pods on one node buy nothing against node loss.
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -131,8 +121,6 @@ metadata:
     {{- include "xrelease.labels" . | nindent 4 }}
     app.kubernetes.io/component: ui
 spec:
-  # Only rendered above 1 replica: a PDB over a single pod blocks node drains
-  # instead of protecting anything.
   maxUnavailable: 1
   selector:
     matchLabels:

@@ -130,7 +130,7 @@ Full tables: [authoring variants](docs/configuration/overview.md#authoring-varia
 | Platform | UI | Auth | Config authority |
 |---|---|---|---|
 | **Docker Compose** | on (`:3000`) | local admin + API key; OIDC optional | **API + UI** |
-| **Kubernetes (Helm)** | on (Gateway) | session/admin (+ OIDC) | **API + UI** (`values.yaml`) |
+| **Kubernetes (Helm)** | on (Gateway or Ingress) | session/admin (+ OIDC) | **API + UI** (`values.yaml`) |
 | **Helm variants** | optional | per overlay | see [deployment variants](docs/operations/deployment-variants.md) |
 | **Binary without UI** | omit UI container / `ui.enabled: false` | API key / OIDC | same `[config_api]` choice |
 | **Remote ops** | — | `xrctl --api-key` → live `serve` | `xrctl apply` when `source=api` |
@@ -144,8 +144,8 @@ cp .env.example .env && docker compose up -d
 # Dashboard / xrctl / curl → http://127.0.0.1:3000  (not :8080 on the host)
 xrctl --api-url http://127.0.0.1:3000 --api-key "$XRELEASE_API_KEY" status
 
-# Kubernetes (CNPG + Gateway) — docs/getting-started/kubernetes.md
-TAG=v0.1.4
+# Kubernetes (CNPG + Gateway by default) — docs/getting-started/kubernetes.md
+TAG=v0.2.0
 curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.yaml"
 curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.secrets.example.yaml"
 cp values.secrets.example.yaml values.secrets.yaml
@@ -156,6 +156,9 @@ helm upgrade --install xrelease oci://ghcr.io/myskiv-ivan/charts/xrelease \
   -f values.yaml \
   -f values.secrets.yaml
 ```
+
+Ingress (Traefik/nginx) and other overlays:
+[deployment variants](docs/operations/deployment-variants.md).
 
 ## Integrations
 

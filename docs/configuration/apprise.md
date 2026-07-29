@@ -554,12 +554,15 @@ notifiers:
 
 ---
 
-## Docker sidecar
+## Docker / Helm sidecar
 
-Compose runs `caronc/apprise`. xrelease reaches it at `http://apprise:8000`
-via `XRELEASE_APPRISE_ENDPOINT` in
-[`docker-compose.yaml`](../../docker-compose.yaml). Targets come from
-`app/releases.yaml` or UI Apply.
+Compose and the Helm chart run `caronc/apprise`. xrelease reaches it via
+`XRELEASE_APPRISE_ENDPOINT` (Compose: `http://apprise:8000`; chart: in-cluster
+Service). Targets come from `app/releases.yaml` or UI Apply.
+
+Helm sets `APPRISE_WORKER_COUNT=1` and mounts writable `/tmp` — the upstream
+default worker formula OOMs under typical memory limits. Disable with
+`apprise.enabled: false`.
 
 ## Per-source team routing
 

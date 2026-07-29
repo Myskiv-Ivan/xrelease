@@ -1,4 +1,11 @@
-# CI — format, lint, test, security, config validate, front, docker smoke, helm lint
+# CI — quality gates only (no publish).
+#
+# DAG:
+#   version-sync ──► rust | front | security | helm | compose
+#   rust + front ──► docker (amd64 smoke; GHA cache shared with release / k8s-e2e)
+#   pull_request ──► dependency-review (GitHub Dependency Graph diff)
+#
+# Runtime Helm proof: k8s-e2e.yml (path-filtered). Publish: release.yml on tags.
 
 name: ci
 
@@ -8,14 +15,13 @@ on:
   pull_request:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Fail-fast version gate — no Rust toolchain (seconds, not minutes).
   version-sync:
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
@@ -23,12 +29,57 @@ jobs:
       - name: Version sync
         run: python3 scripts/bump-version.py --check
 
-  rust:
+  # PR-only: GitHub Dependency Graph diff (new/changed deps). Needs Dependency
+  # graph enabled (public repos: on by default; private: Settings → Code security).
+  dependency-review:
+    if: github.event_name == 'pull_request'
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
-    # The store, outbox, config-apply, RBAC, organizations, webhook and
-    # observability suites all need PostgreSQL and skip themselves silently when
-    # it is unreachable. Without this service `cargo test --workspace` went green
-    # while the entire DB-backed integration surface never executed.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          show-openssf-scorecard: false
+
+  # Lockfile / advisory gates (every PR + main). Complements dependency-review.
+  security:
+    needs: [version-sync]
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust advisories + licenses (cargo-deny)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories bans licenses sources
+
+      - name: npm audit (high+, lockfile only)
+        working-directory: front
+        run: npm audit --audit-level=high --package-lock-only
+
+      - name: OSV Scanner (Cargo.lock + package-lock.json)
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.3
+        with:
+          scan-args: |-
+            --lockfile=Cargo.lock
+            --lockfile=front/package-lock.json
+
+      - name: Trivy secrets + misconfig
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: secret,misconfig
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  rust:
+    needs: [version-sync]
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -45,7 +96,7 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c  # pin action SHA; toolchain must match rust-toolchain.toml
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
           toolchain: "1.96"
           components: rustfmt, clippy
@@ -65,16 +116,11 @@ jobs:
 
       - name: Test
         env:
-          # Both names are in use: the store/config-apply suites read
-          # XRELEASE_TEST_POSTGRES_URL, the organizations suite XRELEASE_DATABASE_URL.
           XRELEASE_TEST_POSTGRES_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease_test"
           XRELEASE_DATABASE_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease_test"
-          # config_api.source = "api" refuses to seal app_secret without a key,
-          # so every config-apply e2e fails validation (422) unless this is set.
           XRELEASE_CONFIG_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
         run: cargo test --workspace --locked
 
-      # Incremental after clippy/test — reuse target/ instead of a cold link via cargo-run.
       - name: Build xrelease binary
         run: cargo build --locked --bin xrelease
 
@@ -83,50 +129,20 @@ jobs:
           XRELEASE_WEBHOOK_SECRET: "ci-test-secret"
           XRELEASE_API_KEY: "ci-test-key"
           GITHUB_TOKEN: "ci-placeholder"
-          # Root bootstrap.toml has no [database] and source=api — same as Compose/.env.
           XRELEASE_DATABASE_URL: "postgres://xrelease:xrelease@localhost:5432/xrelease"
-          # 32-byte AES key (base64); offline validate only checks presence + API mode.
           XRELEASE_CONFIG_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
         run: |
           set -euo pipefail
           sudo mkdir -p /data
           BIN=./target/debug/xrelease
-          # Lab multi-org root config (empty stub app is unused at runtime)
           "$BIN" --config bootstrap.toml validate --format json
-          # Filled single-doc sample (strict)
           "$BIN" \
             --config deploy/examples/infra-app/bootstrap.toml \
             --app deploy/examples/infra-app/app/releases.yaml \
             validate --strict --format json
 
-  security:
-    runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Rust advisories + licenses (cargo-deny)
-        uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          command: check advisories bans licenses sources
-
-      - name: npm audit (high+)
-        working-directory: front
-        run: npm audit --audit-level=high
-
-      - name: Trivy filesystem + misconfig scan
-        # Advisory on PR: fail the step (annotation) but do not block merge until findings are triaged.
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: fs
-          scanners: vuln,misconfig,secret
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
-
   front:
+    needs: [version-sync]
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     defaults:
       run:
@@ -144,10 +160,8 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Chart correctness without a cluster. Runtime proof (images boot, nginx
-  # proxies, endpoints resolve) lives in .github/workflows/k8s-e2e.yml, which
-  # only fires when deploy/ or docker/ changes.
   helm:
+    needs: [version-sync]
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v7
@@ -226,6 +240,7 @@ jobs:
           PY
 
   compose:
+    needs: [version-sync]
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v7
@@ -234,7 +249,6 @@ jobs:
           docker compose -f docker-compose.yaml config --quiet
           docker compose -f docker/docker-compose.dev.yaml config --quiet
 
-  # amd64-only smoke (release.yml publishes linux/amd64 only — no arm64/QEMU).
   docker:
     name: docker (${{ matrix.component }})
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}

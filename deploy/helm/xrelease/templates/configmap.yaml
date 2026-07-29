@@ -6,8 +6,6 @@ metadata:
   labels:
     {{- include "xrelease.labels" . | nindent 4 }}
 data:
-  # Keys must be valid ConfigMap names (no '/'). Deployment projects
-  # releases.yaml → /etc/xrelease/app/releases.yaml via volume items.path.
   bootstrap.toml: |
 {{ .Values.config.bootstrapInline | indent 4 }}
   releases.yaml: |

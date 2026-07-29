@@ -1,9 +1,4 @@
 {{- if .Values.ui.enabled }}
-{{- /*
-  Kept in its own file so templates/ui.yaml can hash the rendered result into a
-  pod annotation. Inlined in the Deployment's file it could not — `include` of
-  the template you are standing in recurses.
-*/ -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -56,8 +51,6 @@ data:
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
         {{- if .Values.ui.exposeMetrics }}
-        # ui.exposeMetrics=true — backend /metrics is unauthenticated and this
-        # server sits behind the public Ingress. Prefer metrics.serviceMonitor.
         location = /metrics {
             proxy_pass http://{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}/metrics;
             proxy_set_header Host $host;
@@ -65,10 +58,6 @@ data:
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
         {{- else }}
-        # Not proxied by default: /metrics needs no auth, so exposing it here
-        # publishes source names and poll counters to anyone who reaches the
-        # Ingress. In-cluster Prometheus scrapes the backend Service instead.
-        # The dashboard's "Open /metrics" button needs ui.exposeMetrics=true.
         location = /metrics {
             return 404;
         }

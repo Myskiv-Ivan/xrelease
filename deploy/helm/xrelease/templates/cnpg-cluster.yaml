@@ -1,18 +1,5 @@
 {{- if and (eq .Values.postgresql.mode "cnpg") .Values.postgresql.cnpg.create }}
 {{- include "xrelease.validate" . }}
-{{- /*
-  CloudNativePG Cluster. Replaces the chart's single-replica StatefulSet with
-  an operator-managed HA setup: streaming replication, automated failover,
-  rolling minor upgrades and (when configured) continuous backup to object
-  storage.
-
-  The operator publishes a Secret `<clusterName>-app` holding a ready-made
-  `uri` key, which the Deployment feeds straight into XRELEASE_DATABASE_URL.
-
-  Requires the operator and its CRDs to exist BEFORE this release:
-    helm install cnpg cnpg/cloudnative-pg -n cnpg-system --create-namespace
-  See docs/operations/cloudnativepg.md.
-*/ -}}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -24,7 +11,6 @@ metadata:
     {{- include "xrelease.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
   annotations:
-    # The database outlives the release: `helm uninstall` must not drop it.
     helm.sh/resource-policy: keep
 spec:
   instances: {{ .Values.postgresql.cnpg.instances }}
@@ -44,7 +30,6 @@ spec:
     {{- end }}
 
   {{- if .Values.postgresql.cnpg.walStorage.enabled }}
-  # Separate volume for WAL — keeps write bursts off the data disk.
   walStorage:
     size: {{ .Values.postgresql.cnpg.walStorage.size | quote }}
     {{- with .Values.postgresql.cnpg.walStorage.storageClass }}

@@ -1,10 +1,4 @@
 {{- if .Values.metrics.serviceMonitor.enabled }}
-{{- /*
-  Prometheus Operator scrape of the backend Service. Deliberately targets the
-  API pod directly rather than the UI nginx, so /metrics never has to be
-  published through the public Ingress (see ui.exposeMetrics).
-  Requires the monitoring.coreos.com CRDs.
-*/ -}}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

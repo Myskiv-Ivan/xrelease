@@ -187,6 +187,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "image": { "type": "string", "minLength": 1 },
+        "workerCount": { "type": ["integer", "string"], "description": "Gunicorn workers; keep 1 under typical memory limits." },
+        "statefulMode": { "type": "string" },
         "service": {
           "type": "object",
           "properties": { "port": { "type": "integer", "minimum": 1, "maximum": 65535 } }

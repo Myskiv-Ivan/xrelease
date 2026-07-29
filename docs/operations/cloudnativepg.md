@@ -36,9 +36,10 @@ kubectl get crd clusters.postgresql.cnpg.io
 CNPG is the **chart default**. Install walkthrough:
 [Kubernetes](../getting-started/kubernetes.md).
 
-The chart renders a `Cluster`, waits for the primary in an init container, and
-reads `XRELEASE_DATABASE_URL` from the operator-managed Secret — **no database
-password goes into your values**.
+The chart renders a `Cluster`, waits for the primary in an init container
+(`pg_isready` against `<cluster>-rw` with `PGSSLMODE` from
+`postgresql.cnpg.sslMode`), and reads `XRELEASE_DATABASE_URL` from the
+operator-managed Secret — **no database password goes into your values**.
 
 ```bash
 kubectl -n xrelease get cluster xrelease-db

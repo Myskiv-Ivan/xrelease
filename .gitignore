@@ -31,3 +31,5 @@ node_modules/
 
 # mdBook build output (published via GitHub Pages Actions)
 /docs/book/
+values.secrets.yaml
+values.yaml

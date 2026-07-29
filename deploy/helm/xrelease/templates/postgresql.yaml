@@ -2,11 +2,6 @@
 {{- $fullname := include "xrelease.fullname" . -}}
 {{- $pgName := include "xrelease.postgresqlName" . -}}
 {{- if not .Values.postgresql.existingSecret }}
-{{- /*
-  Nobody ever types this password: the chart owns the database and hands the
-  backend a ready connection URL. Generated on first install, read back from
-  the cluster on upgrade so the volume keeps matching the credential.
-*/ -}}
 {{- $pgPassword := include "xrelease.machineSecret" (dict "ctx" . "secret" $pgName "key" "postgres-password" "value" .Values.postgresql.auth.password "gen" (randAlphaNum 32)) -}}
 apiVersion: v1
 kind: Secret
@@ -18,7 +13,6 @@ metadata:
 type: Opaque
 stringData:
   postgres-password: {{ $pgPassword | quote }}
-  # urlquery encodes reserved characters in the password (@ : / # …).
   connection-url: {{ printf "postgres://%s:%s@%s:5432/%s" .Values.postgresql.auth.username ($pgPassword | urlquery) $pgName .Values.postgresql.auth.database | quote }}
 ---
 {{- end }}
@@ -48,8 +42,6 @@ metadata:
     app.kubernetes.io/component: postgresql
   {{- if .Values.postgresql.persistence.retain }}
   annotations:
-    # Survive `helm uninstall` — dropping the release must not drop the data.
-    # Delete the PVC by hand to reclaim the volume.
     helm.sh/resource-policy: keep
   {{- end }}
 spec:
@@ -71,8 +63,6 @@ metadata:
     {{- include "xrelease.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
 spec:
-  # Not headless: one replica is reached through the ClusterIP above, and
-  # serviceName is immutable — changing it would break `helm upgrade`.
   serviceName: {{ $pgName }}
   replicas: 1
   selector:
@@ -108,7 +98,6 @@ spec:
                   key: postgres-password
             - name: POSTGRES_DB
               value: {{ .Values.postgresql.auth.database | quote }}
-            # PG 18+ image VOLUME is /var/lib/postgresql (not …/data).
             - name: PGDATA
               value: /var/lib/postgresql/pgdata
           volumeMounts:
@@ -132,7 +121,6 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
-      # Let PostgreSQL finish a shutdown checkpoint before SIGKILL.
       terminationGracePeriodSeconds: 60
       {{- with .Values.nodeSelector }}
       nodeSelector:

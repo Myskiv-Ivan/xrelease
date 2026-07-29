@@ -1,14 +1,6 @@
 {{- if .Values.networkPolicy.enabled }}
 {{- $fullName := include "xrelease.fullname" . -}}
 {{- $pgName := include "xrelease.postgresqlName" . -}}
-{{- /*
-  Namespace-scoped zero trust. Requires a CNI that enforces NetworkPolicy
-  (Calico, Cilium, …) — with a non-enforcing CNI these objects are inert.
-
-  Egress to the public internet stays open for the backend: polling upstream
-  registries and delivering to SaaS sinks is the product. Only lateral traffic
-  inside the namespace is constrained.
-*/ -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -22,7 +14,6 @@ spec:
       {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 6 }}
   policyTypes: [Ingress, Egress]
   ingress:
-    # UI nginx proxies /api and the probes.
     - from:
         - podSelector:
             matchLabels:
@@ -30,10 +21,6 @@ spec:
       ports:
         - port: http
           protocol: TCP
-    # Ingress controller / Gateway data plane — needed for the api route
-    # (forge webhooks) and for ui.enabled=false, where the front door points
-    # straight at the backend. Set ingressControllerNamespace to wherever your
-    # controller actually runs (envoy-gateway-system, nginx-gateway, istio-system, …).
     - from:
         - namespaceSelector:
             matchLabels:
@@ -42,8 +29,6 @@ spec:
         - port: http
           protocol: TCP
     {{- with .Values.networkPolicy.monitoringNamespace }}
-    # Prometheus scrape of /metrics. Scoped to one namespace on purpose: a rule
-    # with no `from` matches every source, which would undo the two above.
     - from:
         - namespaceSelector:
             matchLabels:
@@ -73,7 +58,6 @@ spec:
           protocol: TCP
     {{- end }}
     {{- if eq .Values.postgresql.mode "cnpg" }}
-    # CloudNativePG labels every instance pod with cnpg.io/cluster.
     - to:
         {{- if .Values.postgresql.cnpg.namespace }}
         - namespaceSelector:
@@ -100,7 +84,6 @@ spec:
         - port: {{ .Values.apprise.service.port }}
           protocol: TCP
     {{- end }}
-    # Upstream registries, forge APIs, SaaS sinks and external PostgreSQL.
     - to:
         - ipBlock:
             {{- include "xrelease.internetIpBlock" . | nindent 12 }}
@@ -133,7 +116,6 @@ spec:
   podSelector:
     matchLabels:
       {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "postgresql") | nindent 6 }}
-  # Ingress-only: nothing else in the namespace may reach the database.
   policyTypes: [Ingress]
   ingress:
     - from:
@@ -182,8 +164,6 @@ spec:
             matchLabels:
               {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "server") | nindent 14 }}
       ports:
-        # Numeric, not the `http` name: named ports in EGRESS rules resolve
-        # against the destination pods and are unevenly supported across CNIs.
         - port: {{ .Values.service.port }}
           protocol: TCP
 {{- end }}
@@ -220,7 +200,6 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # Apprise fans out to Slack / Telegram / SMTP / … on the public internet.
     - to:
         - ipBlock:
             {{- include "xrelease.internetIpBlock" . | nindent 12 }}
@@ -235,8 +214,6 @@ spec:
           protocol: TCP
         - port: 25
           protocol: TCP
-    {{- /* Same escape hatch as the backend: an internal SMTP relay or webhook
-           sink lives in RFC1918 space that blockPrivateEgress just removed. */}}
     {{- range .Values.networkPolicy.extraEgressCIDRs }}
     - to:
         - ipBlock:

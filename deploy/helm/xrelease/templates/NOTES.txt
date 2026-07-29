@@ -1,6 +1,4 @@
-xrelease {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
-
-Wait for the rollout:
+xrelease {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}" in "{{ .Release.Namespace }}".
 
   kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "xrelease.fullname" . }}
 
@@ -10,42 +8,33 @@ Wait for the rollout:
 {{- if $.Values.ingress.tls }}{{ $scheme = "https" }}{{ end }}
 
 Dashboard: {{ $scheme }}://{{ .host }}/
-  Point {{ .host }} at your Ingress controller address:
-    kubectl -n {{ $.Values.networkPolicy.ingressControllerNamespace }} get svc
 {{- end }}
 {{- else if .Values.gateway.enabled }}
 {{- range .Values.gateway.hostnames }}
 
 Dashboard: http(s)://{{ . }}/
 {{- end }}
-  Routed through Gateway "{{ .Values.gateway.parentRef.name }}"{{ with .Values.gateway.parentRef.namespace }} in namespace {{ . }}{{ end }}.
-  Confirm the route bound (Accepted=True and ResolvedRefs=True):
-    kubectl -n {{ .Release.Namespace }} describe httproute {{ include "xrelease.fullname" . }}
-  Gateway address:
-    kubectl -n {{ .Values.gateway.parentRef.namespace | default .Release.Namespace }} get gateway {{ .Values.gateway.parentRef.name }}
+  Gateway "{{ .Values.gateway.parentRef.name }}"{{ with .Values.gateway.parentRef.namespace }} ({{ . }}){{ end }}
+  kubectl -n {{ .Release.Namespace }} describe httproute {{ include "xrelease.fullname" . }}
 {{- else }}
-
-No front door configured — reach the UI with a port-forward:
 
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "xrelease.fullname" . }}-ui {{ .Values.ui.service.port }}
 {{- end }}
 
 {{- if and .Values.ui.enabled (eq (default "local" .Values.ui.env.VITE_AUTH_MODE) "local") }}
 
-Sign in as {{ .Values.secrets.adminUser | default "admin" }} with the password
-you passed in secrets.adminPassword.
+Sign in as {{ .Values.secrets.adminUser | default "admin" }} (secrets.adminPassword).
 {{- end }}
 
 {{- if eq (include "xrelease.createSecret" .) "true" }}
 
-The API key, webhook secret, session secret and config encryption key were
-generated for you and are kept across upgrades. Read one back:
+Generated secrets (kept across upgrades):
 
   kubectl -n {{ .Release.Namespace }} get secret {{ include "xrelease.secretsName" . }} \
     -o jsonpath='{.data.XRELEASE_API_KEY}' | base64 -d
 {{- end }}
 
-The instance starts idle. Author desired state in Config → Apply, or push it:
+Idle until Config → Apply or:
 
 {{- if .Values.ingress.enabled }}
 {{- with (first .Values.ingress.hosts) }}
@@ -59,44 +48,18 @@ The instance starts idle. Author desired state in Config → Apply, or push it:
   xrctl --api-url http://127.0.0.1:{{ .Values.ui.service.port }} --api-key "$XRELEASE_API_KEY" apply app/releases.yaml
 {{- end }}
 
-Checks:
+{{- if eq .Values.postgresql.mode "cnpg" }}
 
-  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
-  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "xrelease.fullname" . }}
-
-{{- if not .Values.metrics.serviceMonitor.enabled }}
-
-Metrics: /metrics is served by the backend Service on port {{ .Values.service.port }}
-and is NOT published through the front door (it needs no auth). Enable
-metrics.serviceMonitor.enabled=true for Prometheus Operator, or set
-ui.exposeMetrics=true on a trusted network to restore the dashboard button.
+Database: CloudNativePG "{{ .Values.postgresql.cnpg.clusterName }}"
+  kubectl -n {{ .Release.Namespace }} get cluster {{ .Values.postgresql.cnpg.clusterName }}
+{{- if not .Values.postgresql.cnpg.backup.enabled }}
+Backups off — set postgresql.cnpg.backup.* for production.
+{{- end }}
 {{- end }}
 
 {{- if and .Values.postgresql.enabled .Values.postgresql.persistence.enabled .Values.postgresql.persistence.retain }}
 
-The PostgreSQL PVC ({{ include "xrelease.postgresqlName" . }}) is annotated
-helm.sh/resource-policy=keep — `helm uninstall` leaves the data behind.
-Delete it explicitly to reclaim the volume.
-
-This StatefulSet is a single replica with no backups — lab only. Switch with
-postgresql.mode=cnpg (chart default) or an external managed database.
+Builtin PG PVC kept on uninstall (helm.sh/resource-policy=keep). Lab only.
 {{- end }}
-
-{{- if eq .Values.postgresql.mode "cnpg" }}
-
-Database: CloudNativePG cluster "{{ .Values.postgresql.cnpg.clusterName }}"
-({{ .Values.postgresql.cnpg.instances }} instances), connection taken from
-Secret {{ include "xrelease.cnpgAppSecret" . }}.
-
-  kubectl -n {{ .Release.Namespace }} get cluster {{ .Values.postgresql.cnpg.clusterName }}
-
-{{- if not .Values.postgresql.cnpg.backup.enabled }}
-Backups are OFF — set postgresql.cnpg.backup.* before calling this production.
-{{- end }}
-{{- end }}
-
-
-Backend and UI pods are pinned to kubernetes.io/arch=amd64 — xrelease
-publishes linux/amd64 images only.
 
 Docs: https://github.com/Myskiv-Ivan/xrelease/blob/main/docs/getting-started/kubernetes.md

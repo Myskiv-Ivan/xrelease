@@ -6,12 +6,12 @@
 |---|---|---|
 | **Authoring** | **API + UI** (multi-org ledger) | **API + UI** (single-doc ledger) |
 | **Desired state** | Idle until UI / `xrctl` Apply | Idle until UI / `xrctl` Apply |
-| **URL** | http://127.0.0.1:3000 | Gateway hostname |
-| **API from host** | via `:3000` (backend `:8080` not published) | via Gateway → UI nginx |
-| **Stack** | UI + PG + Apprise | CNPG + Gateway + NetworkPolicy |
+| **URL** | http://127.0.0.1:3000 | Gateway / Ingress hostname |
+| **API from host** | via `:3000` (backend `:8080` not published) | via front door → UI nginx |
+| **Stack** | UI + PG + Apprise | CNPG + Gateway (default) + NetworkPolicy |
 | **Config** | repo [`bootstrap.toml`](../../bootstrap.toml) | chart `bootstrapInline` (**API + UI**) |
 
-Lab-only Helm (builtin PG, no CNPG/Gateway): see
+Ingress / no Prometheus / Longhorn / lab builtin PG:
 [deployment variants](../operations/deployment-variants.md).
 **Local** / **API** (no UI editor): docs + [`deploy/examples/`](../../deploy/examples/).
 

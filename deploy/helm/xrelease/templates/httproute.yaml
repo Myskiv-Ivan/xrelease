@@ -1,16 +1,6 @@
 {{- if .Values.gateway.enabled }}
 {{- include "xrelease.validate" . }}
 {{- $fullName := include "xrelease.fullname" . -}}
-{{- /*
-  Gateway API replacement for templates/ingress.yaml. The chart owns the
-  HTTPRoute only — the Gateway, its listeners and TLS certificates are
-  platform-level objects with their own lifecycle (see
-  deploy/k8s/gateway/ and docs/operations/gateway.md).
-
-  Routing matches the Ingress path exactly: everything goes to the UI Service,
-  whose nginx proxies /api and the probes to the backend. With ui.enabled=false
-  the backend Service takes the whole route.
-*/ -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

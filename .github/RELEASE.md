@@ -6,29 +6,47 @@ docs — those stay in [`docs/operations/ci-cd.md`](../docs/operations/ci-cd.md)
 ## Pipeline map
 
 ```
-PR / push main ──► ci.yml        quality gates (no publish)
-                   ├ version-sync  bump-version.py --check (fail-fast)
-                   ├ rust          fmt/clippy/test + binary validate
-                   ├ security      cargo-deny + npm audit (+ Trivy advisory)
-                   ├ front         check/test/build
-                   ├ helm          lint + template + package
-                   ├ compose       compose config (parallel)
-                   └ docker        matrix amd64 (backend|cli|ui; GHA cache shared w/ release)
-push/PR        ──► k8s-e2e.yml   kind + Helm (paths: deploy/, docker/, front/nginx.conf)
-push main      ──► docs.yml      mdBook → GitHub Pages
-push/PR main   ──► codeql.yml    SAST (gated on private repos)
-manual         ──► version-bump  bump semver → commit + tag vX.Y.Z
-tag v*.*.*     ──► release.yml   binaries + GHCR images + OCI Helm chart (cosign) + GitHub Release
+PR / push main
+  │
+  ├─ ci.yml                         quality gates (no publish)
+  │    version-sync                 bump-version.py --check (fail-fast)
+  │      ├ rust                     fmt / clippy / test + validate
+  │      ├ front                    check / test / build
+  │      ├ security                 cargo-deny + npm audit + OSV + Trivy
+  │      ├ helm                     lint + template + package
+  │      ├ compose                  compose config
+  │      └ docker ◄─ rust+front     amd64 smoke (GHA cache → release / e2e)
+  │    dependency-review (PR only)  GitHub Dependency Graph (new vulns in PR)
+  │
+  ├─ k8s-e2e.yml                    kind + Helm (paths: deploy/, docker/, …)
+  ├─ docs.yml                       mdBook → Pages (docs/**)
+  └─ codeql.yml                     SAST (gated on CODE_SCANNING_ENABLED)
+
+manual     ──► version-bump.yml     bump semver → commit + tag vX.Y.Z
+tag v*.*.* ──► release.yml          binaries + GHCR + OCI Helm + GitHub Release
 ```
 
 | Workflow | Trigger | Publishes? |
 |---|---|---|
-| `ci.yml` | PR, push `main` | No (version-sync / rust+validate / security / front / helm / compose / amd64 docker matrix) |
-| `k8s-e2e.yml` | PR/push when `deploy/` / `docker/` / `front/nginx.conf` change | No (kind runtime proof) |
-| `docs.yml` | docs paths | GitHub Pages |
-| `codeql.yml` | main + weekly | No |
-| `version-bump.yml` | manual on `main` | Git commit + tag only |
-| `release.yml` | tag `v*.*.*` or manual | **GHCR images** + **OCI Helm chart** + **GitHub Release** assets |
+| `ci.yml` | PR, push `main` | No |
+| `k8s-e2e.yml` | PR/push when deploy/docker/ci helm paths change | No |
+| `docs.yml` | `docs/**` | GitHub Pages |
+| `codeql.yml` | main + weekly | No (SARIF) |
+| `version-bump.yml` | manual on `main` | Git commit + tag |
+| `release.yml` | tag `v*.*.*` or manual | **GHCR** + **OCI chart** + **Release** |
+
+### Why jobs are separate (not redundant)
+
+| Split | Reason |
+|---|---|
+| `ci` docker vs `k8s-e2e` | e2e only when chart/images change; rebuilds with same GHA cache scopes |
+| `ci` helm vs `k8s-e2e` | helm = render/validate without cluster; e2e = runtime |
+| `security` vs `dependency-review` | lockfiles on every run vs **diff of what the PR introduces** |
+| `security` vs CodeQL | advisories/lockfiles vs SAST source analysis |
+| `release` docker vs `ci` docker | tag ref + push/sign; ci only warms cache / smoke |
+
+Do **not** chain `release` → wait for `ci` on the same commit: the tag points at an
+already-merged, CI-green `main` tip after `version-bump`.
 
 ## Publish a release (happy path)
 
@@ -77,13 +95,12 @@ git checkout main && git pull
 python3 scripts/bump-version.py --check
 git tag "vX.Y.Z"
 git push origin "vX.Y.Z"
-# then release.yml (auto via RELEASE_TOKEN, or manual dispatch)
 ```
 
 ### Auto-trigger after version-bump
 
-Pushes authenticated with the default `GITHUB_TOKEN` **do not** start new
-workflows. Add repo secret **`RELEASE_TOKEN`**:
+Pushes with the default `GITHUB_TOKEN` **do not** start new workflows. Add repo
+secret **`RELEASE_TOKEN`**:
 
 | Kind | Scope |
 |---|---|
@@ -101,135 +118,81 @@ Without `RELEASE_TOKEN`: Actions → **release** → Run workflow → tag `vX.Y.
 |---|---|
 | Actions enabled | On |
 | Workflow permissions | Read and write (Actions → General) |
-| Pages → Source | GitHub Actions (`docs.yml` can `enablement: true`) |
+| Pages → Source | GitHub Actions |
 | Packages | Actions can write to GHCR |
+| Dependency graph | On (needed for `dependency-review`) |
 | Optional secret `RELEASE_TOKEN` | Tag → release cascade |
 | Optional variable `ACTIONS_RUNS_ON` | Runner labels (below) |
-| Optional variable `CODE_SCANNING_ENABLED=true` | Turns on `codeql.yml` analyze jobs |
-| Code scanning | Settings → Code security → **Advanced** setup (this workflow). **Disable Default setup** — both together reject SARIF upload |
-| Code scanning (GHAS) | Required on **private** repos |
+| Optional variable `CODE_SCANNING_ENABLED=true` | Turns on `codeql.yml` analyze |
+| Code scanning | **Advanced** setup only — disable Default setup |
 
-### Workflow triggers (rules)
+### Workflow triggers
 
-| Workflow | When it runs |
+| Workflow | When |
 |---|---|
 | `ci.yml` | Every PR + push to `main` |
-| `k8s-e2e.yml` | PR + push `main` when `deploy/**`, `docker/**`, or `front/nginx.conf` change |
-| `docs.yml` | Changes under `docs/**` (or manual); deploy only on `main` push / dispatch |
-| `codeql.yml` | PR + push `main` + weekly Mon; **skipped** on private until `CODE_SCANNING_ENABLED` |
-| `version-bump.yml` | Manual, only if ref is `main` |
-| `release.yml` | Tag `v0.1.0` / `v1.2.3` (not `v.0.1.0`) or manual with that tag |
+| `k8s-e2e.yml` | PR + push `main` when `deploy/**`, `docker/**`, `.github/ci/**`, or `front/nginx.conf` change |
+| `docs.yml` | `docs/**` (or manual); deploy only on `main` |
+| `codeql.yml` | PR + push `main` + weekly; analyze gated on `CODE_SCANNING_ENABLED` |
+| `version-bump.yml` | Manual, `main` only |
+| `release.yml` | Tag `v0.1.0` / `v1.2.3` (not `v.0.1.0`) or manual |
 
-Do **not** make `codeql` a required status check while the repo is private without GHAS —
-the analyze job is skipped and only `gate` succeeds.
+Do **not** make `codeql` / `analyze` required while scanning is off — only `gate` runs.
+
+## Dependency scanning
+
+| Layer | What | When |
+|---|---|---|
+| `dependency-review` | PR Dependency Graph diff | PRs only; fail on **high+** |
+| `cargo-deny` | Rust advisories, bans, licenses, sources | Every CI |
+| `npm audit` | Front lockfile (`--package-lock-only`) | Every CI; fail on **high+** |
+| OSV Scanner | `Cargo.lock` + `front/package-lock.json` | Every CI |
+| Trivy | Secrets + IaC misconfig (not vuln — covered above) | Every CI |
+| Dependabot | Weekly PRs | cargo / npm / actions / docker |
+| CodeQL | SAST | Separate workflow |
 
 ## Runners: GitHub-hosted vs self-hosted
 
-Default in all workflows: **`ubuntu-latest`** (GitHub-hosted).
-No self-hosted runner is required.
+Default: **`ubuntu-latest`**. Optional repo variable `ACTIONS_RUNS_ON` as JSON
+array (e.g. `["self-hosted","linux","x64"]`).
 
-### GitHub-hosted (recommended)
-
-- No install, billed as Actions minutes
-- Docker + Buildx available for `ci` / `release` image jobs
-- Enough for this project’s Linux **amd64** builds (no QEMU / arm64)
-
-Leave variable `ACTIONS_RUNS_ON` unset (or set `["ubuntu-latest"]`).
-
-### Self-hosted (on-prem runner)
-
-Use when you need private network, custom hardware, or to avoid hosted minutes.
-
-1. Repo or org → **Settings → Actions → Runners → New self-hosted runner**.
-2. Install the agent for your OS; register with the one-time token.
-3. Labels (typical): `self-hosted`, `linux`, `x64`.
-4. Set repository **variable** (Settings → Secrets and variables → Actions →
-   Variables):
-
-   | Name | Value (JSON array) |
-   |---|---|
-   | `ACTIONS_RUNS_ON` | `["self-hosted","linux","x64"]` |
-
-   Workflows resolve:
-
-   ```yaml
-   runs-on: ${{ fromJSON(vars.ACTIONS_RUNS_ON || '["ubuntu-latest"]') }}
-   ```
-
-5. Requirements on the machine:
-
-   | Need | Why |
-   |---|---|
-   | Docker + Buildx | `ci` / `release` image builds |
-   | Disk / RAM | Rust release + Docker amd64 builds |
-   | Outbound HTTPS | crates.io, npm, GHCR, cosign Fulcio |
-   | Linux amd64 (or matching labels) | Job images assume Linux amd64 |
-
-Do not commit registration tokens. Rotate the runner if compromised.
-Prefer GitHub-hosted unless you have a concrete need.
-
-To switch back: delete `ACTIONS_RUNS_ON` or set `["ubuntu-latest"]`.
-
-## Manual release (re-run / recover)
-
-```text
-Actions → release → Run workflow → tag = vX.Y.Z
-```
-
-Tag must already exist and match `Cargo.toml` / chart / compose versions
-(run version-bump first if not).
+Self-hosted needs Docker/Buildx, disk/RAM for Rust+images, outbound HTTPS.
 
 ## Dependabot
 
 Config: [`.github/dependabot.yml`](dependabot.yml). Weekly grouped PRs for
 **cargo**, **npm** (`/front`), **github-actions**, **docker** (`/docker`).
 
-Dependabot **does not** bump the product version (`0.x.y`), Helm `appVersion`, or
-compose image tags — that stays on `version-bump` → `release`.
+Dependabot **does not** bump the product version — that stays on
+`version-bump` → `release`.
 
 ### Merge rules
 
 ```
 Dependabot PR
   │
-  ├─ CI green (ci.yml)? ── no ──► read failing job
-  │                                ├ `@dependabot rebase` / `recreate`
-  │                                ├ small fix commit on the PR branch
-  │                                └ major API break → close; bump manually with code
-  │
+  ├─ CI green? ── no ──► rebase / fix / close majors that need hand-bump
   └─ yes ──► squash-merge (no version-bump)
-         │
-         ├ routine deps ──► wait for next planned version-bump
-         └ security / runtime base (node, nginx, alpine) ──►
-               green CI on main → version-bump **patch** → release
+         ├ routine deps ──► next planned version-bump
+         └ security / runtime base ──► green main → version-bump **patch** → release
 ```
 
-**Never merge with red `ci`.** Historical docker/cargo PRs landed while `rust` /
-`security` were failing — do not repeat that.
-
-### Per ecosystem
+**Never merge with red `ci`.**
 
 | PR type | Accept when | Notes |
 |---|---|---|
-| `rust-dependencies` | `rust` + `security` green | Majors (`toml` 1.x, `jsonwebtoken` 11, crypto 0.11, …) need changelog + local `cargo test` / `cargo deny check`; close and hand-bump if API breaks |
-| `npm-dependencies` | `front` + `npm audit` green | `typescript >=7` ignored (`svelte-check`) |
-| `github-actions` | `ci` green | `dtolnay/rust-toolchain` ignored — toolchain = `rust-toolchain.toml` + workflow pin |
-| docker (`nginx`, `node`, `alpine`, …) | `docker` smoke green | OK to merge |
-| docker `rust:*` | **manual only** | Ignored by Dependabot; bump with `rust-toolchain.toml`, `Cargo.toml` `rust-version`, and workflow `toolchain:` together |
+| `rust-dependencies` | `rust` + `security` green | Majors need changelog + local deny/test |
+| `npm-dependencies` | `front` + `security` green | `typescript >=7` ignored |
+| `github-actions` | `ci` green | `dtolnay/rust-toolchain` ignored |
+| docker (nginx, node, …) | `docker` smoke green | OK |
+| docker `rust:*` | **manual only** | Bump with toolchain.toml + workflows together |
 
-Not covered by Dependabot: `postgres:*` and `caronc/apprise` in compose / Helm
-`values.yaml` — review those at release time.
-
-### Commands
+Not covered by Dependabot: `postgres:*` and `caronc/apprise` in compose / Helm.
 
 ```bash
 gh pr comment <N> --body "@dependabot rebase"
 gh pr comment <N> --body "@dependabot recreate"
-gh pr close <N> --comment "Breaking; will bump manually with code changes"
 ```
-
-After a security or runtime-base merge: wait for green `ci` on `main`, then
-Actions → **version-bump** → **patch** (and `RELEASE_TOKEN` / manual **release**).
 
 ## Artifacts consumers use
 
@@ -238,10 +201,10 @@ Actions → **version-bump** → **patch** (and `RELEASE_TOKEN` / manual **relea
 | `ghcr.io/…/xrelease:<ver>` | Backend |
 | `ghcr.io/…/xrelease-ui:<ver>` | Dashboard |
 | `ghcr.io/…/xrelease-cli:<ver>` | CI apply (`xrctl`) |
-| `oci://ghcr.io/…/charts/xrelease:<ver>` | Helm chart (overlays still from git / raw tag) |
-| `xrelease-<ver>.tgz` | Same chart as a Release asset |
-| `xrelease-*-linux-*.tar.gz` / `xrctl-*-linux-*.tar.gz` | Binary installs |
+| `oci://ghcr.io/…/charts/xrelease:<ver>` | Helm chart |
+| `xrelease-<ver>.tgz` | Chart on the Release |
+| `xrelease-*-linux-*.tar.gz` / `xrctl-*-linux-*.tar.gz` | Binaries |
 
-Operators: `docker compose up -d` / Helm — see [`deploy/README.md`](../deploy/README.md)
-and [`docs/getting-started/kubernetes.md`](../docs/getting-started/kubernetes.md).
+Operators: Compose / Helm — [`deploy/README.md`](../deploy/README.md),
+[`docs/getting-started/kubernetes.md`](../docs/getting-started/kubernetes.md).
 Apply from consumer CI: [`docs/operations/ci-cd.md`](../docs/operations/ci-cd.md).

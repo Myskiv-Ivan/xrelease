@@ -54,6 +54,7 @@ helm upgrade xrelease ./deploy/helm/xrelease \
 | Controller | Namespace |
 |---|---|
 | Envoy Gateway | `envoy-gateway-system` |
+| Traefik (Ingress) | namespace of the Traefik pods (often `traefik`) |
 | NGINX Gateway Fabric | `nginx-gateway` |
 | Istio | `istio-system` |
 | Cilium | `kube-system` |
@@ -61,4 +62,5 @@ helm upgrade xrelease ./deploy/helm/xrelease \
 ## Ingress instead
 
 Set `ingress.enabled: true` and `gateway.enabled: false` — see
-[deployment variants](deployment-variants.md).
+[deployment variants](deployment-variants.md). Works with Traefik, nginx, etc.
+via `ingress.className`.

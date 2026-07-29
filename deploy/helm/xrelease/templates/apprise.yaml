@@ -32,8 +32,6 @@ spec:
         {{- include "xrelease.componentSelectorLabels" (dict "ctx" . "component" "apprise") | nindent 8 }}
     spec:
       automountServiceAccountToken: false
-      # Upstream image defaults to root; 1000 is verified to boot gunicorn and
-      # serve /status. Stateless here — /config and /tmp are emptyDir only.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -52,7 +50,6 @@ spec:
             - name: http
               containerPort: {{ .Values.apprise.service.port }}
           env:
-            # Default gunicorn formula is (2*CPU)+1 — OOMs under a 512Mi limit.
             - name: APPRISE_WORKER_COUNT
               value: {{ .Values.apprise.workerCount | quote }}
             - name: APPRISE_STATEFUL_MODE
@@ -81,7 +78,6 @@ spec:
           resources:
             {{- toYaml .Values.apprise.resources | nindent 12 }}
       volumes:
-        # nginx / gunicorn / supervisord write pids + sockets under /tmp.
         - name: tmp
           emptyDir: {}
         - name: config

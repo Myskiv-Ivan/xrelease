@@ -37,8 +37,8 @@ in env (`.env` / K8s Secret).
 |---|---|---|
 | **Authoring** | **API + UI** + multi-org | **API + UI** + single-doc ledger |
 | **First config** | Idle until UI / `xrctl` Apply | Idle until UI / `xrctl` Apply |
-| **Stack** | UI + PG + Apprise | CNPG + Gateway (`values.yaml`) |
-| **URL** | http://127.0.0.1:3000 | Gateway hostname |
+| **Stack** | UI + PG + Apprise | CNPG + Gateway (or Ingress) + Apprise |
+| **URL** | http://127.0.0.1:3000 | Gateway / Ingress hostname |
 | **Guide** | [Docker](getting-started/docker.md) | [Kubernetes](getting-started/kubernetes.md) · [variants](operations/deployment-variants.md) |
 
 Authoring flags: [Local / API / API + UI](configuration/overview.md#authoring-variants).
