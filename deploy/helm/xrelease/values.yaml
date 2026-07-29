@@ -176,12 +176,15 @@ postgresql:
 apprise:
   enabled: true
   image: caronc/apprise:1.5.1
+  # gunicorn default (2*CPU)+1 OOMs under the memory limit — keep at 1.
+  workerCount: 1
+  statefulMode: simple
   service:
     port: 8000
   resources:
     requests:
       cpu: 25m
-      memory: 128Mi
+      memory: 256Mi
     limits:
       cpu: 500m
       memory: 512Mi

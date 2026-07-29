@@ -33,7 +33,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       # Upstream image defaults to root; 1000 is verified to boot gunicorn and
-      # serve /status. Stateless here — no /config volume is mounted.
+      # serve /status. Stateless here — /config and /tmp are emptyDir only.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -51,20 +51,41 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.apprise.service.port }}
+          env:
+            # Default gunicorn formula is (2*CPU)+1 — OOMs under a 512Mi limit.
+            - name: APPRISE_WORKER_COUNT
+              value: {{ .Values.apprise.workerCount | quote }}
+            - name: APPRISE_STATEFUL_MODE
+              value: {{ .Values.apprise.statefulMode | quote }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /config
+          startupProbe:
+            httpGet:
+              path: /status
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /status
               port: http
-            initialDelaySeconds: 20
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /status
               port: http
-            initialDelaySeconds: 10
             periodSeconds: 10
           resources:
             {{- toYaml .Values.apprise.resources | nindent 12 }}
+      volumes:
+        # nginx / gunicorn / supervisord write pids + sockets under /tmp.
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
