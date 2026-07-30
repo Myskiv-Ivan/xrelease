@@ -22,6 +22,10 @@ concurrency:
   group: codeql-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Workflow default; `analyze` elevates to security-events: write for SARIF upload.
+permissions:
+  contents: read
+
 jobs:
   # Keeps the required check green while code scanning is not enabled yet.
   #

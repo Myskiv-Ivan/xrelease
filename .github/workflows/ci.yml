@@ -18,6 +18,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege for GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions).
+# dependency-review overrides with pull-requests: write for PR comments.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
