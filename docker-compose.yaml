@@ -30,7 +30,7 @@ services:
       start_period: 10s
 
   xrelease:
-    image: ghcr.io/myskiv-ivan/xrelease:0.2.2
+    image: ghcr.io/myskiv-ivan/xrelease:0.2.3
     pull_policy: always
     restart: unless-stopped
     command: ["serve"]
@@ -68,7 +68,7 @@ services:
       start_period: 30s
 
   ui:
-    image: ghcr.io/myskiv-ivan/xrelease-ui:0.2.2
+    image: ghcr.io/myskiv-ivan/xrelease-ui:0.2.3
     pull_policy: always
     restart: unless-stopped
     environment:
