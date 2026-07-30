@@ -843,7 +843,10 @@ mod tests {
         );
         assert!(text.contains("db.internal:5432/xrelease"));
         assert!(text.contains("<redacted>@"));
-        assert!(!text.contains("organizations"), "empty catalogue must not serialize");
+        assert!(
+            !text.contains("organizations"),
+            "empty catalogue must not serialize"
+        );
     }
 
     #[test]
