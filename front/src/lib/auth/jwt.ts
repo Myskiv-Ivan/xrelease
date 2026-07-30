@@ -1,3 +1,5 @@
+import { issuerMatches } from '$lib/auth/discovery';
+
 /**
  * JWT helpers — RFC 7519 (JSON Web Token) + RFC 8725 (JWT BCP).
  * Signature verification is performed separately via JWKS (RFC 7517).
@@ -165,9 +167,9 @@ export function validateIdTokenClaims(
 	const nowSec = Math.floor(Date.now() / 1000);
 	const maxAge = options.maxTokenAgeSec ?? 86_400;
 
-	if (payload.iss !== options.issuer) {
-		errors.push('iss mismatch');
-	}
+		if (typeof payload.iss !== 'string' || !issuerMatches(options.issuer, payload.iss)) {
+			errors.push('iss mismatch');
+		}
 
 	if (!audienceMatches(payload, options.clientId)) {
 		if (payload.azp !== options.clientId) {

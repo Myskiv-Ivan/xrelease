@@ -346,7 +346,7 @@ export async function completeOidcCallback(
 	const tokens = await persistTokenResponse(
 		tokenPayload,
 		discovery.jwks_uri,
-		config.issuer,
+		discovery.issuer,
 		config.clientId,
 		pending.nonce
 	);
@@ -404,7 +404,7 @@ export async function refreshOidcTokensIfNeeded(): Promise<OidcTokens | null> {
 	const tokens = await persistTokenResponse(
 		tokenPayload,
 		discovery.jwks_uri,
-		config.issuer,
+		discovery.issuer,
 		config.clientId
 	);
 

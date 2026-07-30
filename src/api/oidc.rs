@@ -281,7 +281,14 @@ impl OidcValidator {
             DecodingKey::from_jwk(jwk).map_err(|err| format!("invalid JWK: {err}"))?;
 
         let mut validation = Validation::new(algorithm);
-        validation.set_issuer(&[self.issuer.as_str()]);
+        // Digdes (and some other OPs) advertise `issuer` with a trailing `/`
+        // while operators often configure it without. OIDC Discovery §4 /
+        // Core §3.1.3.7 require an exact match of the Issuer Identifier, but
+        // trailing-slash variants of the same URL are the same identifier in
+        // practice — accept both so a trimmed config still verifies Digdes
+        // tokens (`iss: "https://sso…/"`).
+        let issuer_slash = format!("{}/", self.issuer);
+        validation.set_issuer(&[self.issuer.as_str(), issuer_slash.as_str()]);
         validation.validate_exp = true;
         validation.validate_nbf = true;
         if self.audiences.is_empty() {

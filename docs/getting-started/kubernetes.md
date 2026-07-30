@@ -47,7 +47,6 @@ Without them, set `metrics.serviceMonitor.enabled: false` and
 ### Release
 
 ```bash
-TAG=v0.2.0
 curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.yaml"
 curl -fsSLO "https://raw.githubusercontent.com/Myskiv-Ivan/xrelease/${TAG}/deploy/k8s/values.secrets.example.yaml"
 cp values.secrets.example.yaml values.secrets.yaml
