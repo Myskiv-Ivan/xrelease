@@ -10,7 +10,8 @@ Optional shapes are local value overrides (another `-f`), not extra files in the
 | Ingress (nginx / Traefik / …) | `ingress.enabled: true`, `gateway.enabled: false`, `ingress.className`, `ingress.hosts` |
 | No Prometheus CRDs | `metrics.serviceMonitor.enabled: false`, `postgresql.cnpg.monitoring.enablePodMonitor: false` |
 | StorageClass (e.g. Longhorn) | `postgresql.cnpg.storage.storageClass: longhorn` |
-| Builtin single-node PG (lab) | `postgresql.mode: builtin`, `postgresql.enabled: true`, `gateway.enabled: false`, `networkPolicy.enabled: false`, `metrics.serviceMonitor.enabled: false`, `ui.replicaCount: 1` |
+| Builtin single-node PG (lab) | `postgresql.mode: builtin`, `postgresql.enabled: true`, `gateway.enabled: false`, `networkPolicy.enabled: false`, `metrics.serviceMonitor.enabled: false` |
+| UI HA (PDB + anti-affinity) | `ui.replicaCount: 2` (or higher) |
 | External / managed PG | `postgresql.mode: external`, `secrets.existingSecret` (URL in the Secret) |
 | Disable Apprise | `apprise.enabled: false` |
 | OIDC UI | `ui.env.VITE_AUTH_MODE: oidc` + `VITE_OIDC_*`; backend `XRELEASE_OIDC_*` in the Secret — [oidc.md](oidc.md) |

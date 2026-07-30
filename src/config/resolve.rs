@@ -143,7 +143,7 @@ pub fn ensure_infra_only(config: &Config, path: &Path) -> anyhow::Result<()> {
     if contains_app_sections(config) {
         bail!(
             "{} must contain only infrastructure sections \
- ([database], [api], [log], [config_api], [[organizations]]); \
+ ([database], [api], [log], [config_api], [advisories], [[organizations]]); \
  move [defaults], [[teams]], [presets], [[notifiers]], and [[sources]] to \
  app/releases.yaml or app/<org>/releases.yaml (or apply via POST /api/v1/config/apply)",
             path.display()

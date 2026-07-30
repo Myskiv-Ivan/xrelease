@@ -115,6 +115,13 @@ pub(crate) fn serialize_desired_only_strict(
 }
 
 fn redact_config(config: &mut Config) {
+    // Connection URLs embed credentials (`postgres://user:pass@host/db`). Any
+    // authenticated principal can `GET /api/v1/config` (incl. viewer), so mask
+    // userinfo the same way as broker notifier URLs — host/db stay visible for
+    // ops, passwords do not.
+    if !config.database.postgres_url.trim().is_empty() {
+        config.database.postgres_url = redact_url_userinfo(&config.database.postgres_url);
+    }
     if config.api.api_key.as_ref().is_some_and(|v| !v.is_empty()) {
         config.api.api_key = Some("<redacted>".into());
     }
@@ -818,6 +825,25 @@ mod tests {
         assert!(!text.contains("super-secret"));
         assert!(!text.contains("tgram://real"));
         assert!(text.contains("<redacted>"));
+    }
+
+    #[test]
+    fn redact_should_mask_postgres_url_credentials() {
+        let config: Config = toml::from_str(
+            r#"
+            [database]
+            postgres_url = "postgres://xrelease:hunter2@db.internal:5432/xrelease"
+        "#,
+        )
+        .expect("parse");
+        let text = redact_config_toml(&config);
+        assert!(
+            !text.contains("hunter2"),
+            "password must not appear in GET /config: {text}"
+        );
+        assert!(text.contains("db.internal:5432/xrelease"));
+        assert!(text.contains("<redacted>@"));
+        assert!(!text.contains("organizations"), "empty catalogue must not serialize");
     }
 
     #[test]

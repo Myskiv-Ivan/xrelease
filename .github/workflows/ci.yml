@@ -181,12 +181,15 @@ jobs:
           helm template xrelease $C -f $S -f deploy/k8s/values.yaml -f .github/ci/helm-no-ui.yaml >/dev/null
 
           for k in 'kind: Cluster' 'kind: HTTPRoute' 'kind: ServiceMonitor' \
-                   'kind: PodDisruptionBudget' 'key: uri' 'helm.sh/resource-policy: keep'; do
+                   'key: uri' 'helm.sh/resource-policy: keep'; do
             grep -q "$k" /tmp/default.yaml || { echo "default render missing: $k" >&2; exit 1; }
           done
           ! grep -qE '^kind: (Ingress|StatefulSet)' /tmp/default.yaml
+          ! grep -q 'kind: PodDisruptionBudget' /tmp/default.yaml
           grep -q 'kind: StatefulSet' /tmp/lab-render.yaml
           ! grep -q 'kind: PodDisruptionBudget' /tmp/lab-render.yaml
+          helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
+            --set ui.replicaCount=2 | grep -q 'kind: PodDisruptionBudget'
           ! grep -q 'proxy_pass .*:8080/metrics' /tmp/default.yaml
           helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
             -f .github/ci/helm-expose-metrics.yaml | grep -q 'proxy_pass .*:8080/metrics'

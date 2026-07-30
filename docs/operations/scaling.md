@@ -105,7 +105,7 @@ Each instance: own config pair, own PostgreSQL database, own team tags.
 
 | | Docker Compose | Kubernetes |
 |---|---|---|
-| Replicas | 1 `xrelease` service | `replicaCount: 1` |
+| Replicas | 1 `xrelease` service | `replicaCount: 1` (UI: `ui.replicaCount`, default 1) |
 | Postgres | `postgres` service + volume | Managed or operator |
 | Config reload | `--force-recreate xrelease` | ConfigMap update + rollout |
 | Default memory limit | 512M (`deploy.resources`) | `resources.limits.memory: 512Mi` |

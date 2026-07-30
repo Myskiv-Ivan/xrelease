@@ -107,7 +107,7 @@ pub async fn get_config(State(state): State<Arc<AppState>>) -> Result<Response, 
      // all, so one frontend build serves every mode.
      "ui_config_enabled": ui_config_enabled,
      "config_source": config_source,
-     "bootstrap_sections": ["database", "api", "log", "config_api"],
+     "bootstrap_sections": ["database", "api", "log", "config_api", "advisories", "organizations"],
      });
 
     match desired_sha {

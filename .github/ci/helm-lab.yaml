@@ -10,8 +10,6 @@ postgresql:
   enabled: true
   auth:
     password: ci-pg
-ui:
-  replicaCount: 1
 networkPolicy:
   enabled: false
 metrics:

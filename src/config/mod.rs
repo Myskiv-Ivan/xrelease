@@ -133,7 +133,9 @@ pub struct Config {
     /// Organization catalogue (`[[organizations]]`) — bootstrap only.
     ///
     /// Empty = single desired-state document (`--app` / ledger).
-    #[serde(default)]
+    /// Omit from wire when empty so Technical / GET views do not imply a
+    /// multi-org catalogue that was never declared.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub organizations: Vec<OrganizationConfig>,
     /// Additional delivery sinks (`[[notifiers]]`).
     ///

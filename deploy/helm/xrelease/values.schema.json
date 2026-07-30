@@ -203,7 +203,7 @@
         "replicaCount": {
           "type": "integer",
           "minimum": 1,
-          "description": "Stateless nginx — safe above 1, unlike the backend. >1 also renders a PodDisruptionBudget and a soft anti-affinity spread."
+          "description": "Stateless nginx (default 1). Safe above 1, unlike the backend — >1 also renders a PodDisruptionBudget and a soft anti-affinity spread."
         },
         "exposeMetrics": {
           "type": "boolean",

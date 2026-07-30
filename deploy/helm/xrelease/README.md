@@ -3,7 +3,7 @@
 Images: `ghcr.io/myskiv-ivan/xrelease` · `ghcr.io/myskiv-ivan/xrelease-ui`  
 OCI: `oci://ghcr.io/myskiv-ivan/charts/xrelease`
 
-**Defaults:** CloudNativePG + Gateway API + NetworkPolicy + ServiceMonitor + UI×2 + Apprise.  
+**Defaults:** CloudNativePG + Gateway API + NetworkPolicy + ServiceMonitor + UI×1 + Apprise.  
 Site overlay: [`deploy/k8s/values.yaml`](../../k8s/values.yaml) + [`values.secrets.yaml`](../../k8s/values.secrets.example.yaml).
 
 ```bash

@@ -17,12 +17,13 @@ import {
 } from './desired-document';
 import { asArray, asObject, str } from './desired-map';
 
-/** Infra keys from bootstrap.toml (API `bootstrap_sections` + organizations). */
+/** Infra keys from bootstrap.toml (API `bootstrap_sections`). */
 export const DEFAULT_BOOTSTRAP_KEYS = [
 	'database',
 	'api',
 	'log',
 	'config_api',
+	'advisories',
 	'organizations'
 ] as const;
 
@@ -107,8 +108,21 @@ export function extractBootstrapDocument(
 	effectiveRaw: string | null | undefined,
 	bootstrapSections: readonly string[] = DEFAULT_BOOTSTRAP_KEYS
 ): string | null {
-	const keys = [...new Set([...bootstrapSections, 'organizations'])];
-	return extractLayer(effectiveRaw, keys, { stripNulls: true });
+	const keys = [...new Set([...bootstrapSections, ...DEFAULT_BOOTSTRAP_KEYS])];
+	const text = extractLayer(effectiveRaw, keys, { stripNulls: true });
+	if (!text) return null;
+	try {
+		const parsed = parseDesiredDocument(text);
+		const data = { ...parsed.data };
+		// Single-document mode serializes an empty catalogue as noise.
+		if (Array.isArray(data.organizations) && data.organizations.length === 0) {
+			delete data.organizations;
+		}
+		if (Object.keys(data).length === 0) return null;
+		return stringifyDesiredDocument({ format: parsed.format, data });
+	} catch {
+		return text;
+	}
 }
 
 /**

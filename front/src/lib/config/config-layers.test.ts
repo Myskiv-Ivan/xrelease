@@ -64,6 +64,32 @@ describe('config-layers', () => {
 		expect(parsed.data.teams).toBeUndefined();
 	});
 
+	it('extractBootstrapDocument omits empty organizations catalogue', () => {
+		const raw = `organizations: []
+database:
+  postgres_url: postgres://<redacted>@db.internal/xrelease
+api:
+  listen: 0.0.0.0:8080
+`;
+		const out = extractBootstrapDocument(raw);
+		expect(out).toBeTruthy();
+		expect(out!).not.toMatch(/organizations/);
+		expect(out!).toMatch(/postgres_url/);
+	});
+
+	it('extractBootstrapDocument keeps non-empty organizations', () => {
+		const raw = `organizations:
+  - id: platform
+    name: Platform
+database:
+  postgres_url: postgres://db.internal/xrelease
+`;
+		const out = extractBootstrapDocument(raw);
+		expect(out).toBeTruthy();
+		const parsed = parseDesiredDocument(out!);
+		expect(parsed.data.organizations).toEqual([{ id: 'platform', name: 'Platform' }]);
+	});
+
 	it('extractAppDocument strips infra defaults from desired_content', () => {
 		const out = extractAppDocument(DESIRED_WITH_DEFAULTS, EFFECTIVE);
 		expect(out).toBeTruthy();

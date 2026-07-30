@@ -1,6 +1,6 @@
 # Kubernetes deployment
 
-Chart defaults: **xrelease + CloudNativePG + Gateway API** (+ NetworkPolicy, ServiceMonitor, Apprise, UI×2).
+Chart defaults: **xrelease + CloudNativePG + Gateway API** (+ NetworkPolicy, ServiceMonitor, Apprise, UI×1).
 
 For Traefik Ingress / no Prometheus / custom StorageClass, see
 [deployment variants](../operations/deployment-variants.md).
@@ -87,7 +87,7 @@ Images are **linux/amd64**.
 
 | Layer | Detail |
 |---|---|
-| App | one poller + UI×2 + Apprise |
+| App | one poller + UI×1 + Apprise |
 | Database | CloudNativePG (`Cluster`, Secret `<name>-app`) |
 | Front door | HTTPRoute → UI nginx → `/api` (or Ingress) |
 | Hardening | NetworkPolicy, non-root, RO rootfs |
