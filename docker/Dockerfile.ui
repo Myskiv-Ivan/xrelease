@@ -4,7 +4,7 @@
 # Runtime: VITE_* env vars → /ui-config.js via docker-entrypoint.d (no rebuild).
 # Unprivileged nginx listens on 8080 (non-root USER) — map host :3000 → :8080.
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # Optional bake-time defaults (overridden at container start by ui-config.js).
