@@ -109,7 +109,7 @@ async fn webhook_should_error_on_non_success_status() {
 
 #[tokio::test]
 async fn webhook_should_sign_body_with_hmac_when_secret_set() {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     let server = MockServer::start().await;

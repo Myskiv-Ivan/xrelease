@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
 use reqwest::Method;
 use sha2::Sha256;

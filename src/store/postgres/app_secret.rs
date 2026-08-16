@@ -44,7 +44,7 @@ impl PostgresStore {
             if name.is_empty() || write.value.trim().is_empty() {
                 continue;
             }
-            let digest = format!("{:x}", Sha256::digest(write.value.as_bytes()));
+            let digest = hex::encode(Sha256::digest(write.value.as_bytes()));
             // Skip seal+write when the plaintext digest is unchanged.
             let unchanged: bool = tx
                 .query_opt(

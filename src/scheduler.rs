@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::future::join_all;
-use rand::Rng;
+use rand::RngExt;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 

@@ -70,6 +70,8 @@ mod tests {
 
     #[test]
     fn reject_if_ok_false_should_ignore_success() {
-        assert!(reject_if_ok_false("telegram", 200, r#"{"ok":true}"#, "description", "send").is_ok());
+        assert!(
+            reject_if_ok_false("telegram", 200, r#"{"ok":true}"#, "description", "send").is_ok()
+        );
     }
 }

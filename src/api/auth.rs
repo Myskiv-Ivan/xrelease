@@ -13,7 +13,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Request};
 use axum::middleware::Next;
 use axum::response::Response;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use subtle::ConstantTimeEq;
 

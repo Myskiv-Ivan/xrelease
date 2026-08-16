@@ -13,7 +13,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
-use getrandom::getrandom;
+use getrandom::fill as getrandom_fill;
 use zeroize::ZeroizeOnDrop;
 
 use crate::error::StoreError;
@@ -132,7 +132,7 @@ impl LedgerCipher {
     /// Returns [`StoreError::Other`] on AEAD failure.
     pub fn seal(&self, plaintext: &str) -> Result<String, StoreError> {
         let mut nonce_bytes = [0_u8; NONCE_LEN];
-        getrandom(&mut nonce_bytes)
+        getrandom_fill(&mut nonce_bytes)
             .map_err(|err| StoreError::Other(format!("ledger nonce: {err}")))?;
         let nonce = Nonce::from(nonce_bytes);
         let ciphertext = self

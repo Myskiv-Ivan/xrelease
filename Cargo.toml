@@ -58,7 +58,7 @@ futures-util = { version = "0.3", default-features = false, features = ["alloc"]
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-toml = "0.9"
+toml = "1"
 # Official YAML-org fork of archived `serde_yaml` (drop-in via package rename).
 serde_yaml = { package = "yaml_serde", version = "0.10" }
 feed-rs = "2"
@@ -75,19 +75,19 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { workspace = true }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-rand = "0.9"
+rand = "0.10"
 regex = "1"
 axum = { version = "0.8", features = ["json", "macros"] }
 tower = "0.5"
 tower-http = { version = "0.7", features = ["trace", "cors"] }
-hmac = "0.12"
-sha2 = "0.10"
+hmac = "0.13"
+sha2 = "0.11"
 hex = "0.4"
 subtle = "2"
 # At-rest AES-256-GCM for the config ledger (`config_revision.content`).
-aes-gcm = { version = "0.10", features = ["zeroize"] }
-base64 = { version = "0.22", features = ["std"] }
-getrandom = "0.2"
+aes-gcm = { version = "0.11", features = ["zeroize"] }
+base64 = { version = "0.23", features = ["std"] }
+getrandom = "0.4"
 zeroize = { version = "1", features = ["derive"] }
 governor = "0.10"
 # Prefer `aws_lc_rs` over `rust_crypto`: the latter pulls `rsa`, which is
