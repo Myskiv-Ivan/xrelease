@@ -16,7 +16,8 @@
 use sha2::{Digest, Sha256};
 
 use crate::error::NotifyError;
-use crate::notify::payload::render_template;
+use crate::notify::payload::{render_template, EventPayload};
+use crate::notify::util::require_non_empty;
 use crate::notify::{Event, Notifier};
 
 /// Configuration for [`NovuNotifier`].
@@ -59,18 +60,9 @@ impl NovuNotifier {
         client: reqwest::Client,
         options: &NovuNotifierOptions,
     ) -> Result<Self, NotifyError> {
-        let require = |field: &str, value: &str| -> Result<(), NotifyError> {
-            if value.trim().is_empty() {
-                Err(NotifyError::Misconfigured(format!(
-                    "novu `{field}` must not be empty"
-                )))
-            } else {
-                Ok(())
-            }
-        };
-        require("base_url", &options.base_url)?;
-        require("api_key", &options.api_key)?;
-        require("workflow", &options.workflow)?;
+        require_non_empty("novu", "base_url", &options.base_url)?;
+        require_non_empty("novu", "api_key", &options.api_key)?;
+        require_non_empty("novu", "workflow", &options.workflow)?;
 
         let topic = options
             .topic_key
@@ -145,18 +137,9 @@ impl NovuNotifier {
             ));
         };
 
-        let mut payload = serde_json::Map::new();
-        payload.insert("source_id".into(), serde_json::json!(event.source_id));
-        payload.insert("kind".into(), serde_json::json!(event.source_kind));
-        payload.insert("source_kind".into(), serde_json::json!(event.source_kind));
-        payload.insert("title".into(), serde_json::json!(event.title));
-        payload.insert("body".into(), serde_json::json!(event.body));
-        if let Some(url) = event.url.as_deref() {
-            payload.insert("url".into(), serde_json::json!(url));
-        }
-        if let Some(tag) = event.routing_tag.as_deref() {
-            payload.insert("tag".into(), serde_json::json!(tag));
-        }
+        // Same canonical field set as webhooks / brokers (`EventPayload`).
+        let payload = serde_json::to_value(EventPayload::from_event(event))
+            .unwrap_or_else(|_| serde_json::json!({}));
 
         Ok(serde_json::json!({
             "name": self.workflow,

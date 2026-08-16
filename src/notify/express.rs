@@ -15,6 +15,7 @@
 
 use crate::error::NotifyError;
 use crate::notify::payload::{default_chat_message, render_template_or};
+use crate::notify::util::require_non_empty;
 use crate::notify::{Event, Notifier};
 
 /// Configuration for [`ExpressNotifier`].
@@ -61,18 +62,9 @@ impl ExpressNotifier {
         client: reqwest::Client,
         options: &ExpressNotifierOptions,
     ) -> Result<Self, NotifyError> {
-        let require = |field: &str, value: &str| -> Result<(), NotifyError> {
-            if value.trim().is_empty() {
-                Err(NotifyError::Misconfigured(format!(
-                    "eXpress `{field}` must not be empty"
-                )))
-            } else {
-                Ok(())
-            }
-        };
-        require("base_url", &options.base_url)?;
-        require("group_chat_id", &options.group_chat_id)?;
-        require("access_token", &options.access_token)?;
+        require_non_empty("eXpress", "base_url", &options.base_url)?;
+        require_non_empty("eXpress", "group_chat_id", &options.group_chat_id)?;
+        require_non_empty("eXpress", "access_token", &options.access_token)?;
 
         Ok(Self {
             client,

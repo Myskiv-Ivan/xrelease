@@ -25,6 +25,7 @@ pub mod routing;
 pub mod slack;
 pub mod smtp;
 pub mod telegram;
+mod util;
 pub mod webhook;
 
 pub use apprise::AppriseNotifier;

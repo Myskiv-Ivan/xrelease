@@ -241,8 +241,7 @@ impl GiteaReleasesSource {
                 let url = entry.links.first().map(|link| link.href.clone());
                 let tag = url
                     .as_deref()
-                    .and_then(tag_from_release_url)
-                    .map(str::to_owned)
+                    .and_then(super::release_urls::tag_from_release_url)
                     .or_else(|| entry.title.as_ref().map(|t| t.content.clone()))
                     .unwrap_or_else(|| entry.id.clone());
                 let published = entry.published.or(entry.updated);
@@ -289,13 +288,6 @@ fn api_to_release(r: ReleaseApi) -> Release {
         .with_body(r.body.filter(|b| !b.trim().is_empty()))
 }
 
-/// Extract `<TAG>` from a `.../releases/tag/<TAG>` URL.
-fn tag_from_release_url(url: &str) -> Option<&str> {
-    url.split("/releases/tag/")
-        .nth(1)
-        .map(|rest| rest.split(['/', '?', '#']).next().unwrap_or(rest))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -323,12 +315,6 @@ mod tests {
         let s = GiteaReleasesSource::gitea("id", "https://git.example.com/", "o/r", None);
         assert!(s.rest_url().contains("git.example.com/api/v1/repos"));
         assert_eq!(s.kind(), "gitea");
-    }
-
-    #[test]
-    fn tag_from_release_url_should_extract_the_tag() {
-        let url = "https://github.com/tokio-rs/tokio/releases/tag/tokio-1.38.0";
-        assert_eq!(tag_from_release_url(url), Some("tokio-1.38.0"));
     }
 
     #[test]

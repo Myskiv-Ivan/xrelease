@@ -7,6 +7,7 @@
 
 use crate::error::NotifyError;
 use crate::notify::payload::{default_chat_message, render_template, render_template_or};
+use crate::notify::util::{reject_if_ok_false, require_non_empty};
 use crate::notify::{Event, Notifier};
 
 fn default_api_base() -> String {
@@ -51,22 +52,13 @@ impl TelegramNotifier {
         client: reqwest::Client,
         options: &TelegramNotifierOptions,
     ) -> Result<Self, NotifyError> {
-        let require = |field: &str, value: &str| -> Result<(), NotifyError> {
-            if value.trim().is_empty() {
-                Err(NotifyError::Misconfigured(format!(
-                    "telegram `{field}` must not be empty"
-                )))
-            } else {
-                Ok(())
-            }
-        };
         let api_base = if options.api_base.trim().is_empty() {
             default_api_base()
         } else {
             options.api_base.clone()
         };
-        require("bot_token", &options.bot_token)?;
-        require("chat_id", &options.chat_id)?;
+        require_non_empty("telegram", "bot_token", &options.bot_token)?;
+        require_non_empty("telegram", "chat_id", &options.chat_id)?;
 
         let parse_mode = options
             .parse_mode
@@ -143,19 +135,13 @@ impl Notifier for TelegramNotifier {
                 });
             }
             // Bot API returns HTTP 200 with `"ok": false` on logical errors.
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
-                if json.get("ok").and_then(serde_json::Value::as_bool) == Some(false) {
-                    let description = json
-                        .get("description")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("unknown");
-                    return Err(NotifyError::Rejected {
-                        backend: "telegram",
-                        status: status.as_u16(),
-                        body: format!("sendMessage ok=false: {description}"),
-                    });
-                }
-            }
+            reject_if_ok_false(
+                "telegram",
+                status.as_u16(),
+                &body,
+                "description",
+                "sendMessage",
+            )?;
             Ok(())
         }
     }

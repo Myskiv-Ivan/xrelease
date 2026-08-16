@@ -10,6 +10,7 @@
 
 use crate::error::NotifyError;
 use crate::notify::payload::{default_chat_message, render_template, render_template_or};
+use crate::notify::util::reject_if_ok_false;
 use crate::notify::{Event, Notifier};
 
 fn default_api_base() -> String {
@@ -179,19 +180,13 @@ impl Notifier for SlackNotifier {
                         });
                     }
                     // Slack returns HTTP 200 with `"ok": false` on API errors.
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
-                        if json.get("ok").and_then(serde_json::Value::as_bool) == Some(false) {
-                            let err = json
-                                .get("error")
-                                .and_then(serde_json::Value::as_str)
-                                .unwrap_or("unknown");
-                            return Err(NotifyError::Rejected {
-                                backend: "slack",
-                                status: status.as_u16(),
-                                body: format!("chat.postMessage ok=false: {err}"),
-                            });
-                        }
-                    }
+                    reject_if_ok_false(
+                        "slack",
+                        status.as_u16(),
+                        &body,
+                        "error",
+                        "chat.postMessage",
+                    )?;
                     Ok(())
                 }
             }

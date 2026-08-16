@@ -308,15 +308,14 @@ pub(crate) fn build_event(provider: &Provider, release: &Release) -> Event {
 
     let title = format!("{name}: new release {}", release.raw_tag);
 
+    // Canonical link lives on [`Event::url`]; chat/SMTP/Apprise defaults append
+    // it once via `append_event_url` so machine JSON payloads stay non-duplicative.
     let mut body = format!("**{name}** published **{}**.\n\n", release.raw_tag);
     body.push_str(&format!("- Source: {}\n", provider.kind_label()));
     body.push_str(&format!("- Version: {version}\n"));
     if let Some(published) = release.published_at {
         // "2025-01-15" is more readable in a notification than a full RFC 3339 timestamp.
         body.push_str(&format!("- Published: {}\n", published.format("%Y-%m-%d")));
-    }
-    if let Some(url) = &release.url {
-        body.push_str(&format!("- Link: {url}\n"));
     }
     // Append the release notes/changelog body when the source provides one.
     // GitHub REST and GitLab API both return Markdown; Docker/Atom do not.

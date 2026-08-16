@@ -14,6 +14,7 @@
 use serde::Serialize;
 
 use crate::error::NotifyError;
+use crate::notify::payload::append_event_url;
 use crate::notify::{Event, Notifier};
 
 /// Notifier that POSTs to an Apprise API server.
@@ -108,7 +109,8 @@ impl Notifier for AppriseNotifier {
         };
         let effective_tag = event.routing_tag.clone().or_else(|| self.tag.clone());
         let title = event.title.clone();
-        let body = event.body.clone();
+        let mut body = event.body.clone();
+        append_event_url(&mut body, event);
         let format = self.format.clone();
         let client = self.client.clone();
 
