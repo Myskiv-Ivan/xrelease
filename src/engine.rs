@@ -103,6 +103,19 @@ impl Engine {
     pub fn open(config: &Config, http: reqwest::Client) -> anyhow::Result<Arc<Self>> {
         let store =
             Arc::new(Store::open_from_config(&config.database).context("opening state database")?);
+        Self::open_with_store(config, http, store)
+    }
+
+    /// Build an engine on an already-open [`Store`] (one pool per process).
+    ///
+    /// Prefer this from [`crate::runtime::Runtime::serve`] so config resolve,
+    /// health, and the poller share the same PostgreSQL pool instead of opening
+    /// a second one (and re-applying idempotent schema DDL) at serve time.
+    pub fn open_with_store(
+        config: &Config,
+        http: reqwest::Client,
+        store: Arc<Store>,
+    ) -> anyhow::Result<Arc<Self>> {
         let prune = PruneSettings::from(&config.database);
         let notifier = config.build_notifiers(http.clone())?;
         if notifier.is_empty() {

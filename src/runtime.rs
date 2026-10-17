@@ -4,6 +4,7 @@
 //! webhooks). Remote management lives in the separate `xrctl` binary (`cli/`).
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -14,6 +15,7 @@ use crate::config::{self, Config, ConfigPaths, EffectiveRevision};
 use crate::engine::Engine;
 use crate::pipeline::Watch;
 use crate::scheduler::WatchSupervisor;
+use crate::store::Store;
 
 /// Summary of a configured watch, for `xrelease sources` and JSON output.
 #[derive(Debug, Clone, Serialize)]
@@ -138,25 +140,30 @@ pub struct MetricsSnapshot {
     pub prune_deleted_total: u64,
 }
 
-/// Loaded configuration plus shared HTTP client.
+/// Loaded configuration, shared HTTP client, and the process PostgreSQL pool.
+///
+/// One [`Store`] is opened in [`Runtime::new`] and reused for health, outbox
+/// requeue, and [`Runtime::serve`] — callers must not open a second pool.
 pub struct Runtime {
     config_paths: ConfigPaths,
     bootstrap: Config,
     config: Config,
     effective_revision: Option<EffectiveRevision>,
     http: reqwest::Client,
+    store: Arc<Store>,
 }
 
 impl Runtime {
-    /// Resolve effective config (ledger → app file → error).
+    /// Resolve effective config (ledger → app file → error) and keep the pool.
     ///
-    /// Opens a short-lived [`crate::store::Store`] for ledger lookup; pool
-    /// teardown is safe on the Tokio thread because store `Drop` offloads via
-    /// [`crate::store::db_blocking`].
+    /// Pool teardown is safe on the Tokio thread because store `Drop` offloads
+    /// via [`crate::store::db_blocking`].
     pub fn new(config_paths: ConfigPaths, http: reqwest::Client) -> anyhow::Result<Self> {
         let bootstrap = config::load_infra_bootstrap(&config_paths)?;
-        let store = crate::store::Store::open_from_config(&bootstrap.database)
-            .context("opening state database for config resolution")?;
+        let store = Arc::new(
+            Store::open_from_config(&bootstrap.database)
+                .context("opening state database for config resolution")?,
+        );
         // Only report a revision when the ledger is what actually booted us:
         // in `source = "local"` mode a leftover revision may still exist, but
         // the running config did not come from it, and claiming otherwise
@@ -166,23 +173,29 @@ impl Runtime {
         // pre-[[organizations]] life must not masquerade as the boot identity.
         let effective_revision =
             if bootstrap.config_api.ledger_is_bootable() && bootstrap.organizations.is_empty() {
-                config::effective_revision(&store)?
+                config::effective_revision(store.as_ref())?
             } else {
                 None
             };
-        let config = config::resolve(&config_paths, Some(&store))?;
+        let config = config::resolve(&config_paths, Some(store.as_ref()))?;
         Ok(Self {
             config_paths,
             bootstrap,
             config,
             effective_revision,
             http,
+            store,
         })
     }
 
     /// Build a runtime from an already-loaded config (tests / validate-only paths).
-    pub fn from_config(config: Config, http: reqwest::Client) -> Self {
-        Self {
+    ///
+    /// Opens a PostgreSQL pool from `config.database` so health / serve still
+    /// share one store with the rest of the process.
+    pub fn from_config(config: Config, http: reqwest::Client) -> anyhow::Result<Self> {
+        let store =
+            Arc::new(Store::open_from_config(&config.database).context("opening state database")?);
+        Ok(Self {
             config_paths: ConfigPaths::new(
                 PathBuf::from("bootstrap.toml"),
                 Some(PathBuf::from("app/releases.yaml")),
@@ -191,7 +204,8 @@ impl Runtime {
             effective_revision: None,
             config,
             http,
-        }
+            store,
+        })
     }
 
     /// The resolved effective config (bootstrap + ledger/app-file + env).
@@ -203,6 +217,12 @@ impl Runtime {
     #[must_use]
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Shared upstream HTTP client (User-Agent, timeout, connection pool).
+    #[must_use]
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
     }
 
     pub fn watches(&self) -> anyhow::Result<Vec<Watch>> {
@@ -219,7 +239,8 @@ impl Runtime {
 
     /// Run the backend: poller + HTTP API + webhooks (blocks until shutdown).
     pub async fn serve(&self) -> anyhow::Result<()> {
-        let engine = Engine::open(&self.config, self.http.clone())?;
+        let engine =
+            Engine::open_with_store(&self.config, self.http.clone(), Arc::clone(&self.store))?;
         let _poller_lease = engine
             .store
             .try_acquire_poller_lease()
@@ -289,17 +310,15 @@ impl Runtime {
     }
 
     pub fn health(&self) -> anyhow::Result<()> {
-        let store = crate::store::Store::open_from_config(&self.config.database)
-            .context("opening state database")?;
-        store.health().context("database health check failed")?;
+        self.store
+            .health()
+            .context("database health check failed")?;
         Ok(())
     }
 
     /// Requeue dead-letter notifications for delivery; returns the count revived.
     pub fn requeue_dead_outbox(&self) -> anyhow::Result<usize> {
-        let store = crate::store::Store::open_from_config(&self.config.database)
-            .context("opening state database")?;
-        store
+        self.store
             .requeue_dead_outbox()
             .context("requeueing dead outbox rows")
     }

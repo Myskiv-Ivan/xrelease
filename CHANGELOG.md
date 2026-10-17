@@ -20,6 +20,11 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Changed
 
+- `Runtime` keeps one PostgreSQL pool (`Arc<Store>`) for the process lifetime.
+  Config resolve, `health`, outbox requeue, and `serve` share it via
+  `Engine::open_with_store` instead of opening a second pool (and re-applying
+  schema DDL) on every call.
+- Online `validate` reuses the Runtime HTTP client (no second `reqwest::Client`).
 - Kafka, NATS, and RabbitMQ notifier sinks are always compiled into the
   `xrelease` binary (no cargo features / `all-notifiers`). Local builds, GHCR
   images, and GitHub Release archives share one notifier surface.
@@ -30,13 +35,23 @@ Schema upgrades run automatically on startup. Lab resets remain
 - TLS guides: Compose PEM on UI nginx; Kubernetes terminates on the Gateway
   listener (or Ingress via a local overlay) —
   [tls.md](docs/operations/tls.md) · [gateway.md](docs/operations/gateway.md).
+- Dependency lockfile refresh within semver (tokio, reqwest, clap, toml, …);
+  frontend `package-lock.json` updated. `feed-rs` stays on 2.x.
 
 ### Fixed
 
+- CLI / container `health` no longer opens a fresh database pool on every
+  probe (Docker/Kubernetes liveness intervals).
 - UI OIDC role mapping calls `toLowerCase()` / `trim()` correctly, so IdP
   group claims resolve to viewer/operator/admin (and `alias:org` grants).
 - UI nginx preserves edge `X-Forwarded-Proto` when proxying to the API
   (HTTPS behind Gateway / Ingress / reverse proxy).
+
+### Security
+
+- Bump `rustls` (0.23.43 → 0.23.46) and `h2` (0.4.15 → 0.4.20) for published
+  advisories; replace yanked `chacha20` 0.10.1 (`rand` 0.10.3).
+  `cargo deny check advisories` is clean.
 
 ### Added
 

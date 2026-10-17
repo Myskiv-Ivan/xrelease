@@ -89,18 +89,13 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Every remaining command needs a reachable database anyway
-    // (`Runtime::new`/`Engine::open` fail hard without one, unlike offline
-    // validate's graceful fallback above), so resolve config exactly ONCE
-    // here and reuse the same `Runtime` everywhere downstream. Previously
-    // `main` resolved config via `load_for_cli` just to read `log.level`,
-    // then unconditionally discarded it — `run_sync`/`run_async` re-resolved
-    // from scratch via `Runtime::new`, which itself opens a *third*,
-    // throwaway `Store` (and re-applies the full idempotent schema DDL)
-    // purely to read the config ledger before dropping it. That mattered
-    // most for `health`: Docker/Kubernetes invoke it as a repeated
-    // healthcheck (every 30-60s, for the container's whole lifetime), so the
-    // redundant pool-opens repeated forever and could plausibly blow a tight
-    // healthcheck timeout under real DB latency.
+    // (`Runtime::new` fails hard without one, unlike offline validate's
+    // graceful fallback above), so resolve config + open the PostgreSQL pool
+    // exactly ONCE here. `Runtime` keeps that `Store` for health / requeue /
+    // serve (`Engine::open_with_store`) — previously each of those opened a
+    // fresh pool and re-applied schema DDL. That mattered most for `health`:
+    // Docker/Kubernetes invoke it as a repeated probe (every 30-60s) for the
+    // container's whole lifetime.
     // Logging is initialised from the *bootstrap* file (a cheap local read, no
     // database) rather than from the fully-resolved config, so the tracing
     // emitted during config resolution itself — notably which store the
@@ -184,8 +179,7 @@ async fn run_async(command: Option<Command>, rt: &runtime::Runtime) -> anyhow::R
             source_filter: source.clone(),
         };
         let mut report = xrelease::validate::validate_full(rt.config(), &opts);
-        let http = runtime::build_http_client()?;
-        let probes = xrelease::validate::probe_sources(rt.config(), &http, &opts).await;
+        let probes = xrelease::validate::probe_sources(rt.config(), rt.http(), &opts).await;
         xrelease::validate::merge_probes(&mut report, probes);
         if *strict {
             report.apply_strict(true);
