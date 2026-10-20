@@ -59,6 +59,12 @@ except:
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- /* FQDN for nginx variable proxy_pass: explicit resolver ignores resolv.conf search. */ -}}
+{{- define "xrelease.apiServiceFqdn" -}}
+{{- $domain := (((.Values.ui).nginx).clusterDomain) | default "cluster.local" -}}
+{{- printf "%s.%s.svc.%s" (include "xrelease.fullname" .) .Release.Namespace $domain -}}
+{{- end }}
+
 {{- define "xrelease.secretsName" -}}
 {{- if .Values.secrets.existingSecret -}}
 {{- .Values.secrets.existingSecret -}}

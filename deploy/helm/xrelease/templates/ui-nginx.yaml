@@ -22,9 +22,10 @@ data:
 
         # Literal hosts in proxy_pass are resolved once at nginx start. If the
         # backend Service is briefly unresolvable, nginx exits → CrashLoopBackOff.
-        # A variable + resolver forces runtime DNS (kube-dns / CoreDNS).
+        # Variable + resolver → runtime DNS. Must be FQDN: nginx resolver does
+        # not apply resolv.conf search domains (short name → SERVFAIL / 502).
         resolver {{ .Values.ui.nginx.resolver }} valid=10s ipv6=off;
-        set $xrelease_upstream "{{ include "xrelease.fullname" . }}:{{ .Values.service.port }}";
+        set $xrelease_upstream "{{ include "xrelease.apiServiceFqdn" . }}:{{ .Values.service.port }}";
 
         location / {
             try_files $uri $uri/ /index.html;
