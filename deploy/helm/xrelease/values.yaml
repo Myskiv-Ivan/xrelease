@@ -190,6 +190,10 @@ ui:
     type: ClusterIP
     port: 80
   exposeMetrics: false
+  # Cluster DNS used for runtime upstream resolution in ui-nginx ConfigMap.
+  # Override if CoreDNS is not reachable as kube-dns (rare).
+  nginx:
+    resolver: kube-dns.kube-system.svc.cluster.local
   env:
     VITE_API_URL: ""
     VITE_AUTH_MODE: local
@@ -200,7 +204,7 @@ ui:
       memory: 32Mi
     limits:
       cpu: 200m
-      memory: 128Mi
+      memory: 256Mi
 
 env:
   XRELEASE_LOG: info

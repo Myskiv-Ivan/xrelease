@@ -40,6 +40,15 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Fixed
 
+- UI CrashLoopBackOff on Kubernetes: Helm nginx ConfigMap used literal
+  `proxy_pass http://xrelease:…`, which nginx resolves **once at start**.
+  If Service DNS is briefly missing, nginx exits with
+  `host not found in upstream` and never recovers. Upstream is now a
+  variable + `kube-dns` resolver (runtime DNS); Compose uses `127.0.0.11`.
+- UI worker count: enable `NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE` so
+  workers follow the pod CPU quota instead of `worker_processes auto` ×
+  node CPUs (OOM risk under the previous 128Mi limit). Memory limit raised
+  to 256Mi.
 - CLI / container `health` no longer opens a fresh database pool on every
   probe (Docker/Kubernetes liveness intervals).
 - UI OIDC role mapping calls `toLowerCase()` / `trim()` correctly, so IdP

@@ -57,13 +57,15 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-          {{- with .Values.ui.env }}
           env:
-            {{- range $key, $value := . }}
+            # Cap workers to the pod CPU quota (avoids worker_processes=auto ×
+            # node CPUs blowing the 128–256Mi memory limit → OOMKill).
+            - name: NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE
+              value: "1"
+            {{- range $key, $value := .Values.ui.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- end }}
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/conf.d
