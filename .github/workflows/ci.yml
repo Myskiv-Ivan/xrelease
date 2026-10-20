@@ -195,9 +195,14 @@ jobs:
           ! grep -q 'kind: PodDisruptionBudget' /tmp/lab-render.yaml
           helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
             --set ui.replicaCount=2 | grep -q 'kind: PodDisruptionBudget'
-          ! grep -q 'proxy_pass .*:8080/metrics' /tmp/default.yaml
+          # Runtime DNS: variable + resolver (literal proxy_pass host crashes at start).
+          grep -qF 'set $xrelease_upstream' /tmp/default.yaml
+          grep -qF 'proxy_pass http://$xrelease_upstream;' /tmp/default.yaml
+          ! grep -qE 'proxy_pass http://[A-Za-z0-9._-]+:[0-9]+' /tmp/default.yaml
+          ! grep -qF 'proxy_pass http://$xrelease_upstream/metrics' /tmp/default.yaml
           helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
-            -f .github/ci/helm-expose-metrics.yaml | grep -q 'proxy_pass .*:8080/metrics'
+            -f .github/ci/helm-expose-metrics.yaml \
+            | grep -qF 'proxy_pass http://$xrelease_upstream/metrics'
           [ "$(grep -m1 checksum/ui-nginx /tmp/default.yaml)" \
             != "$(helm template xrelease $C -f $S -f deploy/k8s/values.yaml \
                  -f .github/ci/helm-expose-metrics.yaml | grep -m1 checksum/ui-nginx)" ]
