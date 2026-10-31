@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { TYPE_SECTION } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	import { TYPE_SECTION } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		title: string;

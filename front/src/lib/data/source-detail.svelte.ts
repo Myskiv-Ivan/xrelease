@@ -1,9 +1,9 @@
 import { untrack } from 'svelte';
-import type { SourceDetail } from '$lib/api/types';
-import { createQuery, type QueryState } from '$lib/data/query.svelte';
-import { getSourcesStore } from '$lib/data/sources.svelte';
-import { t } from '$lib/i18n';
-import { getAuthState } from '$lib/stores/auth.svelte';
+import type { SourceDetail } from '#lib/api/types.js';
+import { createQuery, type QueryState } from '#lib/data/query.svelte.js';
+import { getSourcesStore } from '#lib/data/sources.svelte.js';
+import { t } from '#lib/i18n/index.js';
+import { getAuthState } from '#lib/stores/auth.svelte.js';
 
 /**
  * The source-detail endpoint, bound to a reactive id and to auth readiness.

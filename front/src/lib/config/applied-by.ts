@@ -1,4 +1,4 @@
-import { EMPTY_VALUE } from '$lib/core/format';
+import { EMPTY_VALUE } from '#lib/core/format.js';
 
 /**
  * `config_revision.applied_by` is written by the server as a machine label —

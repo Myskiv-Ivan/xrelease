@@ -6,12 +6,12 @@
 		APP_NAME,
 		APP_REPOSITORY,
 		APP_VERSION
-	} from '$lib/core/constants';
-	import { cn } from '$lib/utils';
+	} from '#lib/core/constants.js';
+	import { cn } from '#lib/utils.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import ScaleIcon from '@lucide/svelte/icons/scale';
-	import { t } from '$lib/i18n';
-	import { LAYOUT_MAX, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import { t } from '#lib/i18n/index.js';
+	import { LAYOUT_MAX, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		showVersion?: boolean;

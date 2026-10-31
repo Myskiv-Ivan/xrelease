@@ -5,41 +5,41 @@ import {
 	getStoredApiKey,
 	setStoredApiKey,
 	writeLocalSession
-} from '$lib/auth/credentials';
-import { getAuthMode } from '$lib/auth/config';
+} from '#lib/auth/credentials.js';
+import { getAuthMode } from '#lib/auth/config.js';
 import {
 	endOidcSession,
 	writeOidcAppRole,
 	writeOidcOrganizationRoles,
 	writeOidcTokens
-} from '$lib/auth/oidc';
-import { api } from '$lib/api/client';
+} from '#lib/auth/oidc.js';
+import { api } from '#lib/api/client.js';
 import {
 	hasPermissionFor,
 	roleForOrganization,
 	roleLabel
-} from '$lib/auth/roles';
+} from '#lib/auth/roles.js';
 import {
 	buildAuthProfile,
 	canCallManagementApi,
 	resolvedRolesFromProfile
-} from '$lib/auth/session';
-import { registerAuthProfileSync } from '$lib/auth/sync';
-import { resetOrganizationsStore } from '$lib/stores/organizations.svelte';
+} from '#lib/auth/session.js';
+import { registerAuthProfileSync } from '#lib/auth/sync.js';
+import { resetOrganizationsStore } from '#lib/stores/organizations.svelte.js';
 import type {
 	AppRole,
 	AuthProfile,
 	LocalSession,
 	Permission,
 	ResolvedRoles
-} from '$lib/auth/types';
-import { resetConfigSchemaStore } from '$lib/data/config-schema.svelte';
-import { resetConfigStore } from '$lib/data/config.svelte';
-import { resetOrgConfigStore } from '$lib/data/org-config.svelte';
-import { resetOutboxStore } from '$lib/data/outbox.svelte';
-import { resetSourcesStore } from '$lib/data/sources.svelte';
-import { resetStatusStore } from '$lib/data/status.svelte';
-import { resetTeamsStore } from '$lib/data/teams.svelte';
+} from '#lib/auth/types.js';
+import { resetConfigSchemaStore } from '#lib/data/config-schema.svelte.js';
+import { resetConfigStore } from '#lib/data/config.svelte.js';
+import { resetOrgConfigStore } from '#lib/data/org-config.svelte.js';
+import { resetOutboxStore } from '#lib/data/outbox.svelte.js';
+import { resetSourcesStore } from '#lib/data/sources.svelte.js';
+import { resetStatusStore } from '#lib/data/status.svelte.js';
+import { resetTeamsStore } from '#lib/data/teams.svelte.js';
 
 let profile = $state<AuthProfile | null>(null);
 let isReady = $state(false);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { issuerMatches } from '$lib/auth/discovery';
+import { issuerMatches } from '#lib/auth/discovery.js';
 
 const ISSUER = 'https://idp.example.test';
 

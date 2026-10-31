@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { SourceDetail } from '$lib/api/types';
-	import SourceKindBadge from '$lib/components/sources/SourceKindBadge.svelte';
-	import TeamBadge from '$lib/components/teams/TeamBadge.svelte';
-	import SortHeader from '$lib/components/kit/SortHeader.svelte';
-	import TableShell from '$lib/components/kit/TableShell.svelte';
+	import type { SourceDetail } from '#lib/api/types.js';
+	import SourceKindBadge from '#lib/components/sources/SourceKindBadge.svelte';
+	import TeamBadge from '#lib/components/teams/TeamBadge.svelte';
+	import SortHeader from '#lib/components/kit/SortHeader.svelte';
+	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
 		TABLE_BODY_ROW,
@@ -11,21 +11,21 @@
 		TABLE_HEAD_ROW,
 		TABLE_STICKY_END,
 		TABLE_STICKY_END_HEAD
-	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import type { SortState } from '$lib/core/sort';
-	import { toggleSortKey } from '$lib/core/sort';
+	} from '#lib/components/kit/table-styles.js';
+	import { TYPE_CODE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import type { SortState } from '#lib/core/sort.js';
+	import { toggleSortKey } from '#lib/core/sort.js';
 	import {
 		latestRelease,
 		pollErrorTone,
 		sourceHealth,
 		type SourceSortKey
-	} from '$lib/config/source-presentation';
-	import { toneMutedTextClass } from '$lib/components/kit/surface-styles';
-	import { t } from '$lib/i18n';
-	import { EMPTY_VALUE, formatInterval, formatNumber } from '$lib/core/format';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
-	import { cn } from '$lib/utils';
+	} from '#lib/config/source-presentation.js';
+	import { toneMutedTextClass } from '#lib/components/kit/surface-styles.js';
+	import { t } from '#lib/i18n/index.js';
+	import { EMPTY_VALUE, formatInterval, formatNumber } from '#lib/core/format.js';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		sources: SourceDetail[];

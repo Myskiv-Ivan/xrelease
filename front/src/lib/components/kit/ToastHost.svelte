@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { getToastState } from '$lib/stores/toast.svelte';
-	import { cn } from '$lib/utils';
+	import { getToastState } from '#lib/stores/toast.svelte.js';
+	import { cn } from '#lib/utils.js';
 
 	const toast = getToastState();
 

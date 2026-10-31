@@ -1,8 +1,8 @@
-import { api } from '$lib/api/client';
-import type { OutboxEntry } from '$lib/api/types';
-import { organizationParam } from '$lib/data/organization-scope';
-import { createResourceStore } from '$lib/data/resource.svelte';
-import { t } from '$lib/i18n';
+import { api } from '#lib/api/client.js';
+import type { OutboxEntry } from '#lib/api/types.js';
+import { organizationParam } from '#lib/data/organization-scope.js';
+import { createResourceStore } from '#lib/data/resource.svelte.js';
+import { t } from '#lib/i18n/index.js';
 
 const resource = createResourceStore<OutboxEntry[]>({
 	fetcher: async () => {

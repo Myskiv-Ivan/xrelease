@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AdvisoryView, SeenReleaseView } from '$lib/api/types';
+import type { AdvisoryView, SeenReleaseView } from '#lib/api/types.js';
 import {
 	advisoryRowSearchText,
 	advisoryRows,

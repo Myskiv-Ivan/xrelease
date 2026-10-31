@@ -9,12 +9,12 @@
 </script>
 
 <script lang="ts">
-	import * as Alert from '$lib/components/ui/alert/index.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		tone?: BannerTone;

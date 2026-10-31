@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import { getTeamsStore } from '#lib/data/teams.svelte.js';
 
 	interface Props {
 		tag: string;

@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { ConfigView } from '$lib/api/types';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import SegmentedControl from '$lib/components/kit/SegmentedControl.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { TYPE_CODE, TYPE_BODY, TYPE_HINT } from '$lib/components/kit/layout-styles';
+	import type { ConfigView } from '#lib/api/types.js';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import SegmentedControl from '#lib/components/kit/SegmentedControl.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { TYPE_CODE, TYPE_BODY, TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 	import {
 		appriseTargetsMissing,
 		extractAppDocument,
 		extractBootstrapDocument,
 		parseAppLayerData
-	} from '$lib/config/config-layers';
-	import { cn } from '$lib/utils';
-	import { t } from '$lib/i18n';
+	} from '#lib/config/config-layers.js';
+	import { cn } from '#lib/utils.js';
+	import { t } from '#lib/i18n/index.js';
 
 	export type ConfigDocView = 'bootstrap' | 'app';
 

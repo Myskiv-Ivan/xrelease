@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { api, ApiClientError } from '$lib/api/client';
-	import type { AppRoleName } from '$lib/api/types';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Input from '$lib/components/kit/Input.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { FIELD_GROUP, FIELD_STACK, TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import { api, ApiClientError } from '#lib/api/client.js';
+	import type { AppRoleName } from '#lib/api/types.js';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Input from '#lib/components/kit/Input.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { FIELD_GROUP, FIELD_STACK, TYPE_HINT } from '#lib/components/kit/layout-styles.js';
+	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 
 	interface Props {
 		/** Called after a successful create so the list panel can reload. */

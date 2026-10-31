@@ -1,4 +1,4 @@
-import { TYPE_OVERLINE } from '$lib/components/kit/layout-styles';
+import { TYPE_OVERLINE } from '#lib/components/kit/layout-styles.js';
 
 /** Stat / KV labels share the overline type scale (CSS uppercase). */
 export const statLabelClass = TYPE_OVERLINE;

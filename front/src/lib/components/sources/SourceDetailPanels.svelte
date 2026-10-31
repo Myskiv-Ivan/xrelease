@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { SourceDetail } from '$lib/api/types';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import { PANEL_GRID } from '$lib/components/kit/layout-styles';
-	import { sourceMetricsItems, sourceScheduleItems } from '$lib/config/source-presentation';
-	import { t } from '$lib/i18n';
+	import type { SourceDetail } from '#lib/api/types.js';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import { PANEL_GRID } from '#lib/components/kit/layout-styles.js';
+	import { sourceMetricsItems, sourceScheduleItems } from '#lib/config/source-presentation.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		source: SourceDetail;

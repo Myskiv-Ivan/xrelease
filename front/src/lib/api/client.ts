@@ -27,14 +27,14 @@ import type {
 	TeamListResponse
 } from './types';
 
-import { isOidcEnabled } from '$lib/auth/config';
-import { getBearerToken, getStoredApiKey } from '$lib/auth/credentials';
-import { refreshOidcTokensIfNeeded } from '$lib/auth/oidc';
-import { notifyAuthProfileSync } from '$lib/auth/sync';
-import { readUiSetting } from '$lib/config/runtime';
-import { DEFAULT_API_URL } from '$lib/core/constants';
+import { isOidcEnabled } from '#lib/auth/config.js';
+import { getBearerToken, getStoredApiKey } from '#lib/auth/credentials.js';
+import { refreshOidcTokensIfNeeded } from '#lib/auth/oidc.js';
+import { notifyAuthProfileSync } from '#lib/auth/sync.js';
+import { readUiSetting } from '#lib/config/runtime.js';
+import { DEFAULT_API_URL } from '#lib/core/constants.js';
 
-export { getStoredApiKey, setStoredApiKey, clearStoredApiKey, getBearerToken } from '$lib/auth/credentials';
+export { getStoredApiKey, setStoredApiKey, clearStoredApiKey, getBearerToken } from '#lib/auth/credentials.js';
 
 export function getApiBaseUrl(): string {
 	const fromEnv = readUiSetting('VITE_API_URL');

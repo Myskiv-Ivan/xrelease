@@ -1,4 +1,4 @@
-import { issuerMatches } from '$lib/auth/discovery';
+import { issuerMatches } from '#lib/auth/discovery.js';
 
 /**
  * JWT helpers — RFC 7519 (JSON Web Token) + RFC 8725 (JWT BCP).

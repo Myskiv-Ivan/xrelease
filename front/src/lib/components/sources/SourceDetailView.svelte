@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { SourceDetail } from '$lib/api/types';
-	import SourceDetailActions from '$lib/components/sources/SourceDetailActions.svelte';
-	import SourceDetailPanels from '$lib/components/sources/SourceDetailPanels.svelte';
-	import SeenReleasesPanel from '$lib/components/sources/SeenReleasesPanel.svelte';
-	import SourceKindBadge from '$lib/components/sources/SourceKindBadge.svelte';
-	import SourceStatGrid from '$lib/components/sources/SourceStatGrid.svelte';
-	import { sourceSupportsAdvisories } from '$lib/config/advisory-presentation';
-	import { getStatusStore } from '$lib/data/status.svelte';
-	import { t } from '$lib/i18n';
+	import type { SourceDetail } from '#lib/api/types.js';
+	import SourceDetailActions from '#lib/components/sources/SourceDetailActions.svelte';
+	import SourceDetailPanels from '#lib/components/sources/SourceDetailPanels.svelte';
+	import SeenReleasesPanel from '#lib/components/sources/SeenReleasesPanel.svelte';
+	import SourceKindBadge from '#lib/components/sources/SourceKindBadge.svelte';
+	import SourceStatGrid from '#lib/components/sources/SourceStatGrid.svelte';
+	import { sourceSupportsAdvisories } from '#lib/config/advisory-presentation.js';
+	import { getStatusStore } from '#lib/data/status.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		source: SourceDetail;

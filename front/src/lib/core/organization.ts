@@ -1,4 +1,4 @@
-import { ORGANIZATION_SEP } from '$lib/core/constants';
+import { ORGANIZATION_SEP } from '#lib/core/constants.js';
 
 /**
  * Extract organization id from a namespaced source id or routing tag

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { getOutboxStore } from '$lib/data/outbox.svelte';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import { TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { getOutboxStore } from '#lib/data/outbox.svelte.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { getTeamsStore } from '#lib/data/teams.svelte.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
 
 	const orgs = getOrganizationsState();
 	const auth = getAuthState();

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import { t } from '$lib/i18n';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
+	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
 
 	const orgs = getOrganizationsState();
 </script>

@@ -1,35 +1,35 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { OutboxEntry } from '$lib/api/types';
-	import { getOutboxStore } from '$lib/data/outbox.svelte';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
-	import { getNowStore } from '$lib/stores/now.svelte';
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import OrgScopeNotice from '$lib/components/layout/OrgScopeNotice.svelte';
-	import OutboxTable from '$lib/components/outbox/OutboxTable.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Checkbox from '$lib/components/kit/Checkbox.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import TableToolbar from '$lib/components/kit/TableToolbar.svelte';
-	import * as Tabs from '$lib/components/kit/tabs';
-	import { exportRowsAsCsv } from '$lib/core/csv';
-	import { isDeferredDelivery, requeueDeadOutbox, requeueErrorToast } from '$lib/core/outbox';
-	import { scopeToOrganization } from '$lib/data/organization-scope';
+	import type { OutboxEntry } from '#lib/api/types.js';
+	import { getOutboxStore } from '#lib/data/outbox.svelte.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { getTeamsStore } from '#lib/data/teams.svelte.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
+	import { getNowStore } from '#lib/stores/now.svelte.js';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import OrgScopeNotice from '#lib/components/layout/OrgScopeNotice.svelte';
+	import OutboxTable from '#lib/components/outbox/OutboxTable.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
+	import * as Tabs from '#lib/components/kit/tabs.js';
+	import { exportRowsAsCsv } from '#lib/core/csv.js';
+	import { isDeferredDelivery, requeueDeadOutbox, requeueErrorToast } from '#lib/core/outbox.js';
+	import { scopeToOrganization } from '#lib/data/organization-scope.js';
 	import {
 		UNTAGGED_FILTER,
 		collectTeamFilterOptions,
 		matchesSearch,
 		passesSelectFilter,
 		passesTeamFilter
-	} from '$lib/core/table-filters';
-	import { sortByKey } from '$lib/core/sort';
-	import type { SortState } from '$lib/core/sort';
-	import { t } from '$lib/i18n';
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
+	} from '#lib/core/table-filters.js';
+	import { sortByKey } from '#lib/core/sort.js';
+	import type { SortState } from '#lib/core/sort.js';
+	import { t } from '#lib/i18n/index.js';
+	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 
 	const auth = getAuthState();
 	const network = getNetworkState();

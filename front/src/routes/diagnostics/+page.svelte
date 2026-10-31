@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
-	import type { HealthResponse, ReadyResponse, StatusResponse } from '$lib/api/types';
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import NotifierTestPanel from '$lib/components/config/NotifierTestPanel.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import MetaList from '$lib/components/kit/MetaList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import { PANEL_GRID, PAGE_STACK, TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import type { KeyValueItem } from '$lib/types/ui';
-	import { WEBHOOK_ENDPOINTS } from '$lib/core/constants';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import { api } from '#lib/api/client.js';
+	import type { HealthResponse, ReadyResponse, StatusResponse } from '#lib/api/types.js';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import NotifierTestPanel from '#lib/components/config/NotifierTestPanel.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import MetaList from '#lib/components/kit/MetaList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import { PANEL_GRID, PAGE_STACK, TYPE_HINT } from '#lib/components/kit/layout-styles.js';
+	import type { KeyValueItem } from '#lib/types/ui.js';
+	import { WEBHOOK_ENDPOINTS } from '#lib/core/constants.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 
 	const network = getNetworkState();
 

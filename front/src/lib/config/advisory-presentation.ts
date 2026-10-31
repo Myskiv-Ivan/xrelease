@@ -1,6 +1,6 @@
-import type { AdvisoryView, SeenReleaseView } from '$lib/api/types';
-import type { BadgeTone } from '$lib/components/kit/Badge.svelte';
-import { t } from '$lib/i18n';
+import type { AdvisoryView, SeenReleaseView } from '#lib/api/types.js';
+import type { BadgeTone } from '#lib/components/kit/Badge.svelte';
+import { t } from '#lib/i18n/index.js';
 
 /**
  * Severity tier, derived from the OpenAPI contract rather than redeclared.

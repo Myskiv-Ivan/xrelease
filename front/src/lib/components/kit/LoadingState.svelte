@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
-	import { t } from '$lib/i18n';
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import { t } from '#lib/i18n/index.js';
+	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		/** Optional status label; defaults to common.loading. */

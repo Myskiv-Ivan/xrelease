@@ -1,20 +1,20 @@
 <script lang="ts">
-	import type { ConfigApplyResponse, ConfigView } from '$lib/api/types';
-	import { api } from '$lib/api/client';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
+	import type { ConfigApplyResponse, ConfigView } from '#lib/api/types.js';
+	import { api } from '#lib/api/client.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
 	import {
 		configApiEnabled,
 		configProvenanceItems
-	} from '$lib/config/config-presentation';
-	import { resolveApiError } from '$lib/core/errors';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
-	import { getNowStore } from '$lib/stores/now.svelte';
+	} from '#lib/config/config-presentation.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { TYPE_CODE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
+	import { getNowStore } from '#lib/stores/now.svelte.js';
 
 	interface Props {
 		view: ConfigView;

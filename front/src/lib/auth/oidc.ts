@@ -1,6 +1,6 @@
-import { STORAGE_KEYS } from '$lib/core/constants';
-import { fetchOidcDiscovery } from '$lib/auth/discovery';
-import { getOidcConfig } from '$lib/auth/config';
+import { STORAGE_KEYS } from '#lib/core/constants.js';
+import { fetchOidcDiscovery } from '#lib/auth/discovery.js';
+import { getOidcConfig } from '#lib/auth/config.js';
 import {
 	validateIdTokenClaims,
 	expiresAtFromPayload,
@@ -8,9 +8,9 @@ import {
 	looksLikeJwt,
 	parseJwt,
 	type JwtPayload
-} from '$lib/auth/jwt';
-import { verifyJwtWithJwks } from '$lib/auth/jwks';
-import type { OidcProfile, OidcTokens } from '$lib/auth/types';
+} from '#lib/auth/jwt.js';
+import { verifyJwtWithJwks } from '#lib/auth/jwks.js';
+import type { OidcProfile, OidcTokens } from '#lib/auth/types.js';
 
 interface OidcPendingState {
 	verifier: string;
@@ -94,7 +94,7 @@ export function writeOidcTokens(tokens: OidcTokens | null): void {
 }
 
 /** Server-assigned global role from `/auth/oidc/sync` or `/auth/me`. */
-export function writeOidcAppRole(role: import('$lib/auth/types').AppRole | null): void {
+export function writeOidcAppRole(role: import('#lib/auth/types.js').AppRole | null): void {
 	if (typeof sessionStorage === 'undefined') return;
 	if (!role) {
 		sessionStorage.removeItem(STORAGE_KEYS.oidcAppRole);
@@ -103,7 +103,7 @@ export function writeOidcAppRole(role: import('$lib/auth/types').AppRole | null)
 	sessionStorage.setItem(STORAGE_KEYS.oidcAppRole, role);
 }
 
-export function readOidcAppRole(): import('$lib/auth/types').AppRole | null {
+export function readOidcAppRole(): import('#lib/auth/types.js').AppRole | null {
 	if (typeof sessionStorage === 'undefined') return null;
 	const value = sessionStorage.getItem(STORAGE_KEYS.oidcAppRole);
 	if (value === 'admin' || value === 'operator' || value === 'viewer') return value;
@@ -112,7 +112,7 @@ export function readOidcAppRole(): import('$lib/auth/types').AppRole | null {
 
 /** Server-assigned per-org grants from sync / `/auth/me`. */
 export function writeOidcOrganizationRoles(
-	roles: Record<string, import('$lib/auth/types').AppRole> | null
+	roles: Record<string, import('#lib/auth/types.js').AppRole> | null
 ): void {
 	if (typeof sessionStorage === 'undefined') return;
 	if (!roles || Object.keys(roles).length === 0) {
@@ -124,14 +124,14 @@ export function writeOidcOrganizationRoles(
 
 export function readOidcOrganizationRoles(): Record<
 	string,
-	import('$lib/auth/types').AppRole
+	import('#lib/auth/types.js').AppRole
 > | null {
 	if (typeof sessionStorage === 'undefined') return null;
 	const raw = sessionStorage.getItem(STORAGE_KEYS.oidcOrgRoles);
 	if (!raw) return null;
 	try {
 		const parsed = JSON.parse(raw) as Record<string, unknown>;
-		const out: Record<string, import('$lib/auth/types').AppRole> = {};
+		const out: Record<string, import('#lib/auth/types.js').AppRole> = {};
 		for (const [org, role] of Object.entries(parsed)) {
 			if (role === 'admin' || role === 'operator' || role === 'viewer') {
 				out[org] = role;
@@ -289,7 +289,7 @@ export async function startOidcLogin(returnTo = '/'): Promise<void> {
 }
 
 export async function completeOidcCallback(
-	searchParams: URLSearchParams
+	searchParams: { get(name: string): string | null }
 ): Promise<{ returnTo: string }> {
 	const config = getOidcConfig();
 	if (!config) {

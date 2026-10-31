@@ -1,21 +1,21 @@
 <script lang="ts">
-	import type { OutboxEntry } from '$lib/api/types';
-	import TeamBadge from '$lib/components/teams/TeamBadge.svelte';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
-	import SortHeader from '$lib/components/kit/SortHeader.svelte';
-	import TableShell from '$lib/components/kit/TableShell.svelte';
+	import type { OutboxEntry } from '#lib/api/types.js';
+	import TeamBadge from '#lib/components/teams/TeamBadge.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
+	import SortHeader from '#lib/components/kit/SortHeader.svelte';
+	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
 		TABLE_BODY_ROW,
 		TABLE_DATE_CELL,
 		TABLE_HEAD_ROW
-	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import type { SortState } from '$lib/core/sort';
-	import { toggleSortKey } from '$lib/core/sort';
-	import { t } from '$lib/i18n';
-	import { EMPTY_VALUE } from '$lib/core/format';
+	} from '#lib/components/kit/table-styles.js';
+	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import type { SortState } from '#lib/core/sort.js';
+	import { toggleSortKey } from '#lib/core/sort.js';
+	import { t } from '#lib/i18n/index.js';
+	import { EMPTY_VALUE } from '#lib/core/format.js';
 
 	interface Props {
 		entries: OutboxEntry[];

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import ConfigDocumentPanel from '$lib/components/config/ConfigDocumentPanel.svelte';
-	import ConfigEditPanel from '$lib/components/config/ConfigEditPanel.svelte';
-	import ConfigProvenancePanel from '$lib/components/config/ConfigProvenancePanel.svelte';
-	import ConfigRevisionsPanel from '$lib/components/config/ConfigRevisionsPanel.svelte';
-	import OrgConfigView from '$lib/components/config/OrgConfigView.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import { PAGE_STACK, PANEL_STACK } from '$lib/components/kit/layout-styles';
-	import * as Tabs from '$lib/components/kit/tabs';
-	import { createScopedConfig } from '$lib/data/config-scope.svelte';
-	import { t } from '$lib/i18n';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import ConfigDocumentPanel from '#lib/components/config/ConfigDocumentPanel.svelte';
+	import ConfigEditPanel from '#lib/components/config/ConfigEditPanel.svelte';
+	import ConfigProvenancePanel from '#lib/components/config/ConfigProvenancePanel.svelte';
+	import ConfigRevisionsPanel from '#lib/components/config/ConfigRevisionsPanel.svelte';
+	import OrgConfigView from '#lib/components/config/OrgConfigView.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import { PAGE_STACK, PANEL_STACK } from '#lib/components/kit/layout-styles.js';
+	import * as Tabs from '#lib/components/kit/tabs.js';
+	import { createScopedConfig } from '#lib/data/config-scope.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 
 	const config = createScopedConfig();
 	let tab = $state('overview');

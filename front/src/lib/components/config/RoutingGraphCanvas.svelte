@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import type { RoutingGraph } from '$lib/config/desired-validation';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import type { RoutingGraph } from '#lib/config/desired-validation.js';
 	import {
 		buildRoutingFlow,
 		traceConnections,
@@ -9,9 +9,9 @@
 		NODE_WIDTH,
 		type FlowNode,
 		type FlowWarning
-	} from '$lib/config/routing-flow';
-	import { TYPE_CODE, TYPE_MUTED, TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import { t } from '$lib/i18n';
+	} from '#lib/config/routing-flow.js';
+	import { TYPE_CODE, TYPE_MUTED, TYPE_HINT } from '#lib/components/kit/layout-styles.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		graph: RoutingGraph;

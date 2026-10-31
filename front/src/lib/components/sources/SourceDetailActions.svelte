@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Button from '$lib/components/kit/Button.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 
 	interface Props {
 		/** Owning source id — links to its advisories page. */

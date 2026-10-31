@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Input as ShadcnInput } from '$lib/components/ui/input/index.js';
-	import { cn } from '$lib/utils';
+	import { Input as ShadcnInput } from '#lib/components/ui/input/index.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		id?: string;

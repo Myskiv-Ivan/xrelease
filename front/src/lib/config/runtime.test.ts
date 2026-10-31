@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { readUiSetting } from '$lib/config/runtime';
+import { readUiSetting } from '#lib/config/runtime.js';
 
 describe('readUiSetting', () => {
 	const scope = globalThis as typeof globalThis & {

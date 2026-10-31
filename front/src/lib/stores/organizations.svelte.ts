@@ -1,8 +1,8 @@
-import { api } from '$lib/api/client';
-import type { OrganizationView } from '$lib/api/types';
-import { STORAGE_KEYS } from '$lib/core/constants';
-import { resolveApiError } from '$lib/core/errors';
-import { t } from '$lib/i18n';
+import { api } from '#lib/api/client.js';
+import type { OrganizationView } from '#lib/api/types.js';
+import { STORAGE_KEYS } from '#lib/core/constants.js';
+import { resolveApiError } from '#lib/core/errors.js';
+import { t } from '#lib/i18n/index.js';
 
 /**
  * Organization catalogue + the operator's currently-selected org.

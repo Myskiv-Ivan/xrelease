@@ -1,7 +1,7 @@
 <script lang="ts">
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { t } from '$lib/i18n';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { t } from '#lib/i18n/index.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 
 	const network = getNetworkState();
 </script>

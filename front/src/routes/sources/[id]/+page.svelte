@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import SourceDetailView from '$lib/components/sources/SourceDetailView.svelte';
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import { pollErrorToast, pollOneSource } from '$lib/core/poll';
-	import { createSourceDetailQuery } from '$lib/data/source-detail.svelte';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
+	import SourceDetailView from '#lib/components/sources/SourceDetailView.svelte';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import { pollErrorToast, pollOneSource } from '#lib/core/poll.js';
+	import { createSourceDetailQuery } from '#lib/data/source-detail.svelte.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
 
 	const auth = getAuthState();
 	const sourcesStore = getSourcesStore();

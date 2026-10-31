@@ -1,25 +1,25 @@
 <script lang="ts">
-	import { api, ApiClientError } from '$lib/api/client';
+	import { api, ApiClientError } from '#lib/api/client.js';
 	import {
 		isApiKeyEnabled,
 		isOidcEnabled,
 		requiresApiKeyForApi
-	} from '$lib/auth/config';
-	import { getDisplayName } from '$lib/auth/session';
-	import AuthModeBadge from '$lib/components/auth/AuthModeBadge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import Input from '$lib/components/kit/Input.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import { FIELD_GROUP, FIELD_STACK, TYPE_STATUS_SUCCESS } from '$lib/components/kit/layout-styles';
-	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { roleLabel } from '$lib/auth/roles';
-	import { getAuthState, loginWithApiKey } from '$lib/stores/auth.svelte';
-	import type { KeyValueItem } from '$lib/types/ui';
+	} from '#lib/auth/config.js';
+	import { getDisplayName } from '#lib/auth/session.js';
+	import AuthModeBadge from '#lib/components/auth/AuthModeBadge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import Input from '#lib/components/kit/Input.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import { FIELD_GROUP, FIELD_STACK, TYPE_STATUS_SUCCESS } from '#lib/components/kit/layout-styles.js';
+	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { roleLabel } from '#lib/auth/roles.js';
+	import { getAuthState, loginWithApiKey } from '#lib/stores/auth.svelte.js';
+	import type { KeyValueItem } from '#lib/types/ui.js';
 	import { onMount } from 'svelte';
 
 	const auth = getAuthState();

@@ -1,27 +1,27 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
+	import { api } from '#lib/api/client.js';
 	import type {
 		ConfigApplyResponse,
 		ConfigRevisionSummary,
 		ConfigView,
 		OrganizationConfigView
-	} from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import ConfigEditPanel from '$lib/components/config/ConfigEditPanel.svelte';
-	import ConfigRevisionsPanel from '$lib/components/config/ConfigRevisionsPanel.svelte';
-	import * as Tabs from '$lib/components/kit/tabs';
-	import { PAGE_STACK, TYPE_CODE, TYPE_HINT, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { desiredSourceLabel } from '$lib/config/config-presentation';
-	import { resolveApiError } from '$lib/core/errors';
-	import { EMPTY_VALUE } from '$lib/core/format';
-	import { cn } from '$lib/utils';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
-	import type { KeyValueItem } from '$lib/types/ui';
+	} from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import ConfigEditPanel from '#lib/components/config/ConfigEditPanel.svelte';
+	import ConfigRevisionsPanel from '#lib/components/config/ConfigRevisionsPanel.svelte';
+	import * as Tabs from '#lib/components/kit/tabs.js';
+	import { PAGE_STACK, TYPE_CODE, TYPE_HINT, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { desiredSourceLabel } from '#lib/config/config-presentation.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { EMPTY_VALUE } from '#lib/core/format.js';
+	import { cn } from '#lib/utils.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
+	import type { KeyValueItem } from '#lib/types/ui.js';
 
 	interface Props {
 		view: OrganizationConfigView;

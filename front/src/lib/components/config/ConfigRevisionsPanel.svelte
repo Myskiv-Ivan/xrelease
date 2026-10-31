@@ -1,21 +1,21 @@
 <script lang="ts">
-	import type { ConfigRevisionSummary } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
-	import TableShell from '$lib/components/kit/TableShell.svelte';
+	import type { ConfigRevisionSummary } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
+	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
 		TABLE_BODY_ROW,
 		TABLE_DATE_CELL,
 		TABLE_HEAD_CELL,
 		TABLE_HEAD_ROW
-	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { EMPTY_VALUE } from '$lib/core/format';
-	import { parseAppliedBy, type AppliedBy } from '$lib/config/applied-by';
-	import { t } from '$lib/i18n';
+	} from '#lib/components/kit/table-styles.js';
+	import { TYPE_CODE, TYPE_FIELD_ERROR, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { EMPTY_VALUE } from '#lib/core/format.js';
+	import { parseAppliedBy, type AppliedBy } from '#lib/config/applied-by.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		revisions: ConfigRevisionSummary[];

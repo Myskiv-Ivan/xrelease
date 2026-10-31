@@ -1,17 +1,17 @@
 <script lang="ts">
-	import Button from '$lib/components/kit/Button.svelte';
-	import Checkbox from '$lib/components/kit/Checkbox.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import { REFRESH_INTERVALS } from '$lib/core/constants';
-	import { t } from '$lib/i18n';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import { REFRESH_INTERVALS } from '#lib/core/constants.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 	import {
 		getSettingsState,
 		setAutoRefresh,
 		setRefreshIntervalMs
-	} from '$lib/stores/settings.svelte';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
-	import { TYPE_MUTED, TYPE_HINT } from '$lib/components/kit/layout-styles';
+	} from '#lib/stores/settings.svelte.js';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
+	import { TYPE_MUTED, TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		lastUpdated?: Date | null;

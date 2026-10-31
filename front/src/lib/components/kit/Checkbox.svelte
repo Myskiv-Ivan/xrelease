@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Checkbox as ShadcnCheckbox } from '$lib/components/ui/checkbox/index.js';
-	import { cn } from '$lib/utils';
+	import { Checkbox as ShadcnCheckbox } from '#lib/components/ui/checkbox/index.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		id?: string;

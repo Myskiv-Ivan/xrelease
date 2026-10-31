@@ -1,34 +1,34 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, ApiClientError } from '$lib/api/client';
+	import { api, ApiClientError } from '#lib/api/client.js';
 	import {
 		getAuthMode,
 		getOidcConfig,
 		isApiKeyEnabled,
 		isLocalEnabled,
 		isOidcEnabled
-	} from '$lib/auth/config';
-	import { startOidcLogin } from '$lib/auth/oidc';
-	import { safeReturnTo } from '$lib/auth/return-to';
-	import type { AppRole } from '$lib/auth/types';
-	import AuthModeBadge from '$lib/components/auth/AuthModeBadge.svelte';
-	import AppBrand from '$lib/components/layout/AppBrand.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Input from '$lib/components/kit/Input.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { FIELD_GROUP, FIELD_STACK, TYPE_PAGE_TITLE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
+	} from '#lib/auth/config.js';
+	import { startOidcLogin } from '#lib/auth/oidc.js';
+	import { safeReturnTo } from '#lib/auth/return-to.js';
+	import type { AppRole } from '#lib/auth/types.js';
+	import AuthModeBadge from '#lib/components/auth/AuthModeBadge.svelte';
+	import AppBrand from '#lib/components/layout/AppBrand.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Input from '#lib/components/kit/Input.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { FIELD_GROUP, FIELD_STACK, TYPE_PAGE_TITLE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
 	import {
 		getAuthState,
 		initAuth,
 		loginWithApiKey,
 		loginWithLocalSession
-	} from '$lib/stores/auth.svelte';
-	import { initSettings } from '$lib/stores/settings.svelte';
+	} from '#lib/stores/auth.svelte.js';
+	import { initSettings } from '#lib/stores/settings.svelte.js';
 	import { onMount } from 'svelte';
 
 	const auth = getAuthState();

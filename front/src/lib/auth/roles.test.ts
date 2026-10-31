@@ -5,12 +5,12 @@ import {
 	resolveAppRole,
 	resolveResolvedRoles,
 	roleForOrganization
-} from '$lib/auth/roles';
+} from '#lib/auth/roles.js';
 import {
 	belongsToOrganization,
 	displayIdWithoutOrg,
 	organizationIdFromNamespaced
-} from '$lib/core/organization';
+} from '#lib/core/organization.js';
 
 const mapping = {
 	admin: ['xrelease-admin', 'admin'],

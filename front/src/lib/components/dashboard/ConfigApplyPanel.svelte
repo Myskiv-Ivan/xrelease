@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { ConfigApplyStatus } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
+	import type { ConfigApplyStatus } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
 	import {
 		configApiEnabled,
 		configProvenanceItems
-	} from '$lib/config/config-presentation';
-	import { TYPE_FIELD_ERROR } from '$lib/components/kit/layout-styles';
-	import { t } from '$lib/i18n';
-	import { getNowStore } from '$lib/stores/now.svelte';
+	} from '#lib/config/config-presentation.js';
+	import { TYPE_FIELD_ERROR } from '#lib/components/kit/layout-styles.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getNowStore } from '#lib/stores/now.svelte.js';
 
 	interface Props {
 		status: ConfigApplyStatus;

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { api, ApiClientError } from '$lib/api/client';
-	import type { NotifierTestResult, NotifierView } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED, TYPE_FIELD_ERROR } from '$lib/components/kit/layout-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import { api, ApiClientError } from '#lib/api/client.js';
+	import type { NotifierTestResult, NotifierView } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED, TYPE_FIELD_ERROR } from '#lib/components/kit/layout-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 	import { onMount } from 'svelte';
 
 	const auth = getAuthState();

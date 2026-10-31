@@ -20,6 +20,11 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Changed
 
+- Frontend moves to **SvelteKit 3** (`@sveltejs/kit` 3.1.1, adapter-static 4,
+  Vite 8, Svelte 5.57): `$lib` → `#lib` package imports; auth helpers accept
+  Kit 3 readonly `page.url` / searchParams. Vitest 5, `tailwind-variants` 4,
+  and other front deps refreshed to current releases (TypeScript stays on 6.x
+  for Kit / `svelte-check` peers).
 - `Runtime` keeps one PostgreSQL pool (`Arc<Store>`) for the process lifetime.
   Config resolve, `health`, outbox requeue, and `serve` share it via
   `Engine::open_with_store` instead of opening a second pool (and re-applying
@@ -58,6 +63,11 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Security
 
+- Frontend: `@sveltejs/kit` ≥3.0.0 (GHSA-27mw-82g8-phjj, GHSA-pfhg-q3qv-9q6r);
+  `undici` ≥7.30.1 / 8.12.2 (DoS via content-encodings); transitive
+  `deepmerge` replaced via npm override with `@stackline/deepmerge` 1.1.0
+  (GHSA-gcqx-w48m-w2h4 / CVE-2026-93753 — upstream `deepmerge` still unpatched).
+  `npm audit` and OSV on `front/package-lock.json` report no issues.
 - Bump `rustls` (0.23.43 → 0.23.46) and `h2` (0.4.15 → 0.4.20) for published
   advisories; replace yanked `chacha20` 0.10.1 (`rand` 0.10.3).
   `cargo deny check advisories` is clean.

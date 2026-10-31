@@ -1,7 +1,7 @@
-import { handleUnauthorized, resolveApiError } from '$lib/core/errors';
-import { ApiClientError } from '$lib/api/client';
-import { pauseRefresh, registerRefreshTask } from '$lib/data/refresh-scheduler';
-import { getAuthState } from '$lib/stores/auth.svelte';
+import { handleUnauthorized, resolveApiError } from '#lib/core/errors.js';
+import { ApiClientError } from '#lib/api/client.js';
+import { pauseRefresh, registerRefreshTask } from '#lib/data/refresh-scheduler.js';
+import { getAuthState } from '#lib/stores/auth.svelte.js';
 
 export interface QueryState<T> {
 	readonly data: T | null;

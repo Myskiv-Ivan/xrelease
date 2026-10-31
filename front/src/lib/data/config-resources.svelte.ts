@@ -1,6 +1,6 @@
-import type { ConfigRevisionSummary } from '$lib/api/types';
-import { createResourceStore } from '$lib/data/resource.svelte';
-import { t } from '$lib/i18n';
+import type { ConfigRevisionSummary } from '#lib/api/types.js';
+import { createResourceStore } from '#lib/data/resource.svelte.js';
+import { t } from '#lib/i18n/index.js';
 
 interface RevisionsPage {
 	revisions: ConfigRevisionSummary[];

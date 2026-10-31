@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { TYPE_CODE } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	import { TYPE_CODE } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		id?: string;

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
-	import { TYPE_SECTION } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { TYPE_SECTION } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		title?: string;

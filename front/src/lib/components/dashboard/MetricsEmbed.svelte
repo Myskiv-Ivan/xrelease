@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import { readUiSetting } from '$lib/config/runtime';
-	import { t } from '$lib/i18n';
+	import { browser } from '$app/env';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import { readUiSetting } from '#lib/config/runtime.js';
+	import { t } from '#lib/i18n/index.js';
 
 	/**
 	 * Optional Grafana dashboard iframe.

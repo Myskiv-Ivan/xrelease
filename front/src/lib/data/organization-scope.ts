@@ -1,5 +1,5 @@
-import { belongsToOrganization } from '$lib/core/organization';
-import { getOrganizationsState } from '$lib/stores/organizations.svelte';
+import { belongsToOrganization } from '#lib/core/organization.js';
+import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
 
 /**
  * Organization scoping, in one place.

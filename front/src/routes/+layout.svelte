@@ -1,26 +1,26 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
-	import AppHeader from '$lib/components/layout/AppHeader.svelte';
-	import AppFooter from '$lib/components/layout/AppFooter.svelte';
-	import OfflineBanner from '$lib/components/layout/OfflineBanner.svelte';
-	import ToastHost from '$lib/components/kit/ToastHost.svelte';
-	import { LAYOUT_MAX } from '$lib/components/kit/layout-styles';
-	import { startRefreshScheduler, stopRefreshScheduler } from '$lib/data/refresh-scheduler';
-	import { getConfigSchemaStore } from '$lib/data/config-schema.svelte';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { getStatusStore } from '$lib/data/status.svelte';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
-	import { getAuthState, initAuth, refreshAuthMe } from '$lib/stores/auth.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
-	import { initNetworkMonitor } from '$lib/stores/network.svelte';
-	import { startNowTicker, stopNowTicker } from '$lib/stores/now.svelte';
+	import favicon from '#lib/assets/favicon.svg';
+	import AppHeader from '#lib/components/layout/AppHeader.svelte';
+	import AppFooter from '#lib/components/layout/AppFooter.svelte';
+	import OfflineBanner from '#lib/components/layout/OfflineBanner.svelte';
+	import ToastHost from '#lib/components/kit/ToastHost.svelte';
+	import { LAYOUT_MAX } from '#lib/components/kit/layout-styles.js';
+	import { startRefreshScheduler, stopRefreshScheduler } from '#lib/data/refresh-scheduler.js';
+	import { getConfigSchemaStore } from '#lib/data/config-schema.svelte.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { getStatusStore } from '#lib/data/status.svelte.js';
+	import { getTeamsStore } from '#lib/data/teams.svelte.js';
+	import { getAuthState, initAuth, refreshAuthMe } from '#lib/stores/auth.svelte.js';
+	import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
+	import { initNetworkMonitor } from '#lib/stores/network.svelte.js';
+	import { startNowTicker, stopNowTicker } from '#lib/stores/now.svelte.js';
 	import {
 		initSettings,
 		isAutoRefreshEnabled,
 		getRefreshIntervalMs
-	} from '$lib/stores/settings.svelte';
-	import { t } from '$lib/i18n';
+	} from '#lib/stores/settings.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 

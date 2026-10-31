@@ -1,4 +1,4 @@
-import type { Permission } from '$lib/auth/types';
+import type { Permission } from '#lib/auth/types.js';
 
 export type NavGroup = 'primary' | 'more';
 

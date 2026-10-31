@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import AdvisoryDetailTable from '$lib/components/sources/AdvisoryDetailTable.svelte';
-	import AdvisorySeverityCounts from '$lib/components/sources/AdvisorySeverityCounts.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import TableToolbar from '$lib/components/kit/TableToolbar.svelte';
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
+	import AdvisoryDetailTable from '#lib/components/sources/AdvisoryDetailTable.svelte';
+	import AdvisorySeverityCounts from '#lib/components/sources/AdvisorySeverityCounts.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
+	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 	import {
 		advisoryRowSearchText,
 		advisoryRows,
@@ -19,16 +19,16 @@
 		severityRank,
 		sourceSupportsAdvisories,
 		type AdvisorySortKey
-	} from '$lib/config/advisory-presentation';
-	import { matchesSearch, passesSelectFilter } from '$lib/core/table-filters';
+	} from '#lib/config/advisory-presentation.js';
+	import { matchesSearch, passesSelectFilter } from '#lib/core/table-filters.js';
 	import {
 		compareNaturalStrings,
 		compareValues,
 		type SortState
-	} from '$lib/core/sort';
-	import { createSourceDetailQuery } from '$lib/data/source-detail.svelte';
-	import { getStatusStore } from '$lib/data/status.svelte';
-	import { t } from '$lib/i18n';
+	} from '#lib/core/sort.js';
+	import { createSourceDetailQuery } from '#lib/data/source-detail.svelte.js';
+	import { getStatusStore } from '#lib/data/status.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 
 	const statusStore = getStatusStore();
 	const sourceId = $derived(decodeURIComponent(page.params.id ?? ''));

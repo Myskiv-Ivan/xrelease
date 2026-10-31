@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Permission } from '$lib/auth/types';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { t } from '$lib/i18n';
+	import type { Permission } from '#lib/auth/types.js';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		permission?: Permission;

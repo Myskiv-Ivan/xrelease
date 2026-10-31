@@ -1,7 +1,7 @@
 <script lang="ts">
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import { getSettingsState } from '$lib/stores/settings.svelte';
-	import { t } from '$lib/i18n';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import { getSettingsState } from '#lib/stores/settings.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 	import { onMount } from 'svelte';
 
 	const settings = getSettingsState();

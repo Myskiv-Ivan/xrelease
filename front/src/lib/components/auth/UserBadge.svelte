@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import { getDisplayName } from '$lib/auth/session';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
-	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import { getDisplayName } from '#lib/auth/session.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
+	import { TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
 
 	const auth = getAuthState();
 	const orgs = getOrganizationsState();

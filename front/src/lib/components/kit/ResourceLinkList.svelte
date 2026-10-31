@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { ApiResourceLink } from '$lib/config/api-links';
-	import { cn } from '$lib/utils';
-	import { t } from '$lib/i18n';
+	import type { ApiResourceLink } from '#lib/config/api-links.js';
+	import { cn } from '#lib/utils.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		links: ApiResourceLink[];

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { TABLE_HEAD_CELL, TABLE_SORT_BUTTON } from '$lib/components/kit/table-styles';
-	import { cn } from '$lib/utils';
+	import { TABLE_HEAD_CELL, TABLE_SORT_BUTTON } from '#lib/components/kit/table-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		label: string;

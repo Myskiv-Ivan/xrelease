@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateIdTokenClaims, type JwtPayload } from '$lib/auth/jwt';
+import { validateIdTokenClaims, type JwtPayload } from '#lib/auth/jwt.js';
 
 const ISSUER = 'https://idp.example.test';
 const CLIENT_ID = 'test-client';

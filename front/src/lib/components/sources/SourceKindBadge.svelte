@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { TYPE_CODE } from '$lib/components/kit/layout-styles';
-	import { getSourceKindMeta, KIND_TONE_CLASSES } from '$lib/config/source-kinds';
-	import { cn } from '$lib/utils';
+	import { TYPE_CODE } from '#lib/components/kit/layout-styles.js';
+	import { getSourceKindMeta, KIND_TONE_CLASSES } from '#lib/config/source-kinds.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		kind: string;

@@ -1,7 +1,7 @@
-import type { ConfigApplyStatus, ConfigView } from '$lib/api/types';
-import type { KeyValueItem } from '$lib/types/ui';
-import { EMPTY_VALUE, formatDateTimeFull, formatRelative } from '$lib/core/format';
-import { t } from '$lib/i18n';
+import type { ConfigApplyStatus, ConfigView } from '#lib/api/types.js';
+import type { KeyValueItem } from '#lib/types/ui.js';
+import { EMPTY_VALUE, formatDateTimeFull, formatRelative } from '#lib/core/format.js';
+import { t } from '#lib/i18n/index.js';
 
 export function desiredSourceLabel(source: 'ledger' | 'app_file' | 'empty'): string {
 	if (source === 'ledger') return t('config.sourceLedger');

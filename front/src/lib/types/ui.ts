@@ -1,4 +1,4 @@
-import type { SurfaceTone } from '$lib/components/kit/surface-styles';
+import type { SurfaceTone } from '#lib/components/kit/surface-styles.js';
 
 export interface KeyValueItem {
 	label: string;

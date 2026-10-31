@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import HeaderMenu from '$lib/components/layout/HeaderMenu.svelte';
-	import OrgSwitcher from '$lib/components/layout/OrgSwitcher.svelte';
-	import AppBrand from '$lib/components/layout/AppBrand.svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { buttonVariants } from '$lib/components/ui/button/button.svelte';
-	import { LAYOUT_MAX } from '$lib/components/kit/layout-styles';
-	import { NAV_ITEMS } from '$lib/config/navigation';
-	import { getStatusStore } from '$lib/data/status.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import HeaderMenu from '#lib/components/layout/HeaderMenu.svelte';
+	import OrgSwitcher from '#lib/components/layout/OrgSwitcher.svelte';
+	import AppBrand from '#lib/components/layout/AppBrand.svelte';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { buttonVariants } from '#lib/components/ui/button/button.svelte';
+	import { LAYOUT_MAX } from '#lib/components/kit/layout-styles.js';
+	import { NAV_ITEMS } from '#lib/config/navigation.js';
+	import { getStatusStore } from '#lib/data/status.svelte.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 
 	const auth = getAuthState();
 	const statusStore = getStatusStore();

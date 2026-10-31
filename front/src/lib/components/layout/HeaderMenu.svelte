@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { getDisplayName } from '$lib/auth/session';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { buttonVariants } from '$lib/components/ui/button/button.svelte';
-	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { t } from '$lib/i18n';
-	import { getAuthState, logout } from '$lib/stores/auth.svelte';
-	import { getOrganizationsState } from '$lib/stores/organizations.svelte';
-	import { getSettingsState, setTheme, type ThemeMode } from '$lib/stores/settings.svelte';
+	import { getDisplayName } from '#lib/auth/session.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { buttonVariants } from '#lib/components/ui/button/button.svelte';
+	import { TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState, logout } from '#lib/stores/auth.svelte.js';
+	import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
+	import { getSettingsState, setTheme, type ThemeMode } from '#lib/stores/settings.svelte.js';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
 	import MoonIcon from '@lucide/svelte/icons/moon';

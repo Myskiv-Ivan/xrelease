@@ -38,9 +38,9 @@ export interface OidcTokens {
 	tokenType?: string;
 	scope?: string;
 	/** Verified ID Token claims (OIDC Core §3.1.3.7) */
-	idTokenPayload?: import('$lib/auth/jwt').JwtPayload;
+	idTokenPayload?: import('#lib/auth/jwt.js').JwtPayload;
 	/** Verified access token claims when token is a JWT */
-	accessTokenPayload?: import('$lib/auth/jwt').JwtPayload;
+	accessTokenPayload?: import('#lib/auth/jwt.js').JwtPayload;
 }
 
 export interface LocalSession {

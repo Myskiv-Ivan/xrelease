@@ -1,6 +1,6 @@
-import { getConfigStore } from '$lib/data/config.svelte';
-import { getOrgConfigStore } from '$lib/data/org-config.svelte';
-import { getOrganizationsState } from '$lib/stores/organizations.svelte';
+import { getConfigStore } from '#lib/data/config.svelte.js';
+import { getOrgConfigStore } from '#lib/data/org-config.svelte.js';
+import { getOrganizationsState } from '#lib/stores/organizations.svelte.js';
 
 interface CreateScopedConfigOptions {
 	/** Gate the whole controller — e.g. until `config:read` is granted. */

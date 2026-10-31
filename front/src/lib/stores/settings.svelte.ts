@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, DEFAULT_REFRESH_INTERVAL_MS } from '$lib/core/constants';
+import { STORAGE_KEYS, DEFAULT_REFRESH_INTERVAL_MS } from '#lib/core/constants.js';
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 

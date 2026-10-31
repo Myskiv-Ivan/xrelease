@@ -1,7 +1,7 @@
-import { getAuthMode } from '$lib/auth/config';
-import { readOidcTokens } from '$lib/auth/oidc';
-import type { LocalSession } from '$lib/auth/types';
-import { STORAGE_KEYS } from '$lib/core/constants';
+import { getAuthMode } from '#lib/auth/config.js';
+import { readOidcTokens } from '#lib/auth/oidc.js';
+import type { LocalSession } from '#lib/auth/types.js';
+import { STORAGE_KEYS } from '#lib/core/constants.js';
 
 const API_KEY_STORAGE = STORAGE_KEYS.apiKey;
 const LOCAL_SESSION_STORAGE = STORAGE_KEYS.localSession;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RETURN_TO, loginPath, safeReturnTo, sanitizeReturnTo } from '$lib/auth/return-to';
+import { DEFAULT_RETURN_TO, loginPath, safeReturnTo, sanitizeReturnTo } from '#lib/auth/return-to.js';
 
 describe('loginPath', () => {
 	it('preserves the deep link, path and query, so the bounce is resumable', () => {

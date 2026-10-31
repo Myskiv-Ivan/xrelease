@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TYPE_PAGE_DESC, TYPE_PAGE_TITLE } from '$lib/components/kit/layout-styles';
+	import { TYPE_PAGE_DESC, TYPE_PAGE_TITLE } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		title: string;

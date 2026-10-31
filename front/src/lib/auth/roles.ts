@@ -1,4 +1,4 @@
-import type { AppRole, Permission, ResolvedRoles } from '$lib/auth/types';
+import type { AppRole, Permission, ResolvedRoles } from '#lib/auth/types.js';
 
 export const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
 	viewer: [

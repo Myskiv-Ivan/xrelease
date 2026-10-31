@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button as ShadcnButton } from '$lib/components/ui/button/index.js';
-	import type { ButtonSize, ButtonVariant } from '$lib/components/ui/button/button.svelte';
+	import { Button as ShadcnButton } from '#lib/components/ui/button/index.js';
+	import type { ButtonSize, ButtonVariant } from '#lib/components/ui/button/button.svelte';
 
 	/** App-facing variants — mapped onto shadcn buttonVariants. */
 	type AppVariant = 'primary' | 'accent' | 'outline' | 'ghost' | 'danger';

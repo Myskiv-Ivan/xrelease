@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { AdvisoryView } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
+	import type { AdvisoryView } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
 	import {
 		bucketCode,
 		bucketTone,
 		severityCounts,
 		severityCountsLabel
-	} from '$lib/config/advisory-presentation';
+	} from '#lib/config/advisory-presentation.js';
 
 	interface Props {
 		advisories: AdvisoryView[];

@@ -1,32 +1,32 @@
 <script lang="ts">
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import OrgScopeNotice from '$lib/components/layout/OrgScopeNotice.svelte';
-	import SourcesTable from '$lib/components/sources/SourcesTable.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-	import TableToolbar from '$lib/components/kit/TableToolbar.svelte';
-	import { getSourceKindMeta } from '$lib/config/source-kinds';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import OrgScopeNotice from '#lib/components/layout/OrgScopeNotice.svelte';
+	import SourcesTable from '#lib/components/sources/SourcesTable.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
+	import { getSourceKindMeta } from '#lib/config/source-kinds.js';
 	import {
 		latestRelease,
 		latestReleaseSortKey,
 		type SourceSortKey
-	} from '$lib/config/source-presentation';
-	import { exportRowsAsCsv } from '$lib/core/csv';
-	import type { SortState } from '$lib/core/sort';
-	import { compareValues, sortByKey } from '$lib/core/sort';
+	} from '#lib/config/source-presentation.js';
+	import { exportRowsAsCsv } from '#lib/core/csv.js';
+	import type { SortState } from '#lib/core/sort.js';
+	import { compareValues, sortByKey } from '#lib/core/sort.js';
 	import {
 		UNTAGGED_FILTER,
 		collectTeamFilterOptions,
 		matchesSearch,
 		passesSelectFilter,
 		passesTeamFilter
-	} from '$lib/core/table-filters';
-	import { scopeToOrganization } from '$lib/data/organization-scope';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { getTeamsStore } from '$lib/data/teams.svelte';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { t } from '$lib/i18n';
+	} from '#lib/core/table-filters.js';
+	import { scopeToOrganization } from '#lib/data/organization-scope.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { getTeamsStore } from '#lib/data/teams.svelte.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { t } from '#lib/i18n/index.js';
 
 	const sourcesStore = getSourcesStore();
 	const teamsStore = getTeamsStore();

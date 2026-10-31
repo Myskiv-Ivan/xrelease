@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import {
 		statLabelClass,
 		statValueClass,
@@ -7,9 +7,9 @@
 		toneTextClass,
 		toneTintClass,
 		type SurfaceTone
-	} from '$lib/components/kit/surface-styles';
-	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	} from '#lib/components/kit/surface-styles.js';
+	import { TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		label: string;

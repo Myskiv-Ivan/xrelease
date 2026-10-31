@@ -7,7 +7,7 @@ import {
 	type JwtHeader,
 	type ParsedJwt,
 	parseJwt
-} from '$lib/auth/jwt';
+} from '#lib/auth/jwt.js';
 
 interface JwkKey {
 	kty: string;

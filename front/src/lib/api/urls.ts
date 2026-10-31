@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '$lib/api/client';
+import { getApiBaseUrl } from '#lib/api/client.js';
 
 /** Build an absolute URL against the configured xrelease API base. */
 export function apiUrl(path: string): string {

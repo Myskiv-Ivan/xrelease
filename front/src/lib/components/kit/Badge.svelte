@@ -12,9 +12,9 @@
 </script>
 
 <script lang="ts">
-	import { Badge as ShadcnBadge } from '$lib/components/ui/badge/index.js';
-	import type { BadgeVariant } from '$lib/components/ui/badge/badge.svelte';
-	import { cn } from '$lib/utils';
+	import { Badge as ShadcnBadge } from '#lib/components/ui/badge/index.js';
+	import type { BadgeVariant } from '#lib/components/ui/badge/badge.svelte';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		tone?: BadgeTone;

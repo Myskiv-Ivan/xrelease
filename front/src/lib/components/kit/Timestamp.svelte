@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { EMPTY_VALUE, formatDateTimeFull, formatRelative } from '$lib/core/format';
-	import { getNowStore } from '$lib/stores/now.svelte';
-	import { cn } from '$lib/utils';
+	import { EMPTY_VALUE, formatDateTimeFull, formatRelative } from '#lib/core/format.js';
+	import { getNowStore } from '#lib/stores/now.svelte.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		value: string | Date | null | undefined;

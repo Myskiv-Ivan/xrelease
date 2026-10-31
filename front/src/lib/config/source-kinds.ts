@@ -7,7 +7,7 @@
  * unknown to the running binary), we fall back to the local map / raw kind.
  */
 
-import { getConfigSchemaStore } from '$lib/data/config-schema.svelte';
+import { getConfigSchemaStore } from '#lib/data/config-schema.svelte.js';
 
 export interface SourceKindMeta {
 	label: string;

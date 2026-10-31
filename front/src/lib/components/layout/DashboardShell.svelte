@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { Permission } from '$lib/auth/types';
-	import RefreshToolbar from '$lib/components/dashboard/RefreshToolbar.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import AuthGuard from '$lib/components/layout/AuthGuard.svelte';
-	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import LoadingState from '$lib/components/kit/LoadingState.svelte';
-	import { PAGE_STACK } from '$lib/components/kit/layout-styles';
+	import type { Permission } from '#lib/auth/types.js';
+	import RefreshToolbar from '#lib/components/dashboard/RefreshToolbar.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import AuthGuard from '#lib/components/layout/AuthGuard.svelte';
+	import PageHeader from '#lib/components/layout/PageHeader.svelte';
+	import LoadingState from '#lib/components/kit/LoadingState.svelte';
+	import { PAGE_STACK } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		title: string;

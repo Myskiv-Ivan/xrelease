@@ -1,4 +1,4 @@
-import { TYPE_TABLE_HEAD } from '$lib/components/kit/layout-styles';
+import { TYPE_TABLE_HEAD } from '#lib/components/kit/layout-styles.js';
 
 /**
  * Table header row chrome. Type tokens live on the cell / sort button — not only

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		size?: 'sm' | 'md' | 'lg';
@@ -19,7 +19,7 @@
 	that cannot read app tokens, so the chip would stay locked to one palette and
 	show as a dark box in light mode. Inline lets the mark track the theme —
 	`card` chip, `primary` glyphs, `accent` caret/cursor.
-	`$lib/assets/logo.svg` is the standalone twin (docs / og-image), kept in sync.
+	`#lib/assets/logo.svg` is the standalone twin (docs / og-image), kept in sync.
 -->
 <svg
 	viewBox="0 0 120 44"

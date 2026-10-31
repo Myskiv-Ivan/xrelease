@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import SortHeader from '$lib/components/kit/SortHeader.svelte';
-	import TableShell from '$lib/components/kit/TableShell.svelte';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import SortHeader from '#lib/components/kit/SortHeader.svelte';
+	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import {
 		TABLE_BODY_CELL,
 		TABLE_BODY_ROW,
 		TABLE_HEAD_ROW
-	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	} from '#lib/components/kit/table-styles.js';
+	import { TYPE_CODE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
 	import {
 		bucketCode,
 		bucketLabel,
@@ -15,10 +15,10 @@
 		severityBucket,
 		type AdvisoryRow,
 		type AdvisorySortKey
-	} from '$lib/config/advisory-presentation';
-	import { toggleSortKey, type SortState } from '$lib/core/sort';
-	import { EMPTY_VALUE } from '$lib/core/format';
-	import { t } from '$lib/i18n';
+	} from '#lib/config/advisory-presentation.js';
+	import { toggleSortKey, type SortState } from '#lib/core/sort.js';
+	import { EMPTY_VALUE } from '#lib/core/format.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		/** Already filtered and sorted — the page owns both, like SourcesTable. */

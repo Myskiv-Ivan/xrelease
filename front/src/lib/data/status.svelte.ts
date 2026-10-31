@@ -1,7 +1,7 @@
-import { api } from '$lib/api/client';
-import type { ReadyResponse, StatusResponse } from '$lib/api/types';
-import { createResourceStore } from '$lib/data/resource.svelte';
-import { t } from '$lib/i18n';
+import { api } from '#lib/api/client.js';
+import type { ReadyResponse, StatusResponse } from '#lib/api/types.js';
+import { createResourceStore } from '#lib/data/resource.svelte.js';
+import { t } from '#lib/i18n/index.js';
 
 interface StatusSnapshot {
 	status: StatusResponse;

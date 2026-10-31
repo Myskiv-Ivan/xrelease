@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { loginPath } from '$lib/auth/return-to';
-	import RoleGuard from '$lib/components/auth/RoleGuard.svelte';
-	import LoadingState from '$lib/components/kit/LoadingState.svelte';
-	import type { Permission } from '$lib/auth/types';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
+	import { loginPath } from '#lib/auth/return-to.js';
+	import RoleGuard from '#lib/components/auth/RoleGuard.svelte';
+	import LoadingState from '#lib/components/kit/LoadingState.svelte';
+	import type { Permission } from '#lib/auth/types.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
 
 	interface Props {
 		permission?: Permission;

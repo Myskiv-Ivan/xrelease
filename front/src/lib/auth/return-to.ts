@@ -41,12 +41,18 @@ export function sanitizeReturnTo(value: string | null | undefined): string {
 	return value;
 }
 
+/** Read-only query string surface — enough for {@link safeReturnTo}; matches Kit 3 `page.url.searchParams`. */
+type SearchParamsReader = { get(name: string): string | null };
+
+/** Path + query only — enough for {@link loginPath}; matches Kit 3 readonly `page.url`. */
+type UrlPath = { pathname: string; search: string };
+
 /**
  * Read a validated `returnTo` out of a query string.
  *
  * Falls back to {@link DEFAULT_RETURN_TO} when absent, empty, or unsafe.
  */
-export function safeReturnTo(params: URLSearchParams): string {
+export function safeReturnTo(params: SearchParamsReader): string {
 	return sanitizeReturnTo(params.get('returnTo'));
 }
 
@@ -56,7 +62,7 @@ export function safeReturnTo(params: URLSearchParams): string {
  * Returns a bare `/login` when there is nothing worth resuming — the root, or
  * `/login` itself, which would otherwise nest a redirect into its own target.
  */
-export function loginPath(url: URL): string {
+export function loginPath(url: UrlPath): string {
 	const path = url.pathname + url.search;
 	if (!path || path === DEFAULT_RETURN_TO || url.pathname.startsWith('/login')) {
 		return '/login';

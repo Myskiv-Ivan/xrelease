@@ -1,8 +1,8 @@
-import { api } from '$lib/api/client';
-import type { OutboxEntry } from '$lib/api/types';
-import { resolveApiError } from '$lib/core/errors';
-import { t } from '$lib/i18n';
-import { pushToast } from '$lib/stores/toast.svelte';
+import { api } from '#lib/api/client.js';
+import type { OutboxEntry } from '#lib/api/types.js';
+import { resolveApiError } from '#lib/core/errors.js';
+import { t } from '#lib/i18n/index.js';
+import { pushToast } from '#lib/stores/toast.svelte.js';
 
 /** Revive dead-letter rows → pending (same as CLI `xrelease outbox requeue`). */
 export async function requeueDeadOutbox(reload: () => Promise<void>): Promise<number> {

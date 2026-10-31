@@ -1,8 +1,8 @@
-import type { SourceDetail } from '$lib/api/types';
-import type { KeyValueItem } from '$lib/types/ui';
-import type { SurfaceTone } from '$lib/components/kit/surface-styles';
-import { t } from '$lib/i18n';
-import { EMPTY_VALUE, formatDateTimeFull, formatInterval, formatNumber } from '$lib/core/format';
+import type { SourceDetail } from '#lib/api/types.js';
+import type { KeyValueItem } from '#lib/types/ui.js';
+import type { SurfaceTone } from '#lib/components/kit/surface-styles.js';
+import { t } from '#lib/i18n/index.js';
+import { EMPTY_VALUE, formatDateTimeFull, formatInterval, formatNumber } from '#lib/core/format.js';
 
 export function sourceScheduleItems(source: SourceDetail): KeyValueItem[] {
 	return [

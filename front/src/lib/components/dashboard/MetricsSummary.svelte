@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { MetricsSnapshot } from '$lib/api/types';
-	import { getMetricsUrl } from '$lib/api/urls';
-	import Button from '$lib/components/kit/Button.svelte';
-	import KeyValueList from '$lib/components/kit/KeyValueList.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import { PANEL_GRID } from '$lib/components/kit/layout-styles';
-	import type { KeyValueItem } from '$lib/types/ui';
-	import { t } from '$lib/i18n';
+	import type { MetricsSnapshot } from '#lib/api/types.js';
+	import { getMetricsUrl } from '#lib/api/urls.js';
+	import Button from '#lib/components/kit/Button.svelte';
+	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import { PANEL_GRID } from '#lib/components/kit/layout-styles.js';
+	import type { KeyValueItem } from '#lib/types/ui.js';
+	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
 		metrics: MetricsSnapshot;

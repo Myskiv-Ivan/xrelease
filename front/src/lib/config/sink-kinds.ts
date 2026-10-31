@@ -5,7 +5,7 @@
  * the offline / pre-schema fallback (same pattern as source-kinds).
  */
 
-import { getConfigSchemaStore } from '$lib/data/config-schema.svelte';
+import { getConfigSchemaStore } from '#lib/data/config-schema.svelte.js';
 
 const FALLBACK_LABELS: Record<string, string> = {
 	apprise: 'Apprise',

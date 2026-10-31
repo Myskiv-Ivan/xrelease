@@ -7,11 +7,11 @@
 	 */
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { getOpenApiSpecUrl } from '$lib/api/urls';
-	import { getBearerToken } from '$lib/auth/credentials';
-	import { APP_NAME } from '$lib/core/constants';
-	import { initAuth } from '$lib/stores/auth.svelte';
-	import { initSettings } from '$lib/stores/settings.svelte';
+	import { getOpenApiSpecUrl } from '#lib/api/urls.js';
+	import { getBearerToken } from '#lib/auth/credentials.js';
+	import { APP_NAME } from '#lib/core/constants.js';
+	import { initAuth } from '#lib/stores/auth.svelte.js';
+	import { initSettings } from '#lib/stores/settings.svelte.js';
 
 	let container = $state<HTMLDivElement | null>(null);
 

@@ -1,35 +1,35 @@
 <script lang="ts">
-	import type { SeenReleaseView } from '$lib/api/types';
-	import Checkbox from '$lib/components/kit/Checkbox.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import SortHeader from '$lib/components/kit/SortHeader.svelte';
-	import TableShell from '$lib/components/kit/TableShell.svelte';
-	import TableToolbar from '$lib/components/kit/TableToolbar.svelte';
-	import AdvisorySeverityCounts from '$lib/components/sources/AdvisorySeverityCounts.svelte';
+	import type { SeenReleaseView } from '#lib/api/types.js';
+	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import SortHeader from '#lib/components/kit/SortHeader.svelte';
+	import TableShell from '#lib/components/kit/TableShell.svelte';
+	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
+	import AdvisorySeverityCounts from '#lib/components/sources/AdvisorySeverityCounts.svelte';
 	import {
 		TABLE_BODY_CELL,
 		TABLE_BODY_ROW,
 		TABLE_DATE_CELL,
 		TABLE_HEAD_ROW
-	} from '$lib/components/kit/table-styles';
-	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	} from '#lib/components/kit/table-styles.js';
+	import { TYPE_CODE, TYPE_HINT, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
 	import {
 		advisorySearchText,
 		allAdvisories,
 		releaseAdvisories,
 		severityRank
-	} from '$lib/config/advisory-presentation';
-	import { matchesSearch } from '$lib/core/table-filters';
+	} from '#lib/config/advisory-presentation.js';
+	import { matchesSearch } from '#lib/core/table-filters.js';
 	import {
 		compareNaturalStrings,
 		compareNullableDates,
 		toggleSortKey,
 		type SortState
-	} from '$lib/core/sort';
-	import { t } from '$lib/i18n';
-	import { EMPTY_VALUE } from '$lib/core/format';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
+	} from '#lib/core/sort.js';
+	import { t } from '#lib/i18n/index.js';
+	import { EMPTY_VALUE } from '#lib/core/format.js';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
 
 	interface Props {
 		/** Owning source id — links the severity column to the advisories page. */

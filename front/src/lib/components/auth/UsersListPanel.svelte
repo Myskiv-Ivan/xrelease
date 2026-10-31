@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
-	import type { AuthUserView } from '$lib/api/types';
-	import Button from '$lib/components/kit/Button.svelte';
-	import EmptyState from '$lib/components/kit/EmptyState.svelte';
-	import LoadingState from '$lib/components/kit/LoadingState.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import UsersTable from '$lib/components/auth/UsersTable.svelte';
-	import { TYPE_HINT } from '$lib/components/kit/layout-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	import { api } from '#lib/api/client.js';
+	import type { AuthUserView } from '#lib/api/types.js';
+	import Button from '#lib/components/kit/Button.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
+	import LoadingState from '#lib/components/kit/LoadingState.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import UsersTable from '#lib/components/auth/UsersTable.svelte';
+	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 	import { onMount } from 'svelte';
 
 	interface Props {

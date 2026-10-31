@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/data/config-schema.svelte', () => ({
+vi.mock('#lib/data/config-schema.svelte.js', () => ({
 	getConfigSchemaStore: () => ({
 		labelForKind: (kind: string) => (kind === 'github' ? 'GitHub (schema)' : null),
 		sourceKinds: [{ value: 'github', label: 'GitHub (schema)' }]

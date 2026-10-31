@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Input from '$lib/components/kit/Input.svelte';
-	import { t } from '$lib/i18n';
-	import { cn } from '$lib/utils';
-	import { TYPE_MUTED } from '$lib/components/kit/layout-styles';
+	import Input from '#lib/components/kit/Input.svelte';
+	import { t } from '#lib/i18n/index.js';
+	import { cn } from '#lib/utils.js';
+	import { TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
 
 	interface Props {
 		search?: string;

@@ -1,8 +1,8 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { ApiClientError } from '$lib/api/client';
-import { loginPath } from '$lib/auth/return-to';
-import { logout } from '$lib/stores/auth.svelte';
+import { ApiClientError } from '#lib/api/client.js';
+import { loginPath } from '#lib/auth/return-to.js';
+import { logout } from '#lib/stores/auth.svelte.js';
 
 export function resolveApiError(err: unknown, fallback: string): string {
 	if (err instanceof ApiClientError) return err.message;

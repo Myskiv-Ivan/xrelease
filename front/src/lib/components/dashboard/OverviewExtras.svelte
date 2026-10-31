@@ -1,25 +1,25 @@
 <script lang="ts">
-	import type { SourceDetail } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Section from '$lib/components/kit/Section.svelte';
-	import StatCard from '$lib/components/kit/StatCard.svelte';
-	import StatGrid from '$lib/components/kit/StatGrid.svelte';
-	import ConfigRoutingFromDocument from '$lib/components/config/ConfigRoutingFromDocument.svelte';
-	import { sourceHealth } from '$lib/config/source-presentation';
-	import { formatNumber } from '$lib/core/format';
-	import { createScopedConfig } from '$lib/data/config-scope.svelte';
-	import { getSourcesStore } from '$lib/data/sources.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import Timestamp from '$lib/components/kit/Timestamp.svelte';
+	import type { SourceDetail } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Section from '#lib/components/kit/Section.svelte';
+	import StatCard from '#lib/components/kit/StatCard.svelte';
+	import StatGrid from '#lib/components/kit/StatGrid.svelte';
+	import ConfigRoutingFromDocument from '#lib/components/config/ConfigRoutingFromDocument.svelte';
+	import { sourceHealth } from '#lib/config/source-presentation.js';
+	import { formatNumber } from '#lib/core/format.js';
+	import { createScopedConfig } from '#lib/data/config-scope.svelte.js';
+	import { getSourcesStore } from '#lib/data/sources.svelte.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import Timestamp from '#lib/components/kit/Timestamp.svelte';
 	import {
 		PANEL_STACK,
 		TYPE_HINT,
 		TYPE_MUTED,
 		TYPE_SECTION,
 		TYPE_STATUS_ERROR
-	} from '$lib/components/kit/layout-styles';
+	} from '#lib/components/kit/layout-styles.js';
 
 	const auth = getAuthState();
 	const sourcesStore = getSourcesStore();

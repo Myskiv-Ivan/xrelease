@@ -1,28 +1,28 @@
 <script lang="ts">
-	import AuthSecurityPanel from '$lib/components/auth/AuthSecurityPanel.svelte';
-	import UserCreatePanel from '$lib/components/auth/UserCreatePanel.svelte';
-	import UsersListPanel from '$lib/components/auth/UsersListPanel.svelte';
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Checkbox from '$lib/components/kit/Checkbox.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
+	import AuthSecurityPanel from '#lib/components/auth/AuthSecurityPanel.svelte';
+	import UserCreatePanel from '#lib/components/auth/UserCreatePanel.svelte';
+	import UsersListPanel from '#lib/components/auth/UsersListPanel.svelte';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
 	import {
 		FIELD_GROUP,
 		FIELD_STACK,
 		PAGE_STACK,
 		PANEL_GRID,
 		PANEL_STACK
-	} from '$lib/components/kit/layout-styles';
-	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { t } from '$lib/i18n';
+	} from '#lib/components/kit/layout-styles.js';
+	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
+	import { t } from '#lib/i18n/index.js';
 	import {
 		getSettingsState,
 		setAutoRefresh,
 		setRefreshIntervalMs,
 		setTheme,
 		type ThemeMode
-	} from '$lib/stores/settings.svelte';
-	import { REFRESH_INTERVALS } from '$lib/core/constants';
+	} from '#lib/stores/settings.svelte.js';
+	import { REFRESH_INTERVALS } from '#lib/core/constants.js';
 
 	const settings = getSettingsState();
 

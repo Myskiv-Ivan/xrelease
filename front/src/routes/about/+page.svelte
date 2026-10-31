@@ -1,10 +1,10 @@
 <script lang="ts">
-	import DashboardShell from '$lib/components/layout/DashboardShell.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import ResourceLinkList from '$lib/components/kit/ResourceLinkList.svelte';
-	import { PAGE_STACK, TYPE_BODY } from '$lib/components/kit/layout-styles';
-	import { getSystemApiLinks, INTERNAL_API_LINKS } from '$lib/config/api-links';
-	import { t } from '$lib/i18n';
+	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import ResourceLinkList from '#lib/components/kit/ResourceLinkList.svelte';
+	import { PAGE_STACK, TYPE_BODY } from '#lib/components/kit/layout-styles.js';
+	import { getSystemApiLinks, INTERNAL_API_LINKS } from '#lib/config/api-links.js';
+	import { t } from '#lib/i18n/index.js';
 
 	const systemLinks = getSystemApiLinks();
 </script>

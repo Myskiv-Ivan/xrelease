@@ -1,8 +1,8 @@
 <script lang="ts">
-	import LogoMark from '$lib/components/layout/LogoMark.svelte';
-	import { APP_NAME } from '$lib/core/constants';
-	import { TYPE_CODE, TYPE_MUTED } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	import LogoMark from '#lib/components/layout/LogoMark.svelte';
+	import { APP_NAME } from '#lib/core/constants.js';
+	import { TYPE_CODE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		version?: string | null;

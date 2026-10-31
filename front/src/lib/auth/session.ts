@@ -2,25 +2,25 @@ import {
 	getAuthMode,
 	getDefaultApiKeyRole,
 	getOidcConfig
-} from '$lib/auth/config';
-import { getStoredApiKey, readLocalSession } from '$lib/auth/credentials';
+} from '#lib/auth/config.js';
+import { getStoredApiKey, readLocalSession } from '#lib/auth/credentials.js';
 import {
 	readOidcAppRole,
 	readOidcOrganizationRoles,
 	readOidcProfile,
 	readOidcRoles,
 	readOidcTokens
-} from '$lib/auth/oidc';
+} from '#lib/auth/oidc.js';
 import {
 	hasPermissionFor,
 	resolveResolvedRoles
-} from '$lib/auth/roles';
+} from '#lib/auth/roles.js';
 import type {
 	AppRole,
 	AuthProfile,
 	Permission,
 	ResolvedRoles
-} from '$lib/auth/types';
+} from '#lib/auth/types.js';
 
 const EMPTY_ROLE_MAPPING = {
 	admin: [] as string[],

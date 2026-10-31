@@ -1,7 +1,7 @@
-import { api } from '$lib/api/client';
-import { resolveApiError } from '$lib/core/errors';
-import { t } from '$lib/i18n';
-import { pushToast } from '$lib/stores/toast.svelte';
+import { api } from '#lib/api/client.js';
+import { resolveApiError } from '#lib/core/errors.js';
+import { t } from '#lib/i18n/index.js';
+import { pushToast } from '#lib/stores/toast.svelte.js';
 
 	export async function pollAllSources(reload: () => Promise<void>): Promise<void> {
 		const result = await api.triggerCheck(false);

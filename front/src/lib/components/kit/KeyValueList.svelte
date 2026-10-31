@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { KeyValueItem } from '$lib/types/ui';
-	import { statLabelClass, toneTextClass } from '$lib/components/kit/surface-styles';
-	import { formatDisplayValue } from '$lib/core/format';
+	import type { KeyValueItem } from '#lib/types/ui.js';
+	import { statLabelClass, toneTextClass } from '#lib/components/kit/surface-styles.js';
+	import { formatDisplayValue } from '#lib/core/format.js';
 
 	interface Props {
 		items: KeyValueItem[];

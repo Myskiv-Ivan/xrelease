@@ -1,27 +1,27 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api } from '$lib/api/client';
-	import { requiresApiKeyForApi } from '$lib/auth/config';
-	import { getStoredApiKey } from '$lib/auth/credentials';
+	import { api } from '#lib/api/client.js';
+	import { requiresApiKeyForApi } from '#lib/auth/config.js';
+	import { getStoredApiKey } from '#lib/auth/credentials.js';
 	import {
 		completeOidcCallback,
 		writeOidcAppRole,
 		writeOidcOrganizationRoles
-	} from '$lib/auth/oidc';
-	import { sanitizeReturnTo } from '$lib/auth/return-to';
-	import type { AppRole } from '$lib/auth/types';
-	import AppBrand from '$lib/components/layout/AppBrand.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import LoadingState from '$lib/components/kit/LoadingState.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import StatusBanner from '$lib/components/kit/StatusBanner.svelte';
-	import { FIELD_STACK, TYPE_PAGE_DESC } from '$lib/components/kit/layout-styles';
-	import { APP_VERSION } from '$lib/core/constants';
-	import { resolveApiError } from '$lib/core/errors';
-	import { t } from '$lib/i18n';
-	import { initAuth, loginWithOidcSession } from '$lib/stores/auth.svelte';
-	import { initSettings } from '$lib/stores/settings.svelte';
+	} from '#lib/auth/oidc.js';
+	import { sanitizeReturnTo } from '#lib/auth/return-to.js';
+	import type { AppRole } from '#lib/auth/types.js';
+	import AppBrand from '#lib/components/layout/AppBrand.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import LoadingState from '#lib/components/kit/LoadingState.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
+	import { FIELD_STACK, TYPE_PAGE_DESC } from '#lib/components/kit/layout-styles.js';
+	import { APP_VERSION } from '#lib/core/constants.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { t } from '#lib/i18n/index.js';
+	import { initAuth, loginWithOidcSession } from '#lib/stores/auth.svelte.js';
+	import { initSettings } from '#lib/stores/settings.svelte.js';
 	import { onMount } from 'svelte';
 
 	let error = $state<string | null>(null);

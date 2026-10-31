@@ -1,4 +1,4 @@
-import { createQuery, type QueryState } from '$lib/data/query.svelte';
+import { createQuery, type QueryState } from '#lib/data/query.svelte.js';
 
 interface CreateResourceStoreOptions<T> {
 	fetcher: () => Promise<T>;

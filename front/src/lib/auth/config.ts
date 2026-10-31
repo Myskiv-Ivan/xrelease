@@ -1,5 +1,5 @@
-import type { AppRole, AuthMode, OidcConfig } from '$lib/auth/types';
-import { readUiSetting } from '$lib/config/runtime';
+import type { AppRole, AuthMode, OidcConfig } from '#lib/auth/types.js';
+import { readUiSetting } from '#lib/config/runtime.js';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
 	if (!value) return fallback;

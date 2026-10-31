@@ -3,7 +3,7 @@ import {
 	getMetricsUrl,
 	getOpenApiSpecUrl,
 	getReadyUrl
-} from '$lib/api/urls';
+} from '#lib/api/urls.js';
 
 export interface ApiResourceLink {
 	/** i18n dot-path (e.g. `about.health`). */

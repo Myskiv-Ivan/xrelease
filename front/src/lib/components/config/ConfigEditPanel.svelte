@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { api, ApiClientError } from '$lib/api/client';
-	import type { ConfigApplyResponse, ConfigView } from '$lib/api/types';
-	import Badge from '$lib/components/kit/Badge.svelte';
-	import Button from '$lib/components/kit/Button.svelte';
-	import Checkbox from '$lib/components/kit/Checkbox.svelte';
-	import Input from '$lib/components/kit/Input.svelte';
-	import Panel from '$lib/components/kit/Panel.svelte';
-	import Select from '$lib/components/kit/Select.svelte';
-		import ConfigNotifiersPanel from '$lib/components/config/ConfigNotifiersPanel.svelte';
+	import { api, ApiClientError } from '#lib/api/client.js';
+	import type { ConfigApplyResponse, ConfigView } from '#lib/api/types.js';
+	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
+	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import Input from '#lib/components/kit/Input.svelte';
+	import Panel from '#lib/components/kit/Panel.svelte';
+	import Select from '#lib/components/kit/Select.svelte';
+		import ConfigNotifiersPanel from '#lib/components/config/ConfigNotifiersPanel.svelte';
 	import {
 				contentTypeForFormat,
 				emptySourceDraft,
@@ -29,15 +29,15 @@
 				type DesiredSourceDraft,
 				type DesiredTeamDraft,
 				type ParsedDesiredDocument
-			} from '$lib/config/desired-document';
-		import { firstIssueMessage, validateDesiredDrafts } from '$lib/config/desired-validation';
-		import { groupIndexedByKind } from '$lib/config/editor-groups';
+			} from '#lib/config/desired-document.js';
+		import { firstIssueMessage, validateDesiredDrafts } from '#lib/config/desired-validation.js';
+		import { groupIndexedByKind } from '#lib/config/editor-groups.js';
 		import {
 			fieldsFromReleasePatternTemplate,
 			releasePatternTemplateByName
-		} from '$lib/config/release-pattern-templates';
-		import { listSourceKindValues, getSourceKindMeta } from '$lib/config/source-kinds';
-		import { sourceFieldHint, sourceFieldLabel } from '$lib/config/field-labels';
+		} from '#lib/config/release-pattern-templates.js';
+		import { listSourceKindValues, getSourceKindMeta } from '#lib/config/source-kinds.js';
+		import { sourceFieldHint, sourceFieldLabel } from '#lib/config/field-labels.js';
 	import {
 		FIELD_GROUP,
 		TYPE_CODE,
@@ -48,13 +48,13 @@
 		TYPE_OVERLINE,
 		TYPE_STATUS_ERROR,
 		TYPE_STATUS_WARNING
-	} from '$lib/components/kit/layout-styles';
-	import { fieldLabelClass } from '$lib/components/kit/surface-styles';
-	import { resolveApiError } from '$lib/core/errors';
-	import { getConfigSchemaStore } from '$lib/data/config-schema.svelte';
-	import { t } from '$lib/i18n';
-	import { getAuthState } from '$lib/stores/auth.svelte';
-	import { getNetworkState } from '$lib/stores/network.svelte';
+	} from '#lib/components/kit/layout-styles.js';
+	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
+	import { resolveApiError } from '#lib/core/errors.js';
+	import { getConfigSchemaStore } from '#lib/data/config-schema.svelte.js';
+	import { t } from '#lib/i18n/index.js';
+	import { getAuthState } from '#lib/stores/auth.svelte.js';
+	import { getNetworkState } from '#lib/stores/network.svelte.js';
 	import { onMount } from 'svelte';
 
 	interface Props {

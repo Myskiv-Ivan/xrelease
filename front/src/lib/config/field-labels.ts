@@ -3,7 +3,7 @@
  * Keeps ConfigEditPanel and ConfigNotifiersPanel on one vocabulary.
  */
 
-import { t } from '$lib/i18n';
+import { t } from '#lib/i18n/index.js';
 
 /** Optional hint under source secret-related fields. */
 export function sourceFieldHint(key: string): string | null {

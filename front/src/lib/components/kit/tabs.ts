@@ -9,4 +9,4 @@ export {
 	Content as TabsContent,
 	List as TabsList,
 	Trigger as TabsTrigger
-} from '$lib/components/ui/tabs/index.js';
+} from '#lib/components/ui/tabs/index.js';

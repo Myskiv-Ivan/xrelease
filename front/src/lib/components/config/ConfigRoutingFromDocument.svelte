@@ -1,5 +1,5 @@
 <script lang="ts">
-	import RoutingGraphCanvas from '$lib/components/config/RoutingGraphCanvas.svelte';
+	import RoutingGraphCanvas from '#lib/components/config/RoutingGraphCanvas.svelte';
 	import {
 		parseDesiredDocument,
 		readNotifiers,
@@ -9,15 +9,15 @@
 		type DesiredNotifierDraft,
 		type DesiredSourceDraft,
 		type DesiredTeamDraft
-	} from '$lib/config/desired-document';
-	import { buildRoutingGraph, type RoutingGraph } from '$lib/config/desired-validation';
+	} from '#lib/config/desired-document.js';
+	import { buildRoutingGraph, type RoutingGraph } from '#lib/config/desired-validation.js';
 	import {
 		buildRoutingFlow,
 		preferredRoutingViewportHeight
-	} from '$lib/config/routing-flow';
-	import { t } from '$lib/i18n';
-	import { TYPE_HINT, TYPE_PANEL_TITLE } from '$lib/components/kit/layout-styles';
-	import { cn } from '$lib/utils';
+	} from '#lib/config/routing-flow.js';
+	import { t } from '#lib/i18n/index.js';
+	import { TYPE_HINT, TYPE_PANEL_TITLE } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		desiredContent?: string | null | undefined;
