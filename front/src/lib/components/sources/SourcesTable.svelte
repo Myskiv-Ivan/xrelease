@@ -164,11 +164,14 @@
 						<Timestamp value={source.last_polled_at} />
 					</td>
 					<td class="{TABLE_BODY_CELL} tabular-nums">{formatNumber(source.seen_count)}</td>
-					<td class="{TABLE_BODY_CELL} tabular-nums">
-						<span class={toneMutedTextClass[pollErrorTone(source.poll_errors)]}>
-							{formatNumber(source.poll_errors)}
-						</span>
-					</td>
+						<td class="{TABLE_BODY_CELL} tabular-nums">
+							<span
+								class={toneMutedTextClass[pollErrorTone(source.consecutive_errors)]}
+								title={source.last_error ?? undefined}
+							>
+								{formatNumber(source.poll_errors)}
+							</span>
+						</td>
 					<td class={cn(TABLE_BODY_CELL, TABLE_STICKY_END, 'whitespace-nowrap text-right')}>
 						<a
 							href="/sources/{encodeURIComponent(source.id)}"

@@ -528,7 +528,7 @@ impl Store {
         delegate!(self, list_seen_releases(source_id, limit))
     }
 
-    /// Pending/failed outbox rows for observability UI (no message body).
+    /// Outbox rows for the observability UI (live queue + recent `sent`).
     pub fn list_outbox_entries(&self, limit: usize) -> Result<Vec<OutboxEntry>, StoreError> {
         delegate!(self, list_outbox_entries(limit))
     }

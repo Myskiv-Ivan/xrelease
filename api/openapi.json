@@ -2212,7 +2212,18 @@
           },
           "poll_errors": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Lifetime poll failures (never decreases)"
+          },
+          "consecutive_errors": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open failure streak; resets on the next successful poll. UI health uses this."
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true,
+            "description": "Message from the most recent failed poll while consecutive_errors > 0"
           },
           "notifications": {
             "type": "integer",
@@ -2223,6 +2234,7 @@
           "polls",
           "polls_not_modified",
           "poll_errors",
+          "consecutive_errors",
           "notifications"
         ]
       },
@@ -2343,7 +2355,18 @@
               },
               "poll_errors": {
                 "type": "integer",
-                "format": "int64"
+                "format": "int64",
+                "description": "Lifetime poll failures (never decreases)"
+              },
+              "consecutive_errors": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Open failure streak; resets on the next successful poll. UI health uses this."
+              },
+              "last_error": {
+                "type": "string",
+                "nullable": true,
+                "description": "Message from the most recent failed poll while consecutive_errors > 0"
               },
               "notifications": {
                 "type": "integer",
@@ -2359,6 +2382,7 @@
               "polls",
               "polls_not_modified",
               "poll_errors",
+              "consecutive_errors",
               "notifications"
             ]
           }
@@ -2752,8 +2776,10 @@
             "enum": [
               "pending",
               "failed",
-              "dead"
-            ]
+              "dead",
+              "sent"
+            ],
+            "description": "Live queue statuses plus recent successful deliveries (`sent`, last 7 days)."
           },
           "attempts": {
             "type": "integer"
@@ -2884,11 +2910,17 @@
           },
           "sources_checked": {
             "type": "integer"
+          },
+          "sources_failed": {
+            "type": "integer",
+            "description": "Sources whose poll failed during this check (others still ran)",
+            "default": 0
           }
         },
         "required": [
           "notifications_sent",
-          "sources_checked"
+          "sources_checked",
+          "sources_failed"
         ]
       },
       "NotifierView": {

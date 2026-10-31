@@ -27,6 +27,6 @@
 	<StatCard
 		label={t('sources.errors')}
 		value={formatNumber(source.poll_errors)}
-		tone={pollErrorTone(source.poll_errors)}
+		tone={pollErrorTone(source.consecutive_errors)}
 	/>
 </StatGrid>

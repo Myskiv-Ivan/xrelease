@@ -26,11 +26,15 @@
 
 	let { entries, sort, onSortChange, sourceLabel }: Props = $props();
 
-	const statusTone: Record<OutboxEntry['status'], 'warning' | 'danger' | 'muted'> = {
-		pending: 'warning',
-		failed: 'danger',
-		dead: 'muted'
-	};
+		const statusTone: Record<
+			OutboxEntry['status'],
+			'warning' | 'danger' | 'muted' | 'success'
+		> = {
+			pending: 'warning',
+			failed: 'danger',
+			dead: 'muted',
+			sent: 'success'
+		};
 
 	function handleSort(key: keyof OutboxEntry) {
 		onSortChange(toggleSortKey(sort, key));

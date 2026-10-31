@@ -21,23 +21,38 @@ export function sourceScheduleItems(source: SourceDetail): KeyValueItem[] {
 	];
 }
 
-export function sourceMetricsItems(source: SourceDetail): KeyValueItem[] {
-	return [
-		{ label: t('overview.polls'), value: formatNumber(source.polls) },
-		{ label: t('overview.notModified'), value: formatNumber(source.polls_not_modified) },
-		{
-			label: t('overview.pollErrors'),
-			value: formatNumber(source.poll_errors),
-			tone: source.poll_errors > 0 ? 'danger' : 'default'
-		},
-		{ label: t('overview.notifications'), value: formatNumber(source.notifications) },
-		{ label: t('sources.providerKind'), value: source.kind }
-	];
-}
+	export function sourceMetricsItems(source: SourceDetail): KeyValueItem[] {
+		const failing = source.consecutive_errors > 0;
+		const items: KeyValueItem[] = [
+			{ label: t('overview.polls'), value: formatNumber(source.polls) },
+			{ label: t('overview.notModified'), value: formatNumber(source.polls_not_modified) },
+			{
+				label: t('overview.pollErrors'),
+				value: formatNumber(source.poll_errors),
+				tone: failing ? 'danger' : 'default'
+			},
+			{
+				label: t('sources.consecutiveErrors'),
+				value: formatNumber(source.consecutive_errors),
+				tone: failing ? 'danger' : 'default'
+			},
+			{ label: t('overview.notifications'), value: formatNumber(source.notifications) },
+			{ label: t('sources.providerKind'), value: source.kind }
+		];
+		if (failing && source.last_error) {
+			items.push({
+				label: t('sources.lastError'),
+				value: source.last_error,
+				tone: 'danger'
+			});
+		}
+		return items;
+	}
 
-export function pollErrorTone(errors: number): SurfaceTone {
-	return errors > 0 ? 'danger' : 'default';
-}
+	/** Tone for the errors column / stat — based on the open streak, not lifetime total. */
+	export function pollErrorTone(consecutiveErrors: number): SurfaceTone {
+		return consecutiveErrors > 0 ? 'danger' : 'default';
+	}
 
 /** Sortable columns: `latest_release_at` is derived, not a `SourceDetail` field. */
 export type SourceSortKey = keyof SourceDetail | 'latest_release_at';
@@ -81,24 +96,29 @@ export function latestReleaseSortKey(
 
 export type SourceHealth = 'ok' | 'warning' | 'error';
 
-/**
- * Compact row health for the sources table.
- * Errors win; stale polls (2× interval+jitter) and never-polled sources warn.
- */
-export function sourceHealth(
-	source: Pick<
-		SourceDetail,
-		'poll_errors' | 'last_polled_at' | 'interval_secs' | 'jitter_secs' | 'initialized'
-	>,
-	now: Date = new Date()
-): SourceHealth {
-	if (source.poll_errors > 0) return 'error';
-	if (!source.last_polled_at) return source.initialized ? 'ok' : 'warning';
+	/**
+	 * Compact row health for the sources table.
+	 * Open failure streak wins; stale polls (2× interval+jitter) and never-polled sources warn.
+	 * Lifetime `poll_errors` must not drive this — it never clears after recovery.
+	 */
+	export function sourceHealth(
+		source: Pick<
+			SourceDetail,
+			| 'consecutive_errors'
+			| 'last_polled_at'
+			| 'interval_secs'
+			| 'jitter_secs'
+			| 'initialized'
+		>,
+		now: Date = new Date()
+	): SourceHealth {
+		if (source.consecutive_errors > 0) return 'error';
+		if (!source.last_polled_at) return source.initialized ? 'ok' : 'warning';
 
-	const last = new Date(source.last_polled_at);
-	if (Number.isNaN(last.getTime())) return 'warning';
+		const last = new Date(source.last_polled_at);
+		if (Number.isNaN(last.getTime())) return 'warning';
 
-	const maxAgeMs = (source.interval_secs + source.jitter_secs) * 2 * 1000;
-	if (now.getTime() - last.getTime() > maxAgeMs) return 'warning';
-	return 'ok';
-}
+		const maxAgeMs = (source.interval_secs + source.jitter_secs) * 2 * 1000;
+		if (now.getTime() - last.getTime() > maxAgeMs) return 'warning';
+		return 'ok';
+	}

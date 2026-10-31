@@ -81,6 +81,10 @@ struct SourceMetrics {
     polls: AtomicU64,
     polls_not_modified: AtomicU64,
     polls_errors: AtomicU64,
+    /// Open failure streak; cleared on any successful poll outcome.
+    consecutive_errors: AtomicU64,
+    /// Last failure message while `consecutive_errors > 0`.
+    last_error: Mutex<Option<String>>,
     notifications: AtomicU64,
 }
 
@@ -177,6 +181,10 @@ impl Metrics {
     }
 
     /// Record a completed poll attempt for a source.
+    ///
+    /// Successful outcomes clear the consecutive-error streak; [`PollOutcome::Error`]
+    /// increments it. Pass the failure message via [`Self::note_poll_error`] so the
+    /// UI can show why the source is red.
     pub fn record_poll(&self, source_id: &str, outcome: PollOutcome) {
         self.polls_total.fetch_add(1, Ordering::Relaxed);
         match outcome {
@@ -196,13 +204,26 @@ impl Metrics {
             match outcome {
                 PollOutcome::NotModified => {
                     entry.polls_not_modified.fetch_add(1, Ordering::Relaxed);
+                    entry.consecutive_errors.store(0, Ordering::Relaxed);
+                    *entry.last_error.lock().unwrap_or_else(|e| e.into_inner()) = None;
                 }
                 PollOutcome::Error => {
                     entry.polls_errors.fetch_add(1, Ordering::Relaxed);
+                    entry.consecutive_errors.fetch_add(1, Ordering::Relaxed);
                 }
-                PollOutcome::Delivered | PollOutcome::NoOp => {}
+                PollOutcome::Delivered | PollOutcome::NoOp => {
+                    entry.consecutive_errors.store(0, Ordering::Relaxed);
+                    *entry.last_error.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                }
             }
         }
+    }
+
+    /// Attach the human-readable cause of the current poll failure streak.
+    pub fn note_poll_error(&self, source_id: &str, message: impl Into<String>) {
+        let mut map = self.by_source.lock().unwrap_or_else(|e| e.into_inner());
+        let entry = map.entry(source_id.to_owned()).or_default();
+        *entry.last_error.lock().unwrap_or_else(|e| e.into_inner()) = Some(message.into());
     }
 
     /// Observe end-to-end `poll_once` wall time (fetch + diff + inline deliver).
@@ -588,11 +609,25 @@ xrelease_notify_breaker_skips_total {breaker_skips}
     pub fn source_stats(&self, source_id: &str) -> crate::runtime::SourceMetricsView {
         let map = self.by_source.lock().unwrap_or_else(|e| e.into_inner());
         map.get(source_id)
-            .map(|stats| crate::runtime::SourceMetricsView {
-                polls: stats.polls.load(Ordering::Relaxed),
-                polls_not_modified: stats.polls_not_modified.load(Ordering::Relaxed),
-                poll_errors: stats.polls_errors.load(Ordering::Relaxed),
-                notifications: stats.notifications.load(Ordering::Relaxed),
+            .map(|stats| {
+                let consecutive = stats.consecutive_errors.load(Ordering::Relaxed);
+                let last_error = if consecutive > 0 {
+                    stats
+                        .last_error
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clone()
+                } else {
+                    None
+                };
+                crate::runtime::SourceMetricsView {
+                    polls: stats.polls.load(Ordering::Relaxed),
+                    polls_not_modified: stats.polls_not_modified.load(Ordering::Relaxed),
+                    poll_errors: stats.polls_errors.load(Ordering::Relaxed),
+                    consecutive_errors: consecutive,
+                    last_error,
+                    notifications: stats.notifications.load(Ordering::Relaxed),
+                }
             })
             .unwrap_or_default()
     }
@@ -665,6 +700,23 @@ mod tests {
         }];
         let body = metrics.render_prometheus(0, &OutboxCounts::default(), 1, &breakers);
         assert!(body.contains("xrelease_sink_breaker_open{kind=\"webhook\",sink=\"ops\"} 1"));
+    }
+
+    #[test]
+    fn consecutive_errors_should_clear_on_success() {
+        let metrics = Metrics::new();
+        metrics.record_poll("src", PollOutcome::Error);
+        metrics.note_poll_error("src", "boom");
+        let failing = metrics.source_stats("src");
+        assert_eq!(failing.poll_errors, 1);
+        assert_eq!(failing.consecutive_errors, 1);
+        assert_eq!(failing.last_error.as_deref(), Some("boom"));
+
+        metrics.record_poll("src", PollOutcome::NotModified);
+        let recovered = metrics.source_stats("src");
+        assert_eq!(recovered.poll_errors, 1, "lifetime counter stays");
+        assert_eq!(recovered.consecutive_errors, 0);
+        assert_eq!(recovered.last_error, None);
     }
 
     #[test]

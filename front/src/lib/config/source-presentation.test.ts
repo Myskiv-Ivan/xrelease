@@ -4,11 +4,11 @@ import { latestRelease, latestReleaseSortKey, sourceHealth } from './source-pres
 describe('sourceHealth', () => {
 	const now = new Date('2026-07-19T12:00:00.000Z');
 
-	it('flags poll errors', () => {
+	it('flags an open failure streak', () => {
 		expect(
 			sourceHealth(
 				{
-					poll_errors: 2,
+					consecutive_errors: 2,
 					last_polled_at: '2026-07-19T11:59:00.000Z',
 					interval_secs: 3600,
 					jitter_secs: 60,
@@ -19,11 +19,26 @@ describe('sourceHealth', () => {
 		).toBe('error');
 	});
 
+	it('recovers to ok after consecutive_errors clears despite lifetime history', () => {
+		expect(
+			sourceHealth(
+				{
+					consecutive_errors: 0,
+					last_polled_at: '2026-07-19T11:30:00.000Z',
+					interval_secs: 3600,
+					jitter_secs: 60,
+					initialized: true
+				},
+				now
+			)
+		).toBe('ok');
+	});
+
 	it('warns when never polled and not initialized', () => {
 		expect(
 			sourceHealth(
 				{
-					poll_errors: 0,
+					consecutive_errors: 0,
 					last_polled_at: null,
 					interval_secs: 3600,
 					jitter_secs: 60,
@@ -38,7 +53,7 @@ describe('sourceHealth', () => {
 		expect(
 			sourceHealth(
 				{
-					poll_errors: 0,
+					consecutive_errors: 0,
 					last_polled_at: '2026-07-19T08:00:00.000Z',
 					interval_secs: 3600,
 					jitter_secs: 0,
@@ -53,7 +68,7 @@ describe('sourceHealth', () => {
 		expect(
 			sourceHealth(
 				{
-					poll_errors: 0,
+					consecutive_errors: 0,
 					last_polled_at: '2026-07-19T11:30:00.000Z',
 					interval_secs: 3600,
 					jitter_secs: 60,

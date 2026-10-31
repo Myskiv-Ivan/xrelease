@@ -104,7 +104,16 @@ pub(crate) async fn poll_once_inner(
     {
         Ok(outcome) => outcome,
         Err(err) => {
+            // Count the attempt even on failure so UI freshness / health can recover.
+            if let Err(store_err) = engine.store.touch_polled(source_id) {
+                tracing::warn!(
+                    source = source_id,
+                    error = %store_err,
+                    "failed to record last_polled_at after poll error"
+                );
+            }
             engine.metrics.record_poll(source_id, PollOutcome::Error);
+            engine.metrics.note_poll_error(source_id, err.to_string());
             return Err(err.into());
         }
     };

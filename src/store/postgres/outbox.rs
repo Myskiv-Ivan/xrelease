@@ -10,17 +10,32 @@ use crate::store::{
 };
 
 impl PostgresStore {
-    /// Pending/failed outbox rows for observability UI (no message body).
+    /// Outbox rows for the observability UI (no message body).
+    ///
+    /// Includes the live queue (`pending` / `failed` / `dead`) plus recent
+    /// `sent` rows so a healthy delivery path is not an empty page — successful
+    /// flushes leave the work queue immediately, which previously looked like
+    /// "outbox is broken / always empty".
     pub fn list_outbox_entries(&self, limit: usize) -> Result<Vec<OutboxEntry>, StoreError> {
         let mut client = self.conn()?;
         let limit = i64::try_from(limit).unwrap_or(i64::MAX);
         let rows = client.query(
- "SELECT id, source_id, identity, status, attempts, last_error, created_at, title, url, routing_tag, deliver_after
- FROM notification_outbox
- WHERE status IN ('pending', 'failed', 'dead')
- ORDER BY created_at DESC
- LIMIT $1",
- &[&limit])?;
+            "SELECT id, source_id, identity, status, attempts, last_error, created_at, title, url, routing_tag, deliver_after
+             FROM notification_outbox
+             WHERE status IN ('pending', 'failed', 'dead')
+                OR (status = 'sent'
+                    AND COALESCE(sent_at, created_at) > now() - interval '7 days')
+             ORDER BY
+               CASE status
+                 WHEN 'failed' THEN 0
+                 WHEN 'dead' THEN 1
+                 WHEN 'pending' THEN 2
+                 ELSE 3
+               END,
+               created_at DESC
+             LIMIT $1",
+            &[&limit],
+        )?;
         Ok(rows
             .into_iter()
             .map(|row| {

@@ -44,19 +44,21 @@
 		return { healthy, stale, errors };
 	});
 
-	const attentionSources = $derived.by(() => {
-		return sourcesStore.sources
-			.filter((source) => sourceHealth(source) !== 'ok' || source.poll_errors > 0)
-			.sort((a, b) => {
-				const rank = (source: SourceDetail) => {
-					if (source.poll_errors > 0) return 0;
-					if (sourceHealth(source) === 'warning') return 1;
-					return 2;
-				};
-				return rank(a) - rank(b) || b.poll_errors - a.poll_errors;
-			})
-			.slice(0, 6);
-	});
+		const attentionSources = $derived.by(() => {
+			return sourcesStore.sources
+				.filter((source) => sourceHealth(source) !== 'ok')
+				.sort((a, b) => {
+					const rank = (source: SourceDetail) => {
+						if (source.consecutive_errors > 0) return 0;
+						if (sourceHealth(source) === 'warning') return 1;
+						return 2;
+					};
+					return (
+						rank(a) - rank(b) || b.consecutive_errors - a.consecutive_errors
+					);
+				})
+				.slice(0, 6);
+		});
 
 	const configView = $derived(config.global.view);
 	const orgDesired = $derived(config.org.view?.desired_content ?? null);
@@ -155,24 +157,30 @@
 								{/if}
 							</p>
 						</div>
-						<div class="flex shrink-0 items-center gap-2">
-							{#if source.poll_errors > 0}
-								<Badge tone="danger">{source.poll_errors}</Badge>
-							{/if}
-							<Badge
-								tone={health === 'error'
-									? 'danger'
-									: health === 'warning'
-										? 'warning'
-										: 'muted'}
-							>
-								{health === 'error'
-									? t('overview.healthError')
-									: health === 'warning'
-										? t('overview.healthStale')
-										: t('overview.ok')}
-							</Badge>
-						</div>
+							<div class="flex shrink-0 items-center gap-2">
+								{#if source.consecutive_errors > 0}
+									<Badge
+										tone="danger"
+										title={source.last_error ?? undefined}
+									>
+										{source.consecutive_errors}
+									</Badge>
+								{/if}
+								<Badge
+									tone={health === 'error'
+										? 'danger'
+										: health === 'warning'
+											? 'warning'
+											: 'muted'}
+									title={source.last_error ?? undefined}
+								>
+									{health === 'error'
+										? t('overview.healthError')
+										: health === 'warning'
+											? t('overview.healthStale')
+											: t('overview.ok')}
+								</Badge>
+							</div>
 					</li>
 				{/each}
 			</ul>

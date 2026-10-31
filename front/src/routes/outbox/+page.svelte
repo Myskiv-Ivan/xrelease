@@ -45,7 +45,7 @@
 	let deferredOnly = $state(false);
 	let isRequeuing = $state(false);
 
-	const STATUS_TABS = ['all', 'pending', 'failed', 'dead'] as const;
+	const STATUS_TABS = ['all', 'pending', 'failed', 'dead', 'sent'] as const;
 
 	let sort = $state<SortState<keyof OutboxEntry>>({
 		key: 'created_at',

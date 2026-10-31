@@ -73,7 +73,7 @@ pub struct StatusResponse {
     pub advisories: AdvisoryStatus,
 }
 
-/// `GET /api/v1/outbox` — pending/failed notification queue.
+/// `GET /api/v1/outbox` — live queue plus recent successful (`sent`) deliveries.
 #[derive(Debug, Serialize)]
 pub struct OutboxListResponse {
     pub entries: Vec<OutboxEntry>,

@@ -140,6 +140,9 @@ pub struct CheckRequest {
 pub struct CheckResponse {
     pub notifications_sent: usize,
     pub sources_checked: usize,
+    /// Sources whose poll failed during this check (others still ran).
+    #[serde(default)]
+    pub sources_failed: usize,
 }
 
 /// `POST /api/v1/check`
@@ -149,18 +152,33 @@ pub async fn trigger_check(
 ) -> Result<Json<CheckResponse>, ApiError> {
     let dry_run = body.is_some_and(|b| b.dry_run);
     let mut notifications_sent = 0usize;
+    let mut sources_failed = 0usize;
 
     let watches: Vec<_> = state.desired.read().await.index.watches().to_vec();
     let sources_checked = watches.len();
 
     if dry_run {
+        // Dry-run still stops on the first failure — it is a validation pass,
+        // not an operator "check everything" sweep.
         for watch in &watches {
             watch.provider.fetch(&state.engine.http, None).await?;
         }
     } else {
         notifications_sent += state.engine.flush_outbox(50).await?;
+        // Continue past per-source failures so one broken upstream cannot block
+        // the rest of a manual "poll all" (scheduler already isolates watches).
         for watch in &watches {
-            notifications_sent += poll_once(&state.engine, watch, true).await?;
+            match poll_once(&state.engine, watch, true).await {
+                Ok(sent) => notifications_sent += sent,
+                Err(err) => {
+                    sources_failed += 1;
+                    tracing::warn!(
+                        source = %watch.provider.id(),
+                        error = %err,
+                        "API check: source poll failed; continuing"
+                    );
+                }
+            }
         }
     }
 
@@ -168,12 +186,20 @@ pub async fn trigger_check(
         dry_run,
         notifications_sent,
         sources = sources_checked,
+        sources_failed,
         "API check triggered"
     );
+
+    if !dry_run && sources_failed > 0 && sources_failed == sources_checked {
+        return Err(ApiError::BadGateway(format!(
+            "all {sources_checked} source poll(s) failed"
+        )));
+    }
 
     Ok(Json(CheckResponse {
         notifications_sent,
         sources_checked,
+        sources_failed,
     }))
 }
 
@@ -212,6 +238,7 @@ pub async fn trigger_check_source(
     Ok(Json(CheckResponse {
         notifications_sent,
         sources_checked: 1,
+        sources_failed: 0,
     }))
 }
 

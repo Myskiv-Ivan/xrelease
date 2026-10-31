@@ -30,21 +30,31 @@
 	{onPoll}
 />
 
-<div class="mb-4 flex flex-wrap items-center gap-3">
-	<SourceKindBadge kind={source.kind} label={source.kind_label} />
-	{#if source.source_page_url}
-		<a
-			href={source.source_page_url}
-			target="_blank"
-			rel="noopener noreferrer"
-			class="text-sm"
-		>
-			{t('sources.sourceCatalog')} ↗
-		</a>
-	{/if}
-</div>
+	<div class="mb-4 flex flex-wrap items-center gap-3">
+		<SourceKindBadge kind={source.kind} label={source.kind_label} />
+		{#if source.source_page_url}
+			<a
+				href={source.source_page_url}
+				target="_blank"
+				rel="noopener noreferrer"
+				class="text-sm"
+			>
+				{t('sources.sourceCatalog')} ↗
+			</a>
+		{/if}
+	</div>
 
-<SourceStatGrid {source} />
+	{#if source.consecutive_errors > 0 && source.last_error}
+		<p
+			class="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+			role="status"
+		>
+			<span class="font-medium">{t('sources.pollFailing')}</span>
+			{source.last_error}
+		</p>
+	{/if}
+
+	<SourceStatGrid {source} />
 
 <div class="mt-4">
 	<SeenReleasesPanel

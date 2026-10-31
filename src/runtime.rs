@@ -39,7 +39,15 @@ pub struct SourceSummary {
 pub struct SourceMetricsView {
     pub polls: u64,
     pub polls_not_modified: u64,
+    /// Lifetime poll failures (Prometheus counter; never decreases).
     pub poll_errors: u64,
+    /// Current failure streak — resets on the next successful poll.
+    /// UI health uses this, not [`Self::poll_errors`], so a recovered source
+    /// is not stuck in the error state forever.
+    pub consecutive_errors: u64,
+    /// Message from the most recent failed poll while the streak is open.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
     pub notifications: u64,
 }
 

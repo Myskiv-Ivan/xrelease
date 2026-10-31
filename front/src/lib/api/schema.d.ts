@@ -791,8 +791,18 @@ export interface components {
             polls: number;
             /** Format: int64 */
             polls_not_modified: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Lifetime poll failures (never decreases)
+             */
             poll_errors: number;
+            /**
+             * Format: int64
+             * @description Open failure streak; resets on the next successful poll. UI health uses this.
+             */
+            consecutive_errors: number;
+            /** @description Message from the most recent failed poll while consecutive_errors > 0 */
+            last_error?: string | null;
             /** Format: int64 */
             notifications: number;
         };
@@ -834,8 +844,18 @@ export interface components {
             polls: number;
             /** Format: int64 */
             polls_not_modified: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Lifetime poll failures (never decreases)
+             */
             poll_errors: number;
+            /**
+             * Format: int64
+             * @description Open failure streak; resets on the next successful poll. UI health uses this.
+             */
+            consecutive_errors: number;
+            /** @description Message from the most recent failed poll while consecutive_errors > 0 */
+            last_error?: string | null;
             /** Format: int64 */
             notifications: number;
         };
@@ -965,8 +985,11 @@ export interface components {
             id: number;
             source_id: string;
             identity: string;
-            /** @enum {string} */
-            status: "pending" | "failed" | "dead";
+            /**
+             * @description Live queue statuses plus recent successful deliveries (`sent`, last 7 days).
+             * @enum {string}
+             */
+            status: "pending" | "failed" | "dead" | "sent";
             attempts: number;
             last_error: string | null;
             created_at: string;
@@ -1010,6 +1033,11 @@ export interface components {
         CheckResponse: {
             notifications_sent: number;
             sources_checked: number;
+            /**
+             * @description Sources whose poll failed during this check (others still ran)
+             * @default 0
+             */
+            sources_failed: number;
         };
         NotifierView: {
             /** @description Stable index into the running CompositeNotifier */

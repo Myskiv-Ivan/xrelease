@@ -55,7 +55,8 @@ export const en = {
 		all: 'All',
 		pending: 'Pending',
 		failed: 'Failed',
-		dead: 'Dead'
+		dead: 'Dead',
+		sent: 'Sent'
 	},
 	theme: {
 		dark: 'Dark',
@@ -94,6 +95,7 @@ export const en = {
 		error: 'Error',
 		unreachable: 'Unreachable',
 		pollSuccess: 'Poll completed',
+		pollPartial: 'Poll finished with errors',
 		pollFailed: 'Poll failed',
 		healthySources: 'Healthy sources',
 		staleSources: 'Stale / never polled',
@@ -149,6 +151,9 @@ export const en = {
 		lastPoll: 'Last poll',
 		seen: 'Seen',
 		errors: 'Errors',
+		consecutiveErrors: 'Open error streak',
+		lastError: 'Last error',
+		pollFailing: 'Poll failing —',
 		details: 'Details',
 		pollNow: 'Poll now',
 		back: '← Sources',
@@ -219,7 +224,8 @@ export const en = {
 		title: 'Outbox',
 		search: 'Search by title, identity, or source…',
 		emptyTitle: 'Outbox is empty',
-		emptyDescription: 'All notifications delivered successfully.',
+		emptyDescription:
+			'Nothing in the live queue and no deliveries in the last 7 days. Successful sends leave pending immediately — open the Sent tab after a notification fires.',
 		noMatches: 'No matching entries',
 		noMatchesDescription: 'Try a different source, status, or search query.',
 		status: 'Status',
