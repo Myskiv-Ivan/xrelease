@@ -741,7 +741,8 @@
 		</div>
 	{/if}
 
-	{#if fieldWarning('notifiers')}
-		<p class="mt-3 {TYPE_FIELD_WARNING}">{fieldWarning('notifiers')}</p>
-	{/if}
+	<!--
+		Client validation already surfaces `notifiers` warnings in the sticky
+		issue list — avoid a second identical banner under the empty state.
+	-->
 </Panel>

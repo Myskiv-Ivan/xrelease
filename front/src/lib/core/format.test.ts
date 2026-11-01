@@ -92,6 +92,10 @@ describe('formatRelative', () => {
 		expect(formatRelative(new Date('2026-07-17T12:00:00.000Z'), now)).toBe('2d');
 	});
 
+	it('treats slight future skew as now (not soon)', () => {
+		expect(formatRelative(new Date('2026-07-19T12:00:10.000Z'), now)).toBe('now');
+	});
+
 	it('falls back to the one absolute format after a week', () => {
 		// Same format as every other timestamp — "63d" stops being useful, and a
 		// second absolute shape would defeat the point of unifying them.

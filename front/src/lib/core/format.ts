@@ -41,7 +41,9 @@ export function formatRelative(
 	const past = diffMs <= 0;
 
 	const seconds = Math.round(absMs / 1000);
-	if (seconds < 45) return past ? 'now' : 'soon';
+	// Clock skew / just-written timestamps often sit a few ms ahead of `now`.
+	// Prefer "now" over the awkward "Updated soon" in tool chrome.
+	if (seconds < 45) return 'now';
 
 	const minutes = Math.round(seconds / 60);
 	if (minutes < 60) return past ? `${minutes}m` : `in ${minutes}m`;
