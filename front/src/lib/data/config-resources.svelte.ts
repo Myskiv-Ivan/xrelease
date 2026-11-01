@@ -7,9 +7,13 @@ interface RevisionsPage {
 	total: number;
 }
 
+/** API clamps history pages to 200 (`REVISIONS_MAX_LIMIT` on the server). */
+export const REVISIONS_PAGE_ALL = 200;
+export const REVISIONS_PAGE_DEFAULT = 20;
+
 interface CreateConfigResourcesOptions<TView> {
 	fetchView: () => Promise<{ view: TView; etag: string | null }>;
-	fetchRevisions: () => Promise<RevisionsPage>;
+	fetchRevisions: (limit: number, offset: number) => Promise<RevisionsPage>;
 }
 
 /**
@@ -22,13 +26,16 @@ interface CreateConfigResourcesOptions<TView> {
  * failure counts as a page error.
  */
 export function createConfigResources<TView>(options: CreateConfigResourcesOptions<TView>) {
+	let revisionsLimit = REVISIONS_PAGE_DEFAULT;
+	let revisionsOffset = 0;
+
 	const viewResource = createResourceStore<{ view: TView; etag: string | null }>({
 		fetcher: options.fetchView,
 		fallbackError: t('errors.loadConfig')
 	});
 
 	const revisionsResource = createResourceStore<RevisionsPage>({
-		fetcher: options.fetchRevisions,
+		fetcher: () => options.fetchRevisions(revisionsLimit, revisionsOffset),
 		fallbackError: t('errors.loadConfigRevisions')
 	});
 
@@ -44,6 +51,12 @@ export function createConfigResources<TView>(options: CreateConfigResourcesOptio
 		},
 		get revisionsTotal() {
 			return revisionsResource.data?.total ?? 0;
+		},
+		get revisionsLimit() {
+			return revisionsLimit;
+		},
+		get revisionsOffset() {
+			return revisionsOffset;
 		},
 		/** Document errors win — a stale revision list is not worth blocking the page. */
 		get error() {
@@ -77,7 +90,14 @@ export function createConfigResources<TView>(options: CreateConfigResourcesOptio
 		async refresh() {
 			await Promise.all([viewResource.refresh(), revisionsResource.refresh()]);
 		},
+		async setRevisionsWindow(limit: number, offset = 0) {
+			revisionsLimit = Math.max(1, limit);
+			revisionsOffset = Math.max(0, offset);
+			await revisionsResource.reload();
+		},
 		reset() {
+			revisionsLimit = REVISIONS_PAGE_DEFAULT;
+			revisionsOffset = 0;
 			viewResource.reset();
 			revisionsResource.reset();
 		}

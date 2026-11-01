@@ -340,13 +340,12 @@ function validateNotifiers(
 			const value = (notifier.fields[spec.key] ?? '').trim();
 
 			if (!value) {
+				// Redacted secrets stay blank in the form on purpose — the field
+				// hint covers “leave blank to keep”. Do not sticky-warn here.
 				if (notifier.redacted.includes(spec.key)) {
-					push(
-						'warning',
-						path,
-						`“${spec.key}” is stored but hidden — leave blank to keep it, or paste a new value to rotate`
-					);
-				} else if (spec.required) {
+					continue;
+				}
+				if (spec.required) {
 					// Refs-first: `url` / `access_token` may be empty when `*_env` is set.
 					const envCompanion = (notifier.fields[`${spec.key}_env`] ?? '').trim();
 					if (!envCompanion) {
@@ -443,13 +442,9 @@ function validateNotifiers(
 					`${prefix}.fields.urls`,
 					'Apprise needs urls, urls_env, or a YAML config_key'
 				);
-			} else if (!hasUrls && !hasKey && pending) {
-				push(
-					'warning',
-					`${prefix}.fields.urls`,
-					'No urls shown — paste new targets, or leave blank to keep saved urls'
-				);
 			}
+			// Redacted urls: field placeholder/hint covers “leave blank to keep” —
+			// do not sticky-warn (same as other secrets).
 		}
 
 		if (notifier.type === 'webhook') {

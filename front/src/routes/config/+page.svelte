@@ -37,6 +37,11 @@
 				etag={config.org.etag}
 				revisions={config.org.revisions}
 				revisionsTotal={config.org.revisionsTotal}
+				revisionsLimit={config.org.revisionsLimit}
+				revisionsOffset={config.org.revisionsOffset}
+				onRevisionsWindowChange={(limit, offset) =>
+					config.org.setRevisionsWindow(limit, offset)
+				}
 				onApplied={() => config.org.refresh()}
 			/>
 		{:else if !config.org.isLoading}
@@ -57,6 +62,11 @@
 					<ConfigRevisionsPanel
 						revisions={config.global.revisions}
 						total={config.global.revisionsTotal}
+						limit={config.global.revisionsLimit}
+						offset={config.global.revisionsOffset}
+						onWindowChange={(limit, offset) =>
+							config.global.setRevisionsWindow(limit, offset)
+						}
 					/>
 				</Tabs.Content>
 

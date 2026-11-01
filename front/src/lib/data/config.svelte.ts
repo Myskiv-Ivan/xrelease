@@ -5,7 +5,7 @@ import { createConfigResources } from '#lib/data/config-resources.svelte.js';
 /** The instance-wide config document — authoritative on single-document deployments. */
 const resources = createConfigResources<ConfigView>({
 	fetchView: () => api.getConfig(),
-	fetchRevisions: () => api.listConfigRevisions(50, 0)
+	fetchRevisions: (limit, offset) => api.listConfigRevisions(limit, offset)
 });
 
 export function getConfigStore() {

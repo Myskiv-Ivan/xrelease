@@ -21,7 +21,8 @@ function requireSelected(): string {
 
 const resources = createConfigResources<OrganizationConfigView>({
 	fetchView: () => api.getOrgConfig(requireSelected()),
-	fetchRevisions: () => api.listOrgConfigRevisions(requireSelected(), 50, 0)
+	fetchRevisions: (limit, offset) =>
+		api.listOrgConfigRevisions(requireSelected(), limit, offset)
 });
 
 export function getOrgConfigStore() {

@@ -345,7 +345,7 @@ port = 2525
 		expect(result.ok).toBe(true);
 	});
 
-	it('warns when Apprise urls are redacted placeholders', () => {
+	it('keeps Apply valid when Apprise urls are redacted (no sticky warning)', () => {
 		const draft = emptyNotifierDraft('apprise');
 		draft.redacted = ['urls'];
 		const result = validateDesiredDrafts({
@@ -353,6 +353,20 @@ port = 2525
 			notifiers: [draft]
 		});
 		expect(result.ok).toBe(true);
-		expect(result.warnings.some((e) => e.path.includes('fields.urls'))).toBe(true);
+		expect(result.warnings.some((e) => e.path.includes('fields.urls'))).toBe(false);
+	});
+
+	it('does not sticky-warn when Express access_token is redacted', () => {
+		const draft = emptyNotifierDraft('express');
+		draft.fields.base_url = 'https://cts.example.com';
+		draft.fields.group_chat_id = 'g-1';
+		draft.redacted = ['access_token'];
+		const result = validateDesiredDrafts({
+			...baseDrafts(),
+			notifiers: [draft]
+		});
+		expect(result.ok).toBe(true);
+		expect(result.warnings.some((e) => e.path.includes('access_token'))).toBe(false);
+		expect(result.errors.some((e) => e.path.includes('access_token'))).toBe(false);
 	});
 });

@@ -28,10 +28,22 @@
 		etag: string | null;
 		revisions: ConfigRevisionSummary[];
 		revisionsTotal: number;
+		revisionsLimit?: number;
+		revisionsOffset?: number;
+		onRevisionsWindowChange?: (limit: number, offset: number) => void | Promise<void>;
 		onApplied?: () => void | Promise<void>;
 	}
 
-	let { view, etag, revisions, revisionsTotal, onApplied }: Props = $props();
+	let {
+		view,
+		etag,
+		revisions,
+		revisionsTotal,
+		revisionsLimit,
+		revisionsOffset,
+		onRevisionsWindowChange,
+		onApplied
+	}: Props = $props();
 
 	const auth = getAuthState();
 	const network = getNetworkState();
@@ -125,7 +137,13 @@
 				{/if}
 			</Panel>
 
-			<ConfigRevisionsPanel {revisions} total={revisionsTotal} />
+			<ConfigRevisionsPanel
+				{revisions}
+				total={revisionsTotal}
+				limit={revisionsLimit}
+				offset={revisionsOffset}
+				onWindowChange={onRevisionsWindowChange}
+			/>
 
 			{#if canPush && canWrite && uiEditingEnabled}
 				<!-- Rollback mutates desired state, so it honors `ui_config` exactly

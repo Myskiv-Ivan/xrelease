@@ -37,7 +37,11 @@
 		fieldsFromReleasePatternTemplate,
 		releasePatternTemplateByName
 	} from '#lib/config/release-pattern-templates.js';
-	import { listSourceKindValues, getSourceKindMeta } from '#lib/config/source-kinds.js';
+	import {
+		KIND_TONE_CLASSES,
+		listSourceKindValues,
+		getSourceKindMeta
+	} from '#lib/config/source-kinds.js';
 	import { sourceFieldHint, sourceFieldLabel } from '#lib/config/field-labels.js';
 	import {
 		FIELD_GROUP,
@@ -55,6 +59,7 @@
 	import { t } from '#lib/i18n/index.js';
 	import { getAuthState } from '#lib/stores/auth.svelte.js';
 	import { getNetworkState } from '#lib/stores/network.svelte.js';
+	import { cn } from '#lib/utils.js';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -90,6 +95,10 @@
 	let serverReportErrors = $state<string[]>([]);
 	/** Per-source expand; missing key = collapsed. */
 	let sourceOpenByKey = $state<Record<string, boolean>>({});
+	/** Sources panel filters — keep long catalogues scannable by kind/tag. */
+	let sourceSearch = $state('');
+	let sourceKindFilter = $state('all');
+	let sourceTeamFilter = $state('all');
 	/** Bumps after apply so Delivery channels reloads live sinks for Test. */
 	let notifiersLiveEpoch = $state(0);
 
@@ -157,7 +166,43 @@
 
 	const teamTags = $derived(teamOptions.map((team) => team.tag));
 
-	const sourceGroups = $derived(groupIndexedByKind(sources, (source) => source.type, kinds));
+	const sourceKindCounts = $derived.by(() => {
+		const counts = new Map<string, number>();
+		for (const source of sources) {
+			counts.set(source.type, (counts.get(source.type) ?? 0) + 1);
+		}
+		return counts;
+	});
+
+	function sourceMatchesFilters(source: DesiredSourceDraft): boolean {
+		if (sourceKindFilter !== 'all' && source.type !== sourceKindFilter) return false;
+		if (sourceTeamFilter !== 'all' && source.routing_tag.trim() !== sourceTeamFilter) {
+			return false;
+		}
+		const q = sourceSearch.trim().toLowerCase();
+		if (!q) return true;
+		const meta = getSourceKindMeta(source.type);
+		const hay = [
+			source.id,
+			source.type,
+			meta.label,
+			source.routing_tag,
+			...Object.values(source.fields)
+		]
+			.join(' ')
+			.toLowerCase();
+		return hay.includes(q);
+	}
+
+	/** Group first (keeps `sources.N` indices), then filter rows inside each kind. */
+	const sourceGroups = $derived.by(() =>
+		groupIndexedByKind(sources, (source) => source.type, kinds)
+			.map((group) => ({
+				kind: group.kind,
+				items: group.items.filter(({ item }) => sourceMatchesFilters(item))
+			}))
+			.filter((group) => group.items.length > 0)
+	);
 
 	/** Schema `builtin_presets` is the SSOT; user `preset_names` append as extras. */
 	const patternTemplates = $derived.by(() => {
@@ -594,57 +639,144 @@
 					{/snippet}
 				</EmptyState>
 			{:else}
-				<div class="flex flex-col gap-4">
+				<div class="mb-3 flex flex-col gap-3">
+					<div class="flex flex-wrap items-end gap-2">
+						<label class="{FIELD_GROUP} min-w-[10rem] flex-1 text-sm">
+							<span class={fieldLabelClass}>{t('config.sourcesFilterSearch')}</span>
+							<Input
+								bind:value={sourceSearch}
+								disabled={isBusy}
+								placeholder={t('config.sourcesFilterSearch')}
+							/>
+						</label>
+						<label class="{FIELD_GROUP} w-auto text-sm">
+							<span class={fieldLabelClass}>{t('config.sourcesFilterTeam')}</span>
+							<Select class="w-auto min-w-[9rem]" bind:value={sourceTeamFilter} disabled={isBusy}>
+								<option value="all">{t('config.sourcesFilterTeamAll')}</option>
+								{#each teamTags as tag (tag)}
+									<option value={tag}>{tag}</option>
+								{/each}
+							</Select>
+						</label>
+					</div>
+					<div
+						class="flex flex-wrap gap-1.5"
+						role="group"
+						aria-label={t('config.sourcesFilterKind')}
+					>
+						<button
+							type="button"
+							class={cn(
+								'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+								sourceKindFilter === 'all'
+									? 'border-primary/40 bg-primary/10 text-foreground'
+									: 'border-border text-muted-foreground hover:text-foreground'
+							)}
+							onclick={() => (sourceKindFilter = 'all')}
+						>
+							{t('config.sourcesFilterKindAll')}
+							<span class="tabular-nums opacity-70">{sources.length}</span>
+						</button>
+						{#each kinds as kind (kind)}
+							{@const count = sourceKindCounts.get(kind) ?? 0}
+							{#if count > 0}
+								{@const meta = getSourceKindMeta(kind)}
+								<button
+									type="button"
+									class={cn(
+										'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+										sourceKindFilter === kind
+											? 'border-primary/40 bg-primary/10 text-foreground'
+											: 'border-border text-muted-foreground hover:text-foreground'
+									)}
+									onclick={() => (sourceKindFilter = kind)}
+								>
+									<span
+										class={cn(
+											'inline-flex min-w-6 items-center justify-center rounded px-1 font-mono text-[10px] tracking-tight',
+											KIND_TONE_CLASSES[meta.tone]
+										)}
+									>
+										{meta.glyph}
+									</span>
+									{meta.label}
+									<span class="tabular-nums opacity-70">{count}</span>
+								</button>
+							{/if}
+						{/each}
+					</div>
+				</div>
+
+				{#if sourceGroups.length === 0}
+					<p class="mb-3 {TYPE_HINT}">{t('config.sourcesFilterEmpty')}</p>
+				{:else}
+				<div class="flex flex-col gap-3">
 					{#each sourceGroups as group (group.kind)}
-						<section class="flex flex-col gap-2">
-							<h3 class={TYPE_OVERLINE}>
-								{getSourceKindMeta(group.kind).label}
-								<span class="ml-1 tabular-nums opacity-70">({group.items.length})</span>
-							</h3>
-							{#each group.items as { item: source, index } (source.key)}
-								{@const open = isSourceOpen(source.key)}
-								<div class="rounded-md border border-border">
-									<div class="flex flex-wrap items-center gap-2 px-3 py-2">
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => toggleSourceOpen(source.key)}
-										>
-											{open ? t('config.collapseItem') : t('config.expandItem')}
-										</Button>
-										<span class="min-w-0 truncate text-sm font-medium">
-											{source.id || getSourceKindMeta(source.type).label}
-										</span>
-										<Badge tone="muted">{getSourceKindMeta(source.type).label}</Badge>
-										{#if source.routing_tag}
-											<span class="{TYPE_CODE} {TYPE_MUTED}">{source.routing_tag}</span>
-										{/if}
-										<div class="ml-auto">
+						{@const meta = getSourceKindMeta(group.kind)}
+						<details
+							class="group/kind rounded-md border border-border"
+							open={sourceKindFilter === group.kind || sourceGroups.length === 1}
+						>
+							<summary
+								class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden"
+							>
+								<span
+									class={cn(
+										'inline-flex min-w-7 items-center justify-center rounded px-1.5 py-0.5 font-mono text-[11px] tracking-tight',
+										KIND_TONE_CLASSES[meta.tone]
+									)}
+								>
+									{meta.glyph}
+								</span>
+								<span class="text-sm font-medium">{meta.label}</span>
+								<span class="{TYPE_MUTED} tabular-nums text-xs">
+									({group.items.length})
+								</span>
+							</summary>
+							<div class="flex flex-col gap-2 border-t border-border p-2">
+								{#each group.items as { item: source, index } (source.key)}
+									{@const open = isSourceOpen(source.key)}
+									<div class="rounded-md border border-border/80 bg-background">
+										<div class="flex flex-wrap items-center gap-2 px-3 py-2">
 											<Button
 												variant="ghost"
 												size="sm"
-												disabled={isBusy}
-												onclick={() => removeSource(source.key)}
+												onclick={() => toggleSourceOpen(source.key)}
 											>
-												{t('config.removeSource')}
+												{open ? t('config.collapseItem') : t('config.expandItem')}
 											</Button>
+											<span class="min-w-0 truncate text-sm font-medium">
+												{source.id || meta.label}
+											</span>
+											{#if source.routing_tag}
+												<span class="{TYPE_CODE} {TYPE_MUTED}">{source.routing_tag}</span>
+											{/if}
+											<div class="ml-auto">
+												<Button
+													variant="ghost"
+													size="sm"
+													disabled={isBusy}
+													onclick={() => removeSource(source.key)}
+												>
+													{t('config.removeSource')}
+												</Button>
+											</div>
 										</div>
-									</div>
-									{#if open}
-										<div class="border-t border-border p-3">
-											<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-												<label class="{FIELD_GROUP} text-sm">
-													<span class={fieldLabelClass}>{t('config.sourceType')}</span>
-													<Select
-														value={source.type}
-														disabled={isBusy}
-														onchange={(e) => changeSourceType(source, e.currentTarget.value)}
-													>
-														{#each kinds as kind (kind)}
-															<option value={kind}>{getSourceKindMeta(kind).label}</option>
-														{/each}
-													</Select>
-												</label>
+										{#if open}
+											<div class="border-t border-border p-3">
+												<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+													<label class="{FIELD_GROUP} text-sm">
+														<span class={fieldLabelClass}>{t('config.sourceType')}</span>
+														<Select
+															value={source.type}
+															disabled={isBusy}
+															onchange={(e) => changeSourceType(source, e.currentTarget.value)}
+														>
+															{#each kinds as kind (kind)}
+																<option value={kind}>{getSourceKindMeta(kind).label}</option>
+															{/each}
+														</Select>
+													</label>
 												<label class="{FIELD_GROUP} text-sm">
 													<span class={fieldLabelClass}>{t('config.sourceId')}</span>
 													<Input bind:value={source.id} disabled={isBusy} />
@@ -847,9 +979,11 @@
 									{/if}
 								</div>
 							{/each}
-						</section>
+							</div>
+						</details>
 					{/each}
 				</div>
+				{/if}
 			{/if}
 		</Panel>
 
