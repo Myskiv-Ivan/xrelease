@@ -27,7 +27,7 @@
 	 * arrow. Transparent backgrounds made light/dark OS popups unreadable.
 	 */
 	const controlClass =
-		'border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-9 min-w-[7.5rem] w-full cursor-pointer appearance-none rounded-md border py-1 pr-9 pl-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-appearance:none]';
+		'border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-11 min-h-11 min-w-[7.5rem] w-full cursor-pointer appearance-none rounded-md border py-1 pr-9 pl-2.5 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-appearance:none]';
 </script>
 
 <div class={cn('relative inline-flex max-w-full', className)}>

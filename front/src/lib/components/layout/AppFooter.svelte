@@ -21,7 +21,7 @@
 	let { showVersion = true, class: className = '' }: Props = $props();
 
 	const linkClass =
-		'inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground no-underline transition-colors duration-200 hover:bg-muted/60 hover:text-foreground';
+		'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-2 text-muted-foreground no-underline transition-colors duration-200 hover:bg-muted/60 hover:text-foreground';
 </script>
 
 <footer class={cn('border-t border-border py-3', className)}>

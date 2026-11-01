@@ -40,7 +40,7 @@
 			<Badge tone={enabled ? 'success' : 'muted'} dot>
 				{enabled ? t('config.configApiOn') : t('config.configApiOff')}
 			</Badge>
-			<Button href="/config" variant="outline" size="sm">{t('nav.config')}</Button>
+			<Button href="/config" variant="outline">{t('nav.config')}</Button>
 		</div>
 	{/snippet}
 

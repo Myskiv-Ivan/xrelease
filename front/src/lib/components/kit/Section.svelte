@@ -18,7 +18,7 @@
 	stat grids. Owning the heading here keeps every section at `h2` with the same
 	gap; the overview page had three hand-written copies of exactly this markup.
 -->
-<section class={cn('flex flex-col gap-3', className)}>
+<section class={cn('flex flex-col gap-1.5', className)}>
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<h2 class={TYPE_SECTION}>{title}</h2>
 		{#if actions}

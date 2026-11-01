@@ -4,40 +4,41 @@
 	import Badge from '#lib/components/kit/Badge.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import Input from '#lib/components/kit/Input.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import Select from '#lib/components/kit/Select.svelte';
-		import ConfigNotifiersPanel from '#lib/components/config/ConfigNotifiersPanel.svelte';
+	import ConfigNotifiersPanel from '#lib/components/config/ConfigNotifiersPanel.svelte';
 	import {
-				contentTypeForFormat,
-				emptySourceDraft,
-				emptyTeamDraft,
-				parseDesiredDocument,
-				primaryFieldsForKind,
-				readDefaults,
-				readNotifiers,
-				readSources,
-				readTeams,
-				sourceSupportsToken,
-				stringifyDesiredDocument,
-				writeDefaults,
-				writeNotifiers,
-				writeSources,
-				writeTeams,
-				type DesiredDefaultsDraft,
-				type DesiredNotifierDraft,
-				type DesiredSourceDraft,
-				type DesiredTeamDraft,
-				type ParsedDesiredDocument
-			} from '#lib/config/desired-document.js';
-		import { firstIssueMessage, validateDesiredDrafts } from '#lib/config/desired-validation.js';
-		import { groupIndexedByKind } from '#lib/config/editor-groups.js';
-		import {
-			fieldsFromReleasePatternTemplate,
-			releasePatternTemplateByName
-		} from '#lib/config/release-pattern-templates.js';
-		import { listSourceKindValues, getSourceKindMeta } from '#lib/config/source-kinds.js';
-		import { sourceFieldHint, sourceFieldLabel } from '#lib/config/field-labels.js';
+		contentTypeForFormat,
+		emptySourceDraft,
+		emptyTeamDraft,
+		parseDesiredDocument,
+		primaryFieldsForKind,
+		readDefaults,
+		readNotifiers,
+		readSources,
+		readTeams,
+		sourceSupportsToken,
+		stringifyDesiredDocument,
+		writeDefaults,
+		writeNotifiers,
+		writeSources,
+		writeTeams,
+		type DesiredDefaultsDraft,
+		type DesiredNotifierDraft,
+		type DesiredSourceDraft,
+		type DesiredTeamDraft,
+		type ParsedDesiredDocument
+	} from '#lib/config/desired-document.js';
+	import { firstIssueMessage, validateDesiredDrafts } from '#lib/config/desired-validation.js';
+	import { groupIndexedByKind } from '#lib/config/editor-groups.js';
+	import {
+		fieldsFromReleasePatternTemplate,
+		releasePatternTemplateByName
+	} from '#lib/config/release-pattern-templates.js';
+	import { listSourceKindValues, getSourceKindMeta } from '#lib/config/source-kinds.js';
+	import { sourceFieldHint, sourceFieldLabel } from '#lib/config/field-labels.js';
 	import {
 		FIELD_GROUP,
 		TYPE_CODE,
@@ -46,8 +47,7 @@
 		TYPE_HINT,
 		TYPE_MUTED,
 		TYPE_OVERLINE,
-		TYPE_STATUS_ERROR,
-		TYPE_STATUS_WARNING
+		TYPE_STATUS_ERROR
 	} from '#lib/components/kit/layout-styles.js';
 	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
 	import { resolveApiError } from '#lib/core/errors.js';
@@ -442,88 +442,89 @@
 {:else}
 	<div class="flex flex-col gap-4">
 		<div
-			class="sticky top-[var(--app-header-h)] z-20 -mx-1 flex flex-col gap-3 rounded-lg border border-border bg-background/95 px-3 py-3 shadow-sm backdrop-blur"
+			class="sticky top-[var(--app-header-h)] z-20 -mx-1 flex flex-wrap items-center gap-2 border-b border-border bg-background/95 px-1 py-2.5 backdrop-blur"
 		>
-			<div class="flex flex-wrap items-center gap-2">
-				{#if isDirty}
-					<Badge tone="warning" dot>{t('config.dirty')}</Badge>
-				{/if}
-				{#if validation.errors.length > 0}
-					<Badge tone="danger" dot>
-						{t('config.clientValidationErrors').replace(
-							'{count}',
-							String(validation.errors.length)
-						)}
-					</Badge>
-				{:else if validation.warnings.length > 0}
-					<Badge tone="warning" dot>
-						{t('config.clientValidationWarnings').replace(
-							'{count}',
-							String(validation.warnings.length)
-						)}
-					</Badge>
-				{:else}
-					<Badge tone="success" dot>{t('config.clientValidationOk')}</Badge>
-				{/if}
-				{#if statusMessage}
-					<span class="min-w-0 max-w-full" title={statusMessage}>
-						<Badge tone={statusTone} dot class="max-w-full truncate">{statusMessage}</Badge>
+			{#if isDirty}
+				<Badge tone="warning" dot>{t('config.dirty')}</Badge>
+			{/if}
+			{#if validation.errors.length > 0}
+				<Badge tone="danger" dot>
+					{t('config.clientValidationErrors').replace(
+						'{count}',
+						String(validation.errors.length)
+					)}
+				</Badge>
+			{:else if validation.warnings.length > 0}
+				<Badge tone="warning" dot>
+					{t('config.clientValidationWarnings').replace(
+						'{count}',
+						String(validation.warnings.length)
+					)}
+				</Badge>
+			{:else}
+				<Badge tone="success" dot>{t('config.clientValidationOk')}</Badge>
+			{/if}
+			{#if statusMessage}
+				<span class="min-w-0 max-w-[14rem] truncate sm:max-w-xs" title={statusMessage}>
+					<Badge tone={statusTone} dot class="max-w-full truncate">{statusMessage}</Badge>
+				</span>
+			{/if}
+			{#if applyResult}
+				<span class="{TYPE_CODE} {TYPE_MUTED}">
+					#{applyResult.revision} · {applyResult.content_sha256.slice(0, 12)}…
+				</span>
+			{/if}
+			{#if isDirty}
+				<label class="hidden items-center gap-2 sm:flex">
+					<span class="{TYPE_MUTED} whitespace-nowrap text-xs">
+						{t('config.revisionLabel')}
 					</span>
-				{/if}
-				{#if applyResult}
-					<span class="{TYPE_CODE} {TYPE_MUTED}">
-						#{applyResult.revision} · {applyResult.content_sha256.slice(0, 12)}…
-					</span>
-					{#if applyResult.sources_added?.length}
-						<span class={TYPE_MUTED}>
-							{t('config.diffAdded')}: {applyResult.sources_added.join(', ')}
-						</span>
-					{/if}
-					{#if applyResult.sources_removed?.length}
-						<span class={TYPE_MUTED}>
-							{t('config.diffRemoved')}: {applyResult.sources_removed.join(', ')}
-						</span>
-					{/if}
-					{#if applyResult.sources_changed?.length}
-						<span class={TYPE_MUTED}>
-							{t('config.diffChanged')}: {applyResult.sources_changed.join(', ')}
-						</span>
-					{/if}
-				{/if}
-				<div class="ml-auto flex flex-wrap items-center gap-2">
-					<Button variant="ghost" size="sm" disabled={!isDirty || isBusy} onclick={loadFromView}>
-						{t('config.discard')}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={isBusy || !network.isOnline}
-						onclick={() => runValidateOrApply(false)}
-					>
-						{busyAction === 'validate' ? t('config.validating') : t('config.validateOnly')}
-					</Button>
-					<Button
-						size="sm"
-						disabled={isBusy || !network.isOnline || !isDirty || !validation.ok}
-						onclick={() => runValidateOrApply(true)}
-					>
-						{busyAction === 'apply' ? t('config.applying') : t('config.apply')}
-					</Button>
-				</div>
-			</div>
-			<div class="flex flex-col gap-1.5 sm:max-w-md">
-				<label for="config-revision-label" class={fieldLabelClass}>
-					{t('config.revisionLabelField')}
+					<Input
+						id="config-revision-label"
+						class="h-8 w-40"
+						bind:value={revisionLabel}
+						placeholder={t('config.revisionLabelPlaceholder')}
+						disabled={isBusy}
+					/>
 				</label>
-				<Input
-					id="config-revision-label"
-					bind:value={revisionLabel}
-					placeholder={t('config.revisionLabelPlaceholder')}
-					disabled={isBusy}
-				/>
-				<p class={TYPE_MUTED}>{t('config.toolbarHint')}</p>
+			{/if}
+			<div class="ml-auto flex flex-wrap items-center gap-2">
+				<Button variant="ghost" size="sm" disabled={!isDirty || isBusy} onclick={loadFromView}>
+					{t('config.discard')}
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={isBusy || !network.isOnline}
+					onclick={() => runValidateOrApply(false)}
+				>
+					{busyAction === 'validate' ? t('config.validating') : t('config.validateOnly')}
+				</Button>
+				<Button
+					size="sm"
+					disabled={isBusy || !network.isOnline || !isDirty || !validation.ok}
+					onclick={() => runValidateOrApply(true)}
+				>
+					{busyAction === 'apply' ? t('config.applying') : t('config.apply')}
+				</Button>
 			</div>
 		</div>
+
+		{#if applyResult && (applyResult.sources_added?.length || applyResult.sources_removed?.length || applyResult.sources_changed?.length)}
+			<p class="{TYPE_MUTED} text-sm">
+				{#if applyResult.sources_added?.length}
+					{t('config.diffAdded')}: {applyResult.sources_added.join(', ')}
+					{' · '}
+				{/if}
+				{#if applyResult.sources_removed?.length}
+					{t('config.diffRemoved')}: {applyResult.sources_removed.join(', ')}
+					{' · '}
+				{/if}
+				{#if applyResult.sources_changed?.length}
+					{t('config.diffChanged')}: {applyResult.sources_changed.join(', ')}
+				{/if}
+			</p>
+		{/if}
 
 		<!--
 			aria-live: validation runs as the operator types, so the result never
@@ -566,140 +567,32 @@
 			</div>
 		{/if}
 
-		<Panel title={t('config.defaults')}>
-			<p class="mb-3 {TYPE_HINT}">{t('config.defaultsHint')}</p>
-			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-				<label class="{FIELD_GROUP} text-sm">
-					<span class={fieldLabelClass}>{t('config.intervalSecs')}</span>
-					<Input
-						type="number"
-						value={String(defaults.interval_secs)}
-						disabled={isBusy}
-						oninput={(e) => {
-							defaults = {
-								...defaults!,
-								interval_secs: parseNumberInput(e.currentTarget.value, defaults!.interval_secs)
-							};
-						}}
-					/>
-				</label>
-				<label class="{FIELD_GROUP} text-sm">
-					<span class={fieldLabelClass}>{t('config.jitterSecs')}</span>
-					<Input
-						type="number"
-						value={String(defaults.jitter_secs)}
-						disabled={isBusy}
-						oninput={(e) => {
-							defaults = {
-								...defaults!,
-								jitter_secs: parseNumberInput(e.currentTarget.value, defaults!.jitter_secs)
-							};
-						}}
-					/>
-				</label>
-				<label class="{FIELD_GROUP} text-sm">
-					<span class={fieldLabelClass}>{t('config.upstreamRpm')}</span>
-					<Input
-						type="number"
-						value={String(defaults.upstream_requests_per_minute)}
-						disabled={isBusy}
-						oninput={(e) => {
-							defaults = {
-								...defaults!,
-								upstream_requests_per_minute: parseNumberInput(
-									e.currentTarget.value,
-									defaults!.upstream_requests_per_minute
-								)
-							};
-						}}
-					/>
-				</label>
-				<label class="{FIELD_GROUP} text-sm sm:col-span-2">
-					<span class={fieldLabelClass}>{t('config.notifySchedule')}</span>
-					<Input bind:value={defaults.notify_schedule} disabled={isBusy} />
-				</label>
-				<label class="{FIELD_GROUP} text-sm sm:col-span-2">
-					<span class={fieldLabelClass}>{t('config.opsRoutingTag')}</span>
-					<Input
-						bind:value={defaults.ops_routing_tag}
-						placeholder={t('config.opsRoutingTagPlaceholder')}
-						disabled={isBusy}
-					/>
-					{#if fieldError('defaults.ops_routing_tag')}
-						<span class={TYPE_FIELD_ERROR}>{fieldError('defaults.ops_routing_tag')}</span>
-					{:else if fieldWarning('defaults.ops_routing_tag')}
-						<span class={TYPE_FIELD_WARNING}>{fieldWarning('defaults.ops_routing_tag')}</span>
-					{/if}
-				</label>
-				<label class="flex items-center gap-2 text-sm">
-					<Checkbox
-						checked={defaults.poll_on_startup}
-						disabled={isBusy}
-						onCheckedChange={(checked) => {
-							defaults = { ...defaults!, poll_on_startup: checked };
-						}}
-					/>
-					<span>{t('config.pollOnStartup')}</span>
-				</label>
-			</div>
-		</Panel>
-
-		<Panel title={t('config.teams')}>
-			{#snippet actions()}
-				<Button variant="outline" size="sm" disabled={isBusy} onclick={addTeam}>
-					{t('config.addTeam')}
-				</Button>
-			{/snippet}
-			<p class="mb-3 {TYPE_HINT}">{t('config.teamsHint')}</p>
-			{#if teams.length === 0}
-				<p class={TYPE_HINT}>{t('diagnostics.teamsEmpty')}</p>
-			{:else}
-				<div class="flex flex-col gap-2">
-					{#each teams as team, index (team.key)}
-						<div class="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]">
-							<label class="{FIELD_GROUP} text-sm">
-								<span class={fieldLabelClass}>{t('config.teamTag')}</span>
-								<Input bind:value={team.tag} disabled={isBusy} placeholder="platform-team" />
-								{#if fieldError(`teams.${index}.tag`)}
-									<span class={TYPE_FIELD_ERROR}>{fieldError(`teams.${index}.tag`)}</span>
-								{/if}
-							</label>
-							<label class="{FIELD_GROUP} text-sm">
-								<span class={fieldLabelClass}>{t('config.teamName')}</span>
-								<Input bind:value={team.name} disabled={isBusy} />
-							</label>
-							<div class="flex items-end">
-								<Button
-									variant="ghost"
-									size="sm"
-									disabled={isBusy}
-									onclick={() => removeTeam(team.key)}
-								>
-									{t('config.removeTeam')}
-								</Button>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</Panel>
-
 		<Panel title={t('config.sources')}>
 			{#snippet actions()}
-				<div class="flex flex-wrap items-center gap-2">
-					{#if sources.length > 0}
+				{#if sources.length > 0}
+					<div class="flex flex-wrap items-center gap-2">
 						<Button variant="ghost" size="sm" disabled={isBusy} onclick={collapseAllSources}>
 							{t('config.sourcesCollapseAll')}
 						</Button>
-					{/if}
-					<Button variant="outline" size="sm" disabled={isBusy} onclick={addSource}>
-						{t('config.addSource')}
-					</Button>
-				</div>
+						<Button variant="outline" size="sm" disabled={isBusy} onclick={addSource}>
+							{t('config.addSource')}
+						</Button>
+					</div>
+				{/if}
 			{/snippet}
 			<p class="mb-3 {TYPE_HINT}">{t('config.sourcesHint')}</p>
 			{#if sources.length === 0}
-				<p class={TYPE_STATUS_WARNING}>{t('config.sourcesEmpty')}</p>
+				<EmptyState
+					variant="embedded"
+					title={t('config.sourcesEmpty')}
+					description={t('config.sourcesEmptyHint')}
+				>
+					{#snippet actions()}
+						<Button size="sm" disabled={isBusy} onclick={addSource}>
+							{t('config.addSource')}
+						</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<div class="flex flex-col gap-4">
 					{#each sourceGroups as group (group.kind)}
@@ -969,5 +862,152 @@
 			{fieldWarning}
 			liveEpoch={notifiersLiveEpoch}
 		/>
+
+		<details class="group rounded-md border border-border">
+			<summary
+				class="cursor-pointer list-none px-3 py-2.5 text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden"
+			>
+				<span class="flex items-center justify-between gap-2">
+					<span>{t('config.advanced')}</span>
+					<span class="{TYPE_MUTED} text-xs font-normal group-open:hidden">
+						{t('config.advancedSummary')}
+					</span>
+				</span>
+			</summary>
+			<div class="flex flex-col gap-4 border-t border-border p-3">
+				<p class={TYPE_HINT}>{t('config.advancedHint')}</p>
+
+				<section class="flex flex-col gap-3">
+					<h3 class={TYPE_OVERLINE}>{t('config.defaults')}</h3>
+					<p class={TYPE_HINT}>{t('config.defaultsHint')}</p>
+					<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+						<label class="{FIELD_GROUP} text-sm">
+							<span class={fieldLabelClass}>{t('config.intervalSecs')}</span>
+							<Input
+								type="number"
+								value={String(defaults.interval_secs)}
+								disabled={isBusy}
+								oninput={(e) => {
+									defaults = {
+										...defaults!,
+										interval_secs: parseNumberInput(
+											e.currentTarget.value,
+											defaults!.interval_secs
+										)
+									};
+								}}
+							/>
+						</label>
+						<label class="{FIELD_GROUP} text-sm">
+							<span class={fieldLabelClass}>{t('config.jitterSecs')}</span>
+							<Input
+								type="number"
+								value={String(defaults.jitter_secs)}
+								disabled={isBusy}
+								oninput={(e) => {
+									defaults = {
+										...defaults!,
+										jitter_secs: parseNumberInput(e.currentTarget.value, defaults!.jitter_secs)
+									};
+								}}
+							/>
+						</label>
+						<label class="{FIELD_GROUP} text-sm">
+							<span class={fieldLabelClass}>{t('config.upstreamRpm')}</span>
+							<Input
+								type="number"
+								value={String(defaults.upstream_requests_per_minute)}
+								disabled={isBusy}
+								oninput={(e) => {
+									defaults = {
+										...defaults!,
+										upstream_requests_per_minute: parseNumberInput(
+											e.currentTarget.value,
+											defaults!.upstream_requests_per_minute
+										)
+									};
+								}}
+							/>
+						</label>
+						<label class="{FIELD_GROUP} text-sm sm:col-span-2">
+							<span class={fieldLabelClass}>{t('config.notifySchedule')}</span>
+							<Input bind:value={defaults.notify_schedule} disabled={isBusy} />
+						</label>
+						<label class="{FIELD_GROUP} text-sm sm:col-span-2">
+							<span class={fieldLabelClass}>{t('config.opsRoutingTag')}</span>
+							<Input
+								bind:value={defaults.ops_routing_tag}
+								placeholder={t('config.opsRoutingTagPlaceholder')}
+								disabled={isBusy}
+							/>
+							{#if fieldError('defaults.ops_routing_tag')}
+								<span class={TYPE_FIELD_ERROR}>{fieldError('defaults.ops_routing_tag')}</span>
+							{:else if fieldWarning('defaults.ops_routing_tag')}
+								<span class={TYPE_FIELD_WARNING}
+									>{fieldWarning('defaults.ops_routing_tag')}</span
+								>
+							{/if}
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<Checkbox
+								checked={defaults.poll_on_startup}
+								disabled={isBusy}
+								onCheckedChange={(checked) => {
+									defaults = { ...defaults!, poll_on_startup: checked };
+								}}
+							/>
+							<span>{t('config.pollOnStartup')}</span>
+						</label>
+					</div>
+				</section>
+
+				<section class="flex flex-col gap-3">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<h3 class={TYPE_OVERLINE}>{t('config.teams')}</h3>
+						<Button variant="outline" size="sm" disabled={isBusy} onclick={addTeam}>
+							{t('config.addTeam')}
+						</Button>
+					</div>
+					<p class={TYPE_HINT}>{t('config.teamsHint')}</p>
+					{#if teams.length === 0}
+						<p class={TYPE_HINT}>{t('diagnostics.teamsEmpty')}</p>
+					{:else}
+						<div class="flex flex-col gap-2">
+							{#each teams as team, index (team.key)}
+								<div
+									class="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
+								>
+									<label class="{FIELD_GROUP} text-sm">
+										<span class={fieldLabelClass}>{t('config.teamTag')}</span>
+										<Input
+											bind:value={team.tag}
+											disabled={isBusy}
+											placeholder="platform-team"
+										/>
+										{#if fieldError(`teams.${index}.tag`)}
+											<span class={TYPE_FIELD_ERROR}>{fieldError(`teams.${index}.tag`)}</span>
+										{/if}
+									</label>
+									<label class="{FIELD_GROUP} text-sm">
+										<span class={fieldLabelClass}>{t('config.teamName')}</span>
+										<Input bind:value={team.name} disabled={isBusy} />
+									</label>
+									<div class="flex items-end">
+										<Button
+											variant="ghost"
+											size="sm"
+											disabled={isBusy}
+											onclick={() => removeTeam(team.key)}
+										>
+											{t('config.removeTeam')}
+										</Button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</section>
+			</div>
+		</details>
 	</div>
 {/if}

@@ -37,22 +37,29 @@
 
 	const navLinkClass = (active: boolean) =>
 		cn(
-			'inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-sm no-underline transition-colors duration-200',
+			'relative inline-flex min-h-11 cursor-pointer items-center gap-1.5 px-3 py-2 text-sm no-underline transition-colors duration-150',
 			active
-				? 'bg-primary/15 font-medium text-primary'
-				: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+				? 'font-medium text-foreground after:absolute after:inset-x-2.5 after:bottom-1.5 after:h-0.5 after:rounded-full after:bg-primary'
+				: 'text-muted-foreground hover:text-foreground'
 		);
 </script>
 
-<header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+<header
+	class={cn(
+		'sticky top-0 z-40 border-b border-border/80',
+		isAuthRoute ? 'border-transparent bg-transparent' : 'bg-background/95 backdrop-blur-md'
+	)}
+>
 	<div class={cn('mx-auto flex h-14 items-center justify-between gap-4 px-4 sm:px-6', LAYOUT_MAX)}>
 		<div class="flex min-w-0 items-center gap-4 lg:gap-6">
-			<a
-				href="/"
-				class="flex shrink-0 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
-			>
-				<AppBrand layout="inline" />
-			</a>
+			{#if !isAuthRoute}
+				<a
+					href="/"
+					class="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
+				>
+					<AppBrand layout="inline" />
+				</a>
+			{/if}
 			{#if auth.isAuthenticated}
 				<nav class="hidden items-center gap-1 lg:flex" aria-label={t('nav.main')}>
 					{#each primaryNav as item (item.href)}
@@ -71,7 +78,7 @@
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger
 								class={cn(
-									buttonVariants({ variant: 'ghost', size: 'sm' }),
+									buttonVariants({ variant: 'ghost', size: 'default' }),
 									moreActive && 'bg-primary/15 text-primary'
 								)}
 								aria-label={t('nav.more')}
@@ -99,7 +106,7 @@
 				<OrgSwitcher />
 				<HeaderMenu />
 			{:else if !isAuthRoute}
-				<Button href="/login" size="sm">{t('nav.signIn')}</Button>
+				<Button href="/login">{t('nav.signIn')}</Button>
 			{/if}
 		</div>
 	</div>

@@ -25,12 +25,11 @@
 </script>
 
 <div
-	class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
+	class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/60 pb-3"
 >
 	{#if onRefresh}
 		<Button
 			variant="outline"
-			size="sm"
 			disabled={isRefreshing || !network.isOnline}
 			title={t('common.refreshHint')}
 			onclick={() => onRefresh?.()}
@@ -39,7 +38,7 @@
 		</Button>
 	{/if}
 
-	<label class="flex min-h-9 cursor-pointer items-center gap-2 {TYPE_HINT}">
+	<label class="flex min-h-11 cursor-pointer items-center gap-2 {TYPE_HINT}">
 		<Checkbox
 			checked={settings.autoRefresh}
 			onchange={(event) => setAutoRefresh(event.currentTarget.checked)}

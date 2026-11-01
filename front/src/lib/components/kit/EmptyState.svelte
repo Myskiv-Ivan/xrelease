@@ -18,7 +18,7 @@
 			'text-center',
 			variant === 'embedded'
 				? 'rounded-lg bg-muted/30 px-4 py-8'
-				: 'rounded-xl border border-dashed border-border/80 bg-muted/20 px-6 py-10'
+				: 'rounded-lg border border-dashed border-border/80 bg-muted/15 px-6 py-10'
 		)}
 	>
 		<p class={TYPE_EMPTY_TITLE}>{title}</p>

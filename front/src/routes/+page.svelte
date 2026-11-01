@@ -6,12 +6,11 @@
 	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
-	import Section from '#lib/components/kit/Section.svelte';
 	import StatCard from '#lib/components/kit/StatCard.svelte';
 	import StatGrid from '#lib/components/kit/StatGrid.svelte';
 	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
 	import type { KeyValueItem } from '#lib/types/ui.js';
-	import { PANEL_GRID, PAGE_STACK, TYPE_CODE } from '#lib/components/kit/layout-styles.js';
+	import { PANEL_GRID, PAGE_STACK, TYPE_CODE, TYPE_SECTION } from '#lib/components/kit/layout-styles.js';
 	import { pollAllSources, pollErrorToast } from '#lib/core/poll.js';
 	import { getStatusStore } from '#lib/data/status.svelte.js';
 	import { t } from '#lib/i18n/index.js';
@@ -86,48 +85,52 @@
 
 	{#if statusStore.status}
 		<div class={PAGE_STACK}>
-			<Section title={t('overview.sectionStatus')}>
-				<StatGrid columns={4}>
-					<StatCard
-						label={t('overview.sources')}
-						value={formatNumber(statusStore.status.sources_configured)}
-					/>
-					<StatCard
-						label={t('overview.outboxPending')}
-						value={formatNumber(statusStore.status.outbox_pending)}
-						tone={statusStore.status.outbox_pending > 0 ? 'warning' : 'default'}
-					/>
-					<StatCard
-						label={t('overview.outboxDead')}
-						value={formatNumber(statusStore.status.outbox_dead)}
-						tone={statusStore.status.outbox_dead > 0 ? 'danger' : 'default'}
-					/>
-					<StatCard
-						label={t('overview.breakersOpen')}
-						value={formatNumber(openBreakers)}
-						tone={openBreakers > 0 ? 'danger' : 'default'}
-					/>
-				</StatGrid>
-			</Section>
-
-			<Section title={t('overview.sectionRuntime')}>
-				<StatGrid columns={4}>
-					<StatCard label={t('overview.version')} value={statusStore.status.version} mono />
-					<StatCard
-						label={t('overview.uptime')}
-						value={formatUptime(statusStore.status.uptime_secs)}
-					/>
-					<StatCard
-						label={t('overview.notificationsSent')}
-						value={formatNumber(statusStore.status.metrics.notifications_total)}
-					/>
-					<StatCard
-						label={t('overview.outboxDeferred')}
-						value={formatNumber(statusStore.status.outbox_deferred)}
-						tone={statusStore.status.outbox_deferred > 0 ? 'warning' : 'default'}
-					/>
-				</StatGrid>
-			</Section>
+			<!-- Delivery + runtime as one band: two hairline strips, one page rhythm. -->
+			<section class="flex flex-col gap-4">
+				<div class="flex flex-col gap-1.5">
+					<h2 class={TYPE_SECTION}>{t('overview.sectionStatus')}</h2>
+					<StatGrid columns={4}>
+						<StatCard
+							label={t('overview.sources')}
+							value={formatNumber(statusStore.status.sources_configured)}
+						/>
+						<StatCard
+							label={t('overview.outboxPending')}
+							value={formatNumber(statusStore.status.outbox_pending)}
+							tone={statusStore.status.outbox_pending > 0 ? 'warning' : 'default'}
+						/>
+						<StatCard
+							label={t('overview.outboxDead')}
+							value={formatNumber(statusStore.status.outbox_dead)}
+							tone={statusStore.status.outbox_dead > 0 ? 'danger' : 'default'}
+						/>
+						<StatCard
+							label={t('overview.breakersOpen')}
+							value={formatNumber(openBreakers)}
+							tone={openBreakers > 0 ? 'danger' : 'default'}
+						/>
+					</StatGrid>
+				</div>
+				<div class="flex flex-col gap-1.5">
+					<h2 class={TYPE_SECTION}>{t('overview.sectionRuntime')}</h2>
+					<StatGrid columns={4}>
+						<StatCard label={t('overview.version')} value={statusStore.status.version} mono />
+						<StatCard
+							label={t('overview.uptime')}
+							value={formatUptime(statusStore.status.uptime_secs)}
+						/>
+						<StatCard
+							label={t('overview.notificationsSent')}
+							value={formatNumber(statusStore.status.metrics.notifications_total)}
+						/>
+						<StatCard
+							label={t('overview.outboxDeferred')}
+							value={formatNumber(statusStore.status.outbox_deferred)}
+							tone={statusStore.status.outbox_deferred > 0 ? 'warning' : 'default'}
+						/>
+					</StatGrid>
+				</div>
+			</section>
 
 			{#if statusStore.status.breakers.length > 0}
 				<Panel title={t('overview.breakers')}>

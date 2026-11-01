@@ -86,7 +86,6 @@
 			<Button
 				href={getMetricsUrl()}
 				variant="ghost"
-				size="sm"
 				target="_blank"
 				rel="noopener noreferrer"
 			>

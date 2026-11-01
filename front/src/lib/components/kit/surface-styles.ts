@@ -4,27 +4,27 @@ import { TYPE_OVERLINE } from '#lib/components/kit/layout-styles.js';
 export const statLabelClass = TYPE_OVERLINE;
 
 export const statValueClass =
-	'mt-1 font-heading text-2xl font-semibold tabular-nums tracking-tight text-foreground';
+	'mt-0.5 font-heading text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl';
 
 /** Shared label for form fields (settings, login) — sentence case, never uppercase. */
 export const fieldLabelClass = 'text-sm font-medium leading-none text-foreground';
 
 export type SurfaceTone = 'default' | 'success' | 'warning' | 'danger';
 
-/** Left accent bar color per tone (scannable status on stat cards). */
+/** @deprecated Prefer value color + tint; left bars read as AI-slop accent cards. */
 export const toneBarClass: Record<SurfaceTone, string> = {
 	default: '',
-	success: 'bg-success',
-	warning: 'bg-warning',
-	danger: 'bg-destructive'
+	success: '',
+	warning: '',
+	danger: ''
 };
 
-/** Faint background tint per tone — only applied to non-default cards. */
+/** Faint background tint per tone — only applied to non-default metric cells. */
 export const toneTintClass: Record<SurfaceTone, string> = {
 	default: '',
-	success: 'bg-success/5',
-	warning: 'bg-warning/5',
-	danger: 'bg-destructive/5'
+	success: 'bg-success/[0.06]',
+	warning: 'bg-warning/[0.07]',
+	danger: 'bg-destructive/[0.07]'
 };
 
 /** Value text color per tone (KeyValueList, StatCard). */

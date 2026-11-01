@@ -35,6 +35,8 @@
 
 	/** Bare chrome for Scalar embed iframe — no header/footer, no shared body theme fights. */
 	const isEmbedShell = $derived(page.url.pathname.startsWith('/docs/embed'));
+	/** Auth page paints its own full-bleed wash — drop the content max-width column. */
+	const isLoginShell = $derived(page.url.pathname === '/login');
 
 	onMount(() => {
 		initAuth();
@@ -90,7 +92,7 @@
 {#if isEmbedShell}
 	{@render children()}
 {:else}
-	<div class="flex min-h-dvh flex-col">
+	<div class="flex min-h-dvh flex-col {isLoginShell ? 'login-atmosphere' : ''}">
 		<a
 			href="#main-content"
 			class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-md"
@@ -99,7 +101,12 @@
 		</a>
 		<OfflineBanner />
 		<AppHeader />
-		<main id="main-content" class="mx-auto w-full {LAYOUT_MAX} flex-1 px-4 py-6 sm:px-6">
+		<main
+			id="main-content"
+			class={isLoginShell
+				? 'w-full flex-1'
+				: `mx-auto w-full ${LAYOUT_MAX} flex-1 px-4 py-6 sm:px-6`}
+		>
 			{@render children()}
 		</main>
 		<AppFooter />

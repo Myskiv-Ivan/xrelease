@@ -8,6 +8,8 @@
 listen = "0.0.0.0:8080"
 require_auth = true
 rate_limit_per_minute = 120
+# Vite UI (5173) talks cross-origin to the API — required for local dashboard.
+cors_origins = ["http://127.0.0.1:5173", "http://localhost:5173"]
 # api_key / oidc / webhook_secret / local-auth → XRELEASE_* in .env
 
 [config_api]

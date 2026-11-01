@@ -90,7 +90,7 @@
 	{/if}
 
 	{#if canReadConfig}
-		<details class="group rounded-xl border border-border bg-card open:pb-0">
+		<details class="group rounded-lg border border-border bg-card open:pb-0">
 			<summary
 				class="cursor-pointer list-none px-4 py-3 {TYPE_SECTION} marker:content-none [&::-webkit-details-marker]:hidden"
 			>
@@ -135,10 +135,18 @@
 		</details>
 	{/if}
 
-	<Panel title={t('overview.needsAttention')}>
-		{#if attentionSources.length === 0}
-			<p class={TYPE_HINT}>{t('overview.needsAttentionEmpty')}</p>
-		{:else}
+	{#if attentionSources.length === 0}
+		<!-- Healthy: a status line, not an empty card. -->
+		<p
+			class="rounded-lg border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground"
+			role="status"
+		>
+			<span class="font-medium text-foreground">{t('overview.needsAttention')}</span>
+			<span class="text-border" aria-hidden="true"> · </span>
+			{t('overview.needsAttentionEmpty')}
+		</p>
+	{:else}
+		<Panel title={t('overview.needsAttention')}>
 			<ul class="grid gap-0 divide-y divide-border/60 sm:grid-cols-2 sm:gap-x-6 sm:divide-y-0">
 				{#each attentionSources as source (source.id)}
 					{@const health = sourceHealth(source)}
@@ -157,33 +165,30 @@
 								{/if}
 							</p>
 						</div>
-							<div class="flex shrink-0 items-center gap-2">
-								{#if source.consecutive_errors > 0}
-									<Badge
-										tone="danger"
-										title={source.last_error ?? undefined}
-									>
-										{source.consecutive_errors}
-									</Badge>
-								{/if}
-								<Badge
-									tone={health === 'error'
-										? 'danger'
-										: health === 'warning'
-											? 'warning'
-											: 'muted'}
-									title={source.last_error ?? undefined}
-								>
-									{health === 'error'
-										? t('overview.healthError')
-										: health === 'warning'
-											? t('overview.healthStale')
-											: t('overview.ok')}
+						<div class="flex shrink-0 items-center gap-2">
+							{#if source.consecutive_errors > 0}
+								<Badge tone="danger" title={source.last_error ?? undefined}>
+									{source.consecutive_errors}
 								</Badge>
-							</div>
+							{/if}
+							<Badge
+								tone={health === 'error'
+									? 'danger'
+									: health === 'warning'
+										? 'warning'
+										: 'muted'}
+								title={source.last_error ?? undefined}
+							>
+								{health === 'error'
+									? t('overview.healthError')
+									: health === 'warning'
+										? t('overview.healthStale')
+										: t('overview.ok')}
+							</Badge>
+						</div>
 					</li>
 				{/each}
 			</ul>
-		{/if}
-	</Panel>
+		</Panel>
+	{/if}
 </div>

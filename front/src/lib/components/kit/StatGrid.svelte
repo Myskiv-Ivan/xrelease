@@ -17,6 +17,17 @@
 	};
 </script>
 
-<div class={cn('grid gap-4', columnClasses[columns], className)}>
+<!--
+	One bordered strip with hairline dividers — replaces a mosaic of identical
+	cards (Operate hard-fail: stacked card grids as layout).
+-->
+<div
+	class={cn(
+		'grid overflow-hidden rounded-lg border border-border bg-card',
+		'divide-y divide-border sm:divide-y-0 sm:divide-x',
+		columnClasses[columns],
+		className
+	)}
+>
 	{@render children()}
 </div>

@@ -64,7 +64,8 @@
  * so light mode cannot fight leftover dark vars.
  */
 :root {
-	--radius: 0.625rem;
+	/* Modest radius — Linear-school precision, never gummy (≤ ~10px). */
+	--radius: 0.5rem;
 	/*
 	 * Height of the sticky AppHeader, for in-page sticky toolbars to offset by.
 	 * Base = the h-14 brand/nav row. When the authenticated mobile nav row is
@@ -104,42 +105,43 @@
    selector list rather than duplicated so the two can never drift apart. */
 :root:not([data-theme]) {
 	color-scheme: dark;
-	/* #0f1419-ish slate */
-	--background: oklch(0.145 0.01 240);
-	--foreground: oklch(0.96 0.005 240);
-	--card: oklch(0.185 0.012 240);
-	--card-foreground: oklch(0.96 0.005 240);
-	--popover: oklch(0.2 0.012 240);
-	--popover-foreground: oklch(0.96 0.005 240);
-	/* teal primary */
-	--primary: oklch(0.72 0.12 185);
-	--primary-foreground: oklch(0.16 0.02 185);
-	--secondary: oklch(0.24 0.01 240);
-	--secondary-foreground: oklch(0.94 0.005 240);
-	--muted: oklch(0.24 0.01 240);
-	--muted-foreground: oklch(0.7 0.01 240);
-	/* accent = operator action green */
-	--accent: oklch(0.74 0.16 152);
-	--accent-foreground: oklch(0.18 0.04 152);
-	--destructive: oklch(0.62 0.2 25);
-	--success: oklch(0.68 0.15 150);
-	--warning: oklch(0.78 0.14 85);
-	--border: oklch(0.3 0.01 240);
-	--input: oklch(0.26 0.01 240);
-	--ring: oklch(0.72 0.12 185);
-	--chart-1: oklch(0.72 0.12 185);
-	--chart-2: oklch(0.74 0.16 152);
-	--chart-3: oklch(0.78 0.14 85);
-	--chart-4: oklch(0.62 0.2 25);
-	--chart-5: oklch(0.55 0.01 240);
-	--sidebar: oklch(0.16 0.01 240);
-	--sidebar-foreground: oklch(0.96 0.005 240);
-	--sidebar-primary: oklch(0.72 0.12 185);
-	--sidebar-primary-foreground: oklch(0.16 0.02 185);
-	--sidebar-accent: oklch(0.24 0.01 240);
-	--sidebar-accent-foreground: oklch(0.94 0.005 240);
-	--sidebar-border: oklch(0.3 0.01 240);
-	--sidebar-ring: oklch(0.72 0.12 185);
+	/* Warm-near-black ground (builder SaaS), teal stays the only saturated accent. */
+	--background: oklch(0.132 0.008 250);
+	--foreground: oklch(0.965 0.004 250);
+	--card: oklch(0.168 0.009 250);
+	--card-foreground: oklch(0.965 0.004 250);
+	--popover: oklch(0.19 0.01 250);
+	--popover-foreground: oklch(0.965 0.004 250);
+	/* Primary desaturated ~15% vs pure teal — dark-mode rule */
+	--primary: oklch(0.7 0.1 185);
+	--primary-foreground: oklch(0.15 0.02 185);
+	--secondary: oklch(0.22 0.008 250);
+	--secondary-foreground: oklch(0.94 0.004 250);
+	--muted: oklch(0.22 0.008 250);
+	--muted-foreground: oklch(0.68 0.012 250);
+	/* accent = operator action green — rare, high-intent */
+	--accent: oklch(0.72 0.14 152);
+	--accent-foreground: oklch(0.16 0.04 152);
+	--destructive: oklch(0.62 0.18 25);
+	--success: oklch(0.68 0.13 150);
+	--warning: oklch(0.76 0.12 85);
+	/* Hairline borders — rgba-white feel without glow */
+	--border: oklch(0.28 0.008 250);
+	--input: oklch(0.24 0.008 250);
+	--ring: oklch(0.7 0.1 185);
+	--chart-1: oklch(0.7 0.1 185);
+	--chart-2: oklch(0.72 0.14 152);
+	--chart-3: oklch(0.76 0.12 85);
+	--chart-4: oklch(0.62 0.18 25);
+	--chart-5: oklch(0.5 0.01 250);
+	--sidebar: oklch(0.15 0.008 250);
+	--sidebar-foreground: oklch(0.965 0.004 250);
+	--sidebar-primary: oklch(0.7 0.1 185);
+	--sidebar-primary-foreground: oklch(0.15 0.02 185);
+	--sidebar-accent: oklch(0.22 0.008 250);
+	--sidebar-accent-foreground: oklch(0.94 0.004 250);
+	--sidebar-border: oklch(0.28 0.008 250);
+	--sidebar-ring: oklch(0.7 0.1 185);
 }
 
 :root[data-theme='light'] {
@@ -187,12 +189,13 @@
 		@apply font-sans text-base antialiased;
 	}
 	body {
-		@apply bg-background text-foreground min-h-dvh text-sm leading-normal;
+		/* 16px body — ops density comes from TYPE_* tokens, not a sub-16 root. */
+		@apply bg-background text-foreground min-h-dvh text-base leading-normal;
 	}
 	h1,
 	h2,
 	h3 {
-		@apply font-heading font-semibold tracking-tight;
+		@apply font-heading font-semibold tracking-tight text-pretty;
 	}
 	/* Ops data must not get Fira Code programming ligatures (≠, ->, etc.). */
 	.font-mono,
@@ -207,6 +210,10 @@
 	}
 	a {
 		@apply text-primary cursor-pointer transition-colors duration-200 hover:underline;
+	}
+	/* Visited vs unvisited must stay distinguishable (design hard rule). */
+	a:visited {
+		color: color-mix(in oklch, var(--primary) 72%, var(--muted-foreground));
 	}
 	button:not(:disabled),
 	[role='button']:not([aria-disabled='true']) {
@@ -238,6 +245,27 @@
 }
 *::-webkit-scrollbar-thumb:hover {
 	background-color: var(--muted-foreground);
+}
+
+/*
+ * Auth atmosphere — on the page shell (header+main+footer) so the wash is one
+ * continuous plane, not a band trapped between chrome. Height for `.login-shell`
+ * lives here so Tailwind arbitrary `var(,)` commas cannot drop min-height.
+ */
+.login-atmosphere {
+	background-color: var(--background);
+	background-image: linear-gradient(
+		180deg,
+		color-mix(in oklch, var(--primary) 20%, var(--background)) 0%,
+		color-mix(in oklch, var(--primary) 9%, var(--background)) 32%,
+		color-mix(in oklch, var(--primary) 3%, var(--background)) 62%,
+		var(--background) 100%
+	);
+	background-repeat: no-repeat;
+}
+
+.login-shell {
+	min-height: calc(100dvh - var(--app-header-h) - 3.5rem);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -26,11 +26,7 @@
 	fill="none"
 	aria-hidden="true"
 	focusable="false"
-	class={cn(
-		'shrink-0 drop-shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_28%,transparent)]',
-		sizeClass,
-		className
-	)}
+	class={cn('shrink-0', sizeClass, className)}
 >
 	<rect width="120" height="44" rx="7" class="fill-card" />
 	<rect

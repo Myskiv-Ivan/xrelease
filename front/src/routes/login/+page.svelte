@@ -12,13 +12,12 @@
 	import { startOidcLogin } from '#lib/auth/oidc.js';
 	import { safeReturnTo } from '#lib/auth/return-to.js';
 	import type { AppRole } from '#lib/auth/types.js';
-	import AuthModeBadge from '#lib/components/auth/AuthModeBadge.svelte';
 	import AppBrand from '#lib/components/layout/AppBrand.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import Input from '#lib/components/kit/Input.svelte';
-	import Panel from '#lib/components/kit/Panel.svelte';
 	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
 	import { FIELD_GROUP, FIELD_STACK, TYPE_PAGE_TITLE, TYPE_MUTED } from '#lib/components/kit/layout-styles.js';
+	import { cn } from '#lib/utils.js';
 	import { fieldLabelClass } from '#lib/components/kit/surface-styles.js';
 	import { resolveApiError } from '#lib/core/errors.js';
 	import { t } from '#lib/i18n/index.js';
@@ -47,6 +46,7 @@
 	let isOidcStarting = $state(false);
 
 	const isBusy = $derived(isSubmitting || isOidcStarting);
+	const formSurface = 'rounded-lg border border-border bg-card p-4 sm:p-5';
 
 	onMount(() => {
 		initAuth();
@@ -122,15 +122,14 @@
 	}
 </script>
 
-<div
-	class="mx-auto flex w-full max-w-sm flex-col justify-center gap-6 py-8 sm:min-h-[calc(100dvh-10rem)] sm:max-w-md sm:gap-7 sm:py-10"
->
+<!-- Full-bleed wash (layout drops max-width on /login); form stays measured. -->
+<div class="login-shell flex flex-col px-4 py-10 sm:px-6 sm:py-12">
+	<div
+		class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 sm:max-w-md sm:gap-8"
+	>
 	<header class="flex flex-col items-center gap-4 text-center">
 		<AppBrand size="lg" layout="stack" />
-		<div class="flex flex-col items-center gap-2">
-			<h1 class={TYPE_PAGE_TITLE}>{t('login.title')}</h1>
-			<AuthModeBadge />
-		</div>
+		<h1 class={TYPE_PAGE_TITLE}>{t('login.title')}</h1>
 	</header>
 
 	{#if page.url.searchParams.get('oidc') === '1'}
@@ -147,58 +146,56 @@
 
 	<div class={FIELD_STACK}>
 		{#if showLocal}
-			<Panel>
-				<form class={FIELD_STACK} onsubmit={handleLocalSubmit}>
-					<div class={FIELD_GROUP}>
-						<label for="username" class={fieldLabelClass}>{t('login.username')}</label>
-						<Input
-							id="username"
-							type="text"
-							autocomplete="username"
-							placeholder={t('login.usernamePlaceholder')}
-							bind:value={username}
-							disabled={isBusy}
-						/>
-					</div>
-					<div class={FIELD_GROUP}>
-						<label for="password" class={fieldLabelClass}>{t('login.password')}</label>
-						<Input
-							id="password"
-							type="password"
-							autocomplete="current-password"
-							placeholder={t('login.passwordPlaceholder')}
-							bind:value={password}
-							disabled={isBusy}
-						/>
-					</div>
-					<Button type="submit" class="w-full" disabled={isBusy}>
-						{isSubmitting ? t('login.verifying') : t('login.continueLocal')}
-					</Button>
-				</form>
-
+			<form class={cn(FIELD_STACK, formSurface)} onsubmit={handleLocalSubmit}>
+				<div class={FIELD_GROUP}>
+					<label for="username" class={fieldLabelClass}>{t('login.username')}</label>
+					<Input
+						id="username"
+						type="text"
+						autocomplete="username"
+						placeholder={t('login.usernamePlaceholder')}
+						bind:value={username}
+						disabled={isBusy}
+					/>
+				</div>
+				<div class={FIELD_GROUP}>
+					<label for="password" class={fieldLabelClass}>{t('login.password')}</label>
+					<Input
+						id="password"
+						type="password"
+						autocomplete="current-password"
+						placeholder={t('login.passwordPlaceholder')}
+						bind:value={password}
+						disabled={isBusy}
+					/>
+				</div>
+				<Button type="submit" class="w-full" disabled={isBusy}>
+					{isSubmitting ? t('login.verifying') : t('login.continueLocal')}
+				</Button>
 				{#if showOidc}
-					<div class="relative mt-4 flex items-center justify-center py-0.5" role="separator">
+					<div class="relative flex items-center justify-center py-0.5" role="separator">
 						<div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
 						<span class="relative bg-card px-3 {TYPE_MUTED}">
 							{t('login.orSso')}
 						</span>
 					</div>
 					<Button
+						type="button"
 						variant="outline"
-						class="mt-4 w-full"
+						class="w-full"
 						disabled={isBusy}
 						onclick={() => void handleOidcLogin()}
 					>
 						{isOidcStarting ? t('login.oidcRedirecting') : t('login.oidcContinue')}
 					</Button>
 				{/if}
-			</Panel>
+			</form>
 		{:else if showOidc}
-			<Panel>
+			<div class={formSurface}>
 				<Button class="w-full" disabled={isBusy} onclick={() => void handleOidcLogin()}>
 					{isOidcStarting ? t('login.oidcRedirecting') : t('login.oidcContinue')}
 				</Button>
-			</Panel>
+			</div>
 		{/if}
 
 		{#if showApiKey}
@@ -210,28 +207,27 @@
 					</span>
 				</div>
 			{/if}
-			<Panel>
-				<form class={FIELD_STACK} onsubmit={handleApiKeySubmit}>
-					<div class={FIELD_GROUP}>
-						<label for="api-key" class={fieldLabelClass}>{t('login.apiKey')}</label>
-						<Input
-							id="api-key"
-							type="password"
-							autocomplete="off"
-							placeholder={t('login.placeholder')}
-							bind:value={apiKeyInput}
-							disabled={isBusy}
-						/>
-					</div>
-					<Button type="submit" class="w-full" disabled={isBusy}>
-						{isSubmitting ? t('login.verifying') : t('login.continue')}
-					</Button>
-				</form>
-			</Panel>
+			<form class={cn(FIELD_STACK, formSurface)} onsubmit={handleApiKeySubmit}>
+				<div class={FIELD_GROUP}>
+					<label for="api-key" class={fieldLabelClass}>{t('login.apiKey')}</label>
+					<Input
+						id="api-key"
+						type="password"
+						autocomplete="off"
+						placeholder={t('login.placeholder')}
+						bind:value={apiKeyInput}
+						disabled={isBusy}
+					/>
+				</div>
+				<Button type="submit" class="w-full" disabled={isBusy}>
+					{isSubmitting ? t('login.verifying') : t('login.continue')}
+				</Button>
+			</form>
 		{/if}
 
 		{#if !showOidc && !showApiKey && !showLocal}
 			<StatusBanner tone="danger">{t('login.noMethods')}</StatusBanner>
 		{/if}
+	</div>
 	</div>
 </div>

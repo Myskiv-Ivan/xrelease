@@ -36,7 +36,7 @@
 		<span class="hidden {TYPE_MUTED} xl:inline">{t('org.switcher')}</span>
 		<span class="sr-only xl:hidden">{t('org.switcher')}</span>
 		<Select
-			class="min-w-[9rem] max-w-[12rem]"
+			class="min-w-[10rem] max-w-[16rem]"
 			value={orgs.selectedId ?? ''}
 			aria-label={t('org.switcher')}
 			onchange={onOrgChange}

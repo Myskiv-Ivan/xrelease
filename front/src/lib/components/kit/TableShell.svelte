@@ -16,7 +16,7 @@
 		// `bg-card` so the table is its own surface: it renders both inside a
 		// Panel and bare on the page (Sources), and rows are opaque `bg-card`.
 		'w-full overflow-x-auto bg-card',
-		bordered && 'rounded-xl border border-border',
+		bordered && 'rounded-lg border border-border',
 		className
 	)}
 >

@@ -63,7 +63,6 @@
 		{#snippet actions()}
 			<Button
 				variant="outline"
-				size="sm"
 				disabled={isLoading || !network.isOnline}
 				onclick={() => void loadUsers()}
 			>

@@ -33,7 +33,7 @@
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
-		class={buttonVariants({ variant: 'outline', size: 'sm' })}
+		class={buttonVariants({ variant: 'outline', size: 'default' })}
 		aria-label={t('nav.account')}
 		title={t('nav.account')}
 	>

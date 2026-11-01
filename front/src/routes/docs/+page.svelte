@@ -43,7 +43,7 @@
 			bind:this={frame}
 			title={t('docs.title')}
 			src={embedSrc}
-			class="min-h-[calc(100dvh-12rem)] w-full rounded-xl border border-border bg-card"
+			class="min-h-[calc(100dvh-12rem)] w-full rounded-lg border border-border bg-card"
 			onload={postTheme}
 		></iframe>
 	</div>

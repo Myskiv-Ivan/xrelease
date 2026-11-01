@@ -14,9 +14,11 @@
 	let { title, actions, children, class: className = '' }: Props = $props();
 </script>
 
-<Card.Root size="sm" class={cn('min-w-0 overflow-hidden', className)}>
+<Card.Root size="sm" class={cn('min-w-0 overflow-hidden gap-0 py-0', className)}>
 	{#if title || actions}
-		<Card.Header class="flex flex-row items-center justify-between gap-3 space-y-0 px-4 pb-0 pt-0">
+		<Card.Header
+			class="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border/70 px-4 py-2.5"
+		>
 			{#if title}
 				<h2 class={TYPE_SECTION}>{title}</h2>
 			{/if}
@@ -27,7 +29,7 @@
 			{/if}
 		</Card.Header>
 	{/if}
-	<Card.Content class="min-w-0 px-4 pt-3 pb-4">
+	<Card.Content class="min-w-0 px-4 py-3">
 		{@render children()}
 	</Card.Content>
 </Card.Root>

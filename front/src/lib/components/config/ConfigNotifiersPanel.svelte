@@ -4,6 +4,7 @@
 	import Badge from '#lib/components/kit/Badge.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import Checkbox from '#lib/components/kit/Checkbox.svelte';
+	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import Input from '#lib/components/kit/Input.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import Select from '#lib/components/kit/Select.svelte';
@@ -34,7 +35,6 @@
 		TYPE_HINT,
 		TYPE_FIELD_ERROR,
 		TYPE_FIELD_WARNING,
-		TYPE_STATUS_WARNING,
 		FIELD_GROUP,
 		TYPE_OVERLINE,
 		TYPE_CODE
@@ -325,16 +325,16 @@
 
 <Panel title={t('config.notifiers')}>
 	{#snippet actions()}
-		<div class="flex flex-wrap items-center gap-2">
-			{#if notifiers.length > 0}
+		{#if notifiers.length > 0}
+			<div class="flex flex-wrap items-center gap-2">
 				<Button variant="ghost" size="sm" {disabled} onclick={collapseAll}>
 					{t('config.notifiersCollapseAll')}
 				</Button>
-			{/if}
-			<Button variant="outline" size="sm" {disabled} onclick={addNotifier}>
-				{t('config.notifiersAdd')}
-			</Button>
-		</div>
+				<Button variant="outline" size="sm" {disabled} onclick={addNotifier}>
+					{t('config.notifiersAdd')}
+				</Button>
+			</div>
+		{/if}
 	{/snippet}
 
 	<p class="mb-2 {TYPE_HINT}">{t('config.notifiersHint')}</p>
@@ -343,7 +343,17 @@
 	{/if}
 
 	{#if notifiers.length === 0}
-		<p class={TYPE_STATUS_WARNING}>{t('config.notifiersEmpty')}</p>
+		<EmptyState
+			variant="embedded"
+			title={t('config.notifiersEmpty')}
+			description={t('config.notifiersEmptyHint')}
+		>
+			{#snippet actions()}
+				<Button size="sm" {disabled} onclick={addNotifier}>
+					{t('config.notifiersAdd')}
+				</Button>
+			{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="mb-3 flex flex-wrap items-end gap-2">
 			<label class="{FIELD_GROUP} min-w-[10rem] flex-1 text-sm">

@@ -30,8 +30,8 @@
 		class: className = ''
 	}: Props = $props();
 
-	const trackSize = { sm: 'h-8', md: 'h-9' };
-	const segmentSize = { sm: 'px-2 text-xs', md: 'px-2.5 text-sm' };
+	const trackSize = { sm: 'h-9', md: 'h-11' };
+	const segmentSize = { sm: 'px-2.5 text-sm', md: 'px-3 text-sm' };
 
 	/**
 	 * Which segment holds the group's single tab stop. Falls back to the first
@@ -92,7 +92,7 @@
 				segmentSize[size],
 				'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
 				active
-					? 'bg-background text-foreground shadow-sm dark:border-input dark:bg-input/30'
+					? 'bg-background text-foreground dark:border-input dark:bg-input/40'
 					: 'text-foreground/60 hover:text-foreground dark:text-muted-foreground'
 			)}
 			onclick={() => (value = option.value)}

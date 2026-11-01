@@ -211,17 +211,17 @@
 						{t('config.graphReaches')}
 					{/if}
 				</Badge>
-				<Button variant="ghost" size="sm" onclick={() => (selected = null)}>
+				<Button variant="ghost" onclick={() => (selected = null)}>
 					{t('config.graphSelectionCleared')}
 				</Button>
 			{/if}
-			<Button variant="outline" size="sm" onclick={() => zoomBy(1 / 1.2)}>
+			<Button variant="outline" class="min-w-11" onclick={() => zoomBy(1 / 1.2)}>
 				<span aria-label={t('config.graphZoomOut')}>−</span>
 			</Button>
-			<Button variant="outline" size="sm" onclick={() => zoomBy(1.2)}>
+			<Button variant="outline" class="min-w-11" onclick={() => zoomBy(1.2)}>
 				<span aria-label={t('config.graphZoomIn')}>+</span>
 			</Button>
-			<Button variant="outline" size="sm" onclick={fit}>{t('config.graphFit')}</Button>
+			<Button variant="outline" class="min-w-11" onclick={fit}>{t('config.graphFit')}</Button>
 		</div>
 	</div>
 
