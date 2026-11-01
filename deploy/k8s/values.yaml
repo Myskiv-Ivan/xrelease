@@ -7,7 +7,7 @@
 #     -f deploy/k8s/values.secrets.yaml
 
 image:
-  tag: "0.3.1"
+  tag: "0.3.2"
 
 gateway:
   hostnames:
