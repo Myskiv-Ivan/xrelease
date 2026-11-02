@@ -85,19 +85,20 @@
 
 	{#if statusStore.status}
 		<div class={PAGE_STACK}>
-			<!-- Delivery + runtime as one band: two hairline strips, one page rhythm. -->
+			<!-- Asymmetric strips: one lead metric per band (no equal 4-up card grid). -->
 			<section class="flex flex-col gap-4">
 				<div class="flex flex-col gap-1.5">
 					<h2 class={TYPE_SECTION}>{t('overview.sectionStatus')}</h2>
-					<StatGrid columns={4}>
+					<StatGrid columns={4} layout="lead">
 						<StatCard
-							label={t('overview.sources')}
-							value={formatNumber(statusStore.status.sources_configured)}
-						/>
-						<StatCard
+							lead
 							label={t('overview.outboxPending')}
 							value={formatNumber(statusStore.status.outbox_pending)}
 							tone={statusStore.status.outbox_pending > 0 ? 'warning' : 'default'}
+						/>
+						<StatCard
+							label={t('overview.sources')}
+							value={formatNumber(statusStore.status.sources_configured)}
 						/>
 						<StatCard
 							label={t('overview.outboxDead')}
@@ -113,12 +114,13 @@
 				</div>
 				<div class="flex flex-col gap-1.5">
 					<h2 class={TYPE_SECTION}>{t('overview.sectionRuntime')}</h2>
-					<StatGrid columns={4}>
-						<StatCard label={t('overview.version')} value={statusStore.status.version} mono />
+					<StatGrid columns={4} layout="lead">
 						<StatCard
+							lead
 							label={t('overview.uptime')}
 							value={formatUptime(statusStore.status.uptime_secs)}
 						/>
+						<StatCard label={t('overview.version')} value={statusStore.status.version} mono />
 						<StatCard
 							label={t('overview.notificationsSent')}
 							value={formatNumber(statusStore.status.metrics.notifications_total)}

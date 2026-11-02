@@ -32,25 +32,31 @@
 </script>
 
 {#if orgs.isMultiOrg}
-	<label class="flex items-center gap-2" title={roleHint}>
-		<span class="hidden {TYPE_MUTED} xl:inline">{t('org.switcher')}</span>
-		<span class="sr-only xl:hidden">{t('org.switcher')}</span>
-		<Select
-			class="min-w-[10rem] max-w-[16rem]"
-			value={orgs.selectedId ?? ''}
-			aria-label={t('org.switcher')}
-			onchange={onOrgChange}
-		>
-			{#each orgs.organizations as org (org.id)}
-				<option value={org.id}>
-					{org.name}
-					{#if auth.organizationRoles[org.id]}
-						({auth.roleLabel(org.id)})
-					{/if}
-				</option>
-			{/each}
-		</Select>
-		<span class="hidden sm:inline">
+	<!-- Rail: stacked label + full-width select. Mobile top bar: compact row. -->
+	<label class="flex w-full flex-col gap-1 lg:gap-1.5" title={roleHint}>
+		<span class="hidden {TYPE_MUTED} lg:inline">{t('org.switcher')}</span>
+		<span class="sr-only lg:hidden">{t('org.switcher')}</span>
+		<div class="flex min-w-0 items-center gap-2">
+			<Select
+				class="min-w-0 w-full max-w-[12rem] lg:max-w-none"
+				value={orgs.selectedId ?? ''}
+				aria-label={t('org.switcher')}
+				onchange={onOrgChange}
+			>
+				{#each orgs.organizations as org (org.id)}
+					<option value={org.id}>
+						{org.name}
+						{#if auth.organizationRoles[org.id]}
+							({auth.roleLabel(org.id)})
+						{/if}
+					</option>
+				{/each}
+			</Select>
+			<span class="hidden shrink-0 sm:inline lg:hidden">
+				<Badge tone="muted">{auth.roleLabel(orgs.selectedId)}</Badge>
+			</span>
+		</div>
+		<span class="hidden lg:inline">
 			<Badge tone="muted">{auth.roleLabel(orgs.selectedId)}</Badge>
 		</span>
 	</label>

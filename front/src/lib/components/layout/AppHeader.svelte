@@ -1,19 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import Badge from '#lib/components/kit/Badge.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import HeaderMenu from '#lib/components/layout/HeaderMenu.svelte';
 	import OrgSwitcher from '#lib/components/layout/OrgSwitcher.svelte';
 	import AppBrand from '#lib/components/layout/AppBrand.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import { buttonVariants } from '#lib/components/ui/button/button.svelte';
-	import { LAYOUT_MAX } from '#lib/components/kit/layout-styles.js';
 	import { NAV_ITEMS } from '#lib/config/navigation.js';
 	import { getStatusStore } from '#lib/data/status.svelte.js';
 	import { t } from '#lib/i18n/index.js';
 	import { getAuthState } from '#lib/stores/auth.svelte.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { cn } from '#lib/utils.js';
 
 	const auth = getAuthState();
@@ -22,20 +17,26 @@
 	const visibleNavItems = $derived(
 		NAV_ITEMS.filter((item) => !item.permission || auth.hasPermission(item.permission))
 	);
-	const primaryNav = $derived(visibleNavItems.filter((item) => item.group === 'primary'));
-	const moreNav = $derived(visibleNavItems.filter((item) => item.group === 'more'));
-	/** The mobile row is flat — one scrollable list, no overflow menu. */
-	const mobileNav = $derived([...primaryNav, ...moreNav]);
+	/** Sidebar has room — primary + more in one left rail (no overflow menu). */
+	const railNav = $derived(visibleNavItems);
+	const mobileNav = $derived(visibleNavItems);
 
 	function isActive(href: string): boolean {
 		if (href === '/') return page.url.pathname === '/';
 		return page.url.pathname.startsWith(href);
 	}
 
-	const moreActive = $derived(moreNav.some((item) => isActive(item.href)));
 	const isAuthRoute = $derived(page.url.pathname.startsWith('/login'));
 
-	const navLinkClass = (active: boolean) =>
+	const railLinkClass = (active: boolean) =>
+		cn(
+			'relative flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2.5 text-sm no-underline transition-colors duration-150',
+			active
+				? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+				: 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+		);
+
+	const mobileLinkClass = (active: boolean) =>
 		cn(
 			'relative inline-flex min-h-11 cursor-pointer items-center gap-1.5 px-3 py-2 text-sm no-underline transition-colors duration-150',
 			active
@@ -44,84 +45,76 @@
 		);
 </script>
 
-<header
-	class={cn(
-		'sticky top-0 z-40 border-b border-border/80',
-		isAuthRoute ? 'border-transparent bg-transparent' : 'bg-background/95 backdrop-blur-md'
-	)}
->
-	<div class={cn('mx-auto flex h-14 items-center justify-between gap-4 px-4 sm:px-6', LAYOUT_MAX)}>
-		<div class="flex min-w-0 items-center gap-4 lg:gap-6">
-			{#if !isAuthRoute}
-				<a
-					href="/"
-					class="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
-				>
-					<AppBrand layout="inline" />
-				</a>
-			{/if}
-			{#if auth.isAuthenticated}
-				<nav class="hidden items-center gap-1 lg:flex" aria-label={t('nav.main')}>
-					{#each primaryNav as item (item.href)}
-						<a
-							href={item.href}
-							aria-current={isActive(item.href) ? 'page' : undefined}
-							class={navLinkClass(isActive(item.href))}
-						>
-							{t(item.labelKey)}
-							{#if item.badge && statusStore.outboxPending > 0}
-								<Badge tone="warning">{statusStore.outboxPending}</Badge>
-							{/if}
-						</a>
-					{/each}
-					{#if moreNav.length > 0}
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger
-								class={cn(
-									buttonVariants({ variant: 'ghost', size: 'default' }),
-									moreActive && 'bg-primary/15 text-primary'
-								)}
-								aria-label={t('nav.more')}
-							>
-								{t('nav.more')}
-								<ChevronDownIcon class="size-3.5 opacity-70" />
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content align="start" class="min-w-44">
-								{#each moreNav as item (item.href)}
-									<DropdownMenu.Item
-										class={isActive(item.href) ? 'bg-muted font-medium' : ''}
-										onclick={() => void goto(item.href)}
-									>
-										{t(item.labelKey)}
-									</DropdownMenu.Item>
-								{/each}
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					{/if}
-				</nav>
-			{/if}
+{#if isAuthRoute}
+	<!-- Login shell: no chrome chrome — brand lives on the page. -->
+{:else if auth.isAuthenticated}
+	<!--
+		Left titlebar / rail (lg+). Workbench chrome: brand + destinations left,
+		utilities pinned to the rail foot. Mobile keeps a compact top strip.
+	-->
+	<aside
+		data-app-rail
+		class="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex"
+		aria-label={t('nav.main')}
+	>
+		<div class="flex h-14 shrink-0 items-center border-b border-sidebar-border px-3">
+			<a
+				href="/"
+				class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
+			>
+				<AppBrand layout="inline" />
+			</a>
 		</div>
-		<div class="flex shrink-0 items-center gap-2">
-			{#if auth.isAuthenticated}
+
+		<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3" aria-label={t('nav.main')}>
+			{#each railNav as item (item.href)}
+				<a
+					href={item.href}
+					aria-current={isActive(item.href) ? 'page' : undefined}
+					class={railLinkClass(isActive(item.href))}
+				>
+					<span class="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+					{#if item.badge && statusStore.outboxPending > 0}
+						<Badge tone="warning">{statusStore.outboxPending}</Badge>
+					{/if}
+				</a>
+			{/each}
+		</nav>
+
+		<div
+			class="mt-auto flex flex-col gap-2 border-t border-sidebar-border px-2 py-3"
+		>
+			<OrgSwitcher />
+			<HeaderMenu />
+		</div>
+	</aside>
+
+	<!-- Mobile / tablet top bar -->
+	<header
+		class="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md lg:hidden"
+	>
+		<div class="flex h-14 items-center justify-between gap-3 px-4">
+			<a
+				href="/"
+				class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
+			>
+				<AppBrand layout="inline" />
+			</a>
+			<div class="flex shrink-0 items-center gap-2">
 				<OrgSwitcher />
 				<HeaderMenu />
-			{:else if !isAuthRoute}
-				<Button href="/login">{t('nav.signIn')}</Button>
-			{/if}
+			</div>
 		</div>
-	</div>
-	{#if auth.isAuthenticated}
-		<!-- data-mobile-nav drives --app-header-h in app.css (sticky offsets) -->
 		<nav
 			data-mobile-nav
-			class="flex gap-1.5 overflow-x-auto border-t border-border px-4 py-2 lg:hidden"
+			class="flex gap-1.5 overflow-x-auto border-t border-border px-4 py-2"
 			aria-label={t('nav.mobile')}
 		>
 			{#each mobileNav as item (item.href)}
 				<a
 					href={item.href}
 					aria-current={isActive(item.href) ? 'page' : undefined}
-					class="{navLinkClass(isActive(item.href))} shrink-0"
+					class="{mobileLinkClass(isActive(item.href))} shrink-0"
 				>
 					{t(item.labelKey)}
 					{#if item.badge && statusStore.outboxPending > 0}
@@ -130,5 +123,17 @@
 				</a>
 			{/each}
 		</nav>
-	{/if}
-</header>
+	</header>
+{:else}
+	<header class="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md">
+		<div class="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
+			<a
+				href="/"
+				class="flex min-h-11 cursor-pointer items-center gap-2 font-semibold no-underline hover:no-underline"
+			>
+				<AppBrand layout="inline" />
+			</a>
+			<Button href="/login">{t('nav.signIn')}</Button>
+		</div>
+	</header>
+{/if}

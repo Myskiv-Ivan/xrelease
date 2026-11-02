@@ -58,6 +58,8 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Fixed
 
+- Operate chrome: authenticated desktop uses a **left title rail** (brand + nav +
+  account) instead of a top AI-nav bar; page titles stay hard-left.
 - OIDC / login navigation: resume `returnTo` when already signed in; 401 recovery
   clears the session locally without racing an IdP end-session redirect that
   dropped the deep link; callback uses `replaceState` so Back does not replay

@@ -16,9 +16,11 @@
 		tone?: SurfaceTone;
 		/** Render the value in a monospace face (versions, tags, hashes). */
 		mono?: boolean;
+		/** Hero metric inside a `StatGrid layout="lead"` first cell. */
+		lead?: boolean;
 	}
 
-	let { label, value, hint, tone = 'default', mono = false }: Props = $props();
+	let { label, value, hint, tone = 'default', mono = false, lead = false }: Props = $props();
 </script>
 
 <!--
@@ -28,12 +30,19 @@
 <div
 	class={cn(
 		'flex min-w-0 flex-col justify-center px-4 py-3',
+		lead && 'sm:px-5 sm:py-4',
 		tone !== 'default' && toneTintClass[tone]
 	)}
 >
 	<p class={statLabelClass}>{label}</p>
 	<p
-		class={cn(statValueClass, toneTextClass[tone], mono && 'font-mono', 'truncate')}
+		class={cn(
+			statValueClass,
+			lead && 'sm:text-3xl',
+			toneTextClass[tone],
+			mono && 'font-mono',
+			'truncate'
+		)}
 		title={String(value)}
 	>
 		{value}

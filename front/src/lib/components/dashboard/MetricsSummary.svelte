@@ -4,7 +4,7 @@
 	import Button from '#lib/components/kit/Button.svelte';
 	import KeyValueList from '#lib/components/kit/KeyValueList.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
-	import { PANEL_GRID } from '#lib/components/kit/layout-styles.js';
+	import { TYPE_SECTION } from '#lib/components/kit/layout-styles.js';
 	import type { KeyValueItem } from '#lib/types/ui.js';
 	import { t } from '#lib/i18n/index.js';
 
@@ -80,26 +80,25 @@
 	]);
 </script>
 
-<div class={PANEL_GRID}>
-	<Panel title={t('overview.globalMetrics')}>
-		{#snippet actions()}
-			<Button
-				href={getMetricsUrl()}
-				variant="ghost"
-				target="_blank"
-				rel="noopener noreferrer"
-			>
-				{t('overview.openPrometheus')}
-			</Button>
-		{/snippet}
+<!-- One panel, internal sections — avoids a 3-card equal grid. -->
+<Panel title={t('overview.globalMetrics')}>
+	{#snippet actions()}
+		<Button href={getMetricsUrl()} variant="ghost" target="_blank" rel="noopener noreferrer">
+			{t('overview.openPrometheus')}
+		</Button>
+	{/snippet}
+
+	<div class="flex flex-col gap-5">
 		<KeyValueList items={metricItems} layout="grid" columns={2} />
-	</Panel>
 
-	<Panel title={t('overview.webhookActivity')}>
-		<KeyValueList items={webhookItems} layout="grid" columns={2} />
-	</Panel>
+		<section class="border-t border-border/70 pt-4">
+			<h3 class="mb-2.5 {TYPE_SECTION}">{t('overview.webhookActivity')}</h3>
+			<KeyValueList items={webhookItems} layout="grid" columns={2} />
+		</section>
 
-	<Panel title={t('overview.deliveryHealth')} class="lg:col-span-2">
-		<KeyValueList items={deliveryItems} layout="grid" columns={3} />
-	</Panel>
-</div>
+		<section class="border-t border-border/70 pt-4">
+			<h3 class="mb-2.5 {TYPE_SECTION}">{t('overview.deliveryHealth')}</h3>
+			<KeyValueList items={deliveryItems} layout="grid" columns={3} />
+		</section>
+	</div>
+</Panel>

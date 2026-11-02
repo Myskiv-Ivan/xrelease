@@ -33,14 +33,14 @@
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
-		class={buttonVariants({ variant: 'outline', size: 'default' })}
+		class="{buttonVariants({ variant: 'ghost', size: 'default' })} w-full justify-between px-2.5 lg:max-w-none"
 		aria-label={t('nav.account')}
 		title={t('nav.account')}
 	>
-		<span class="max-w-[8rem] truncate">{triggerLabel}</span>
-		<ChevronDownIcon class="size-3.5 opacity-70" />
+		<span class="min-w-0 flex-1 truncate text-left">{triggerLabel}</span>
+		<ChevronDownIcon class="size-3.5 shrink-0 opacity-70" />
 	</DropdownMenu.Trigger>
-	<DropdownMenu.Content align="end" class="min-w-52">
+	<DropdownMenu.Content align="start" class="min-w-52 lg:min-w-[13rem]">
 		{#if auth.profile}
 			<DropdownMenu.Label class="font-normal">
 				<div class="flex flex-col gap-0.5">

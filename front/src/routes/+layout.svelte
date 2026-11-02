@@ -21,6 +21,7 @@
 		getRefreshIntervalMs
 	} from '#lib/stores/settings.svelte.js';
 	import { t } from '#lib/i18n/index.js';
+	import { cn } from '#lib/utils.js';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
@@ -92,7 +93,14 @@
 {#if isEmbedShell}
 	{@render children()}
 {:else}
-	<div class="flex min-h-dvh flex-col {isLoginShell ? 'login-atmosphere' : ''}">
+	<div
+		class={cn(
+			'flex min-h-dvh flex-col',
+			isLoginShell && 'login-atmosphere',
+			/* Desktop rail: offset the whole column so content clears the fixed sidebar. */
+			!isLoginShell && auth.isAuthenticated && 'lg:pl-56'
+		)}
+	>
 		<a
 			href="#main-content"
 			class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-md"

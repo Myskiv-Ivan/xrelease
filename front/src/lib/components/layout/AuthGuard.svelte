@@ -32,7 +32,7 @@
 		{@render children()}
 	</RoleGuard>
 {:else if auth.isReady}
-	<div class="mx-auto max-w-md px-4 py-16 text-center text-muted-foreground">
+	<div class="px-4 py-16 text-sm text-muted-foreground">
 		{t('common.redirecting')}
 	</div>
 {:else}

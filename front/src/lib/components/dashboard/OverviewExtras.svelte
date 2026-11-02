@@ -44,21 +44,25 @@
 		return { healthy, stale, errors };
 	});
 
-		const attentionSources = $derived.by(() => {
-			return sourcesStore.sources
-				.filter((source) => sourceHealth(source) !== 'ok')
-				.sort((a, b) => {
-					const rank = (source: SourceDetail) => {
-						if (source.consecutive_errors > 0) return 0;
-						if (sourceHealth(source) === 'warning') return 1;
-						return 2;
-					};
-					return (
-						rank(a) - rank(b) || b.consecutive_errors - a.consecutive_errors
-					);
-				})
-				.slice(0, 6);
-		});
+	const attentionSources = $derived.by(() => {
+		return sourcesStore.sources
+			.filter((source) => sourceHealth(source) !== 'ok')
+			.sort((a, b) => {
+				const rank = (source: SourceDetail) => {
+					if (source.consecutive_errors > 0) return 0;
+					if (sourceHealth(source) === 'warning') return 1;
+					return 2;
+				};
+				return rank(a) - rank(b) || b.consecutive_errors - a.consecutive_errors;
+			})
+			.slice(0, 6);
+	});
+
+	const healthLead = $derived.by(() => {
+		if (healthCounts.errors > 0) return 'errors' as const;
+		if (healthCounts.stale > 0) return 'stale' as const;
+		return 'healthy' as const;
+	});
 
 	const configView = $derived(config.global.view);
 	const orgDesired = $derived(config.org.view?.desired_content ?? null);
@@ -69,22 +73,59 @@
 <div class={PANEL_STACK}>
 	{#if sourcesStore.sources.length > 0}
 		<Section title={t('overview.sectionHealth')}>
-			<StatGrid columns={3}>
-				<StatCard
-					label={t('overview.healthySources')}
-					value={formatNumber(healthCounts.healthy)}
-					tone="success"
-				/>
-				<StatCard
-					label={t('overview.staleSources')}
-					value={formatNumber(healthCounts.stale)}
-					tone={healthCounts.stale > 0 ? 'warning' : 'default'}
-				/>
-				<StatCard
-					label={t('overview.errorSources')}
-					value={formatNumber(healthCounts.errors)}
-					tone={healthCounts.errors > 0 ? 'danger' : 'default'}
-				/>
+			<StatGrid columns={3} layout="lead">
+				{#if healthLead === 'errors'}
+					<StatCard
+						lead
+						label={t('overview.errorSources')}
+						value={formatNumber(healthCounts.errors)}
+						tone="danger"
+					/>
+					<StatCard
+						label={t('overview.staleSources')}
+						value={formatNumber(healthCounts.stale)}
+						tone={healthCounts.stale > 0 ? 'warning' : 'default'}
+					/>
+					<StatCard
+						label={t('overview.healthySources')}
+						value={formatNumber(healthCounts.healthy)}
+						tone="success"
+					/>
+				{:else if healthLead === 'stale'}
+					<StatCard
+						lead
+						label={t('overview.staleSources')}
+						value={formatNumber(healthCounts.stale)}
+						tone="warning"
+					/>
+					<StatCard
+						label={t('overview.errorSources')}
+						value={formatNumber(healthCounts.errors)}
+						tone={healthCounts.errors > 0 ? 'danger' : 'default'}
+					/>
+					<StatCard
+						label={t('overview.healthySources')}
+						value={formatNumber(healthCounts.healthy)}
+						tone="success"
+					/>
+				{:else}
+					<StatCard
+						lead
+						label={t('overview.healthySources')}
+						value={formatNumber(healthCounts.healthy)}
+						tone="success"
+					/>
+					<StatCard
+						label={t('overview.staleSources')}
+						value={formatNumber(healthCounts.stale)}
+						tone="default"
+					/>
+					<StatCard
+						label={t('overview.errorSources')}
+						value={formatNumber(healthCounts.errors)}
+						tone="default"
+					/>
+				{/if}
 			</StatGrid>
 		</Section>
 	{/if}
@@ -137,10 +178,7 @@
 
 	{#if attentionSources.length === 0}
 		<!-- Healthy: a status line, not an empty card. -->
-		<p
-			class="rounded-lg border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground"
-			role="status"
-		>
+		<p class="border-t border-border/70 pt-3 text-sm text-muted-foreground" role="status">
 			<span class="font-medium text-foreground">{t('overview.needsAttention')}</span>
 			<span class="text-border" aria-hidden="true"> · </span>
 			{t('overview.needsAttentionEmpty')}

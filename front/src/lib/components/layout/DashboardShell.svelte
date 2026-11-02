@@ -57,10 +57,13 @@
 
 <AuthGuard {permission}>
 	<div class={PAGE_STACK}>
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-			<PageHeader {title} {description} />
+		<!-- Title hard-left; actions trail on the same row (ops Workbench, not centered hero). -->
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+			<div class="min-w-0 flex-1 text-left">
+				<PageHeader {title} {description} />
+			</div>
 			{#if actions}
-				<div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+				<div class="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
 					{@render actions()}
 				</div>
 			{/if}

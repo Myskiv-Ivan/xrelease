@@ -129,8 +129,8 @@
 	<div
 		class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 sm:max-w-md sm:gap-8"
 	>
-	<header class="flex flex-col items-center gap-4 text-center">
-		<AppBrand size="lg" layout="stack" />
+	<header class="flex flex-col gap-3">
+		<AppBrand size="lg" layout="inline" />
 		<h1 class={TYPE_PAGE_TITLE}>{t('login.title')}</h1>
 	</header>
 

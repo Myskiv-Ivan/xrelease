@@ -94,8 +94,15 @@
 }
 
 @media (width >= 64rem) {
+	/* Desktop left rail replaces the sticky top bar — sticky in-page chrome pins to 0. */
+	:root:has([data-app-rail]) {
+		--app-header-h: 0rem;
+	}
 	:root:has(nav[data-mobile-nav]) {
 		--app-header-h: 3.5rem;
+	}
+	:root:has([data-app-rail]):has(nav[data-mobile-nav]) {
+		--app-header-h: 0rem;
 	}
 }
 
