@@ -49,7 +49,11 @@ export const en = {
 		of: 'of',
 		exportCsv: 'Export CSV',
 		skipToContent: 'Skip to content',
-		openConfig: 'Open Config'
+		openConfig: 'Open Config',
+		tablePageSize: 'Per page',
+		tableRange: '{start}–{end} of {total}',
+		tablePrev: 'Previous',
+		tableNext: 'Next'
 	},
 	outboxStatus: {
 		all: 'All',
@@ -276,12 +280,7 @@ export const en = {
 		history: 'Revision history',
 		historyEmpty: 'No ledger revisions yet.',
 		historyTotal: 'revisions',
-		historyPageSize: 'Per page',
-		historyPageAll: 'All',
 		historyPageEmpty: 'No revisions on this page.',
-		historyRange: '{start}–{end} of {total}',
-		historyPrev: 'Previous',
-		historyNext: 'Next',
 		sourcesFilterSearch: 'Search sources…',
 		sourcesFilterKind: 'Kind',
 		sourcesFilterKindAll: 'All kinds',
@@ -466,6 +465,8 @@ export const en = {
 		routingParseError: 'Could not parse desired document for the routing graph.',
 		graphTitle: 'Routing graph',
 		graphHint: 'Drag to pan · scroll to zoom · click to trace',
+		graphLargeHint:
+			'Large map — sources wrap into lanes; pan/zoom or Fit to scan the full topology.',
 		graphFit: 'Fit',
 		graphZoomIn: 'Zoom in',
 		graphZoomOut: 'Zoom out',

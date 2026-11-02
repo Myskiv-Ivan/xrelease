@@ -201,7 +201,30 @@ export function loginWithOidcSession(): void {
 	void refreshAuthMe();
 }
 
-export async function logout(): Promise<void> {
+/**
+ * Apply roles from `POST /auth/oidc/sync` without wiping an in-flight `/auth/me`.
+ * Callers already wrote tokens; this only stamps the authoritative role map.
+ */
+export function applyOidcSyncedRoles(
+	global: AppRole,
+	perOrg: Record<string, AppRole> = {}
+): void {
+	writeOidcAppRole(global);
+	writeOidcOrganizationRoles(Object.keys(perOrg).length > 0 ? perOrg : null);
+	serverRoles = { global, perOrg };
+	syncProfile();
+}
+
+/**
+ * Clear the Operate session.
+ *
+ * `federated` (default true) also sends the browser to the IdP end-session
+ * endpoint when OIDC is in use. Pass `federated: false` for 401 recovery —
+ * a mid-request auth failure must land on `/login?returnTo=…`, not race an
+ * IdP redirect that drops the deep link.
+ */
+export async function logout(options?: { federated?: boolean }): Promise<void> {
+	const federated = options?.federated ?? true;
 	const mode = getAuthMode();
 
 	if (mode === 'local' || mode === 'hybrid') {
@@ -228,7 +251,7 @@ export async function logout(): Promise<void> {
 	resetOrgConfigStore();
 	resetOrganizationsStore();
 
-	if (mode === 'oidc' || mode === 'hybrid') {
+	if (federated && (mode === 'oidc' || mode === 'hybrid')) {
 		await endOidcSession();
 	}
 }

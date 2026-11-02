@@ -1,10 +1,9 @@
 <script lang="ts">
 	import type { ConfigRevisionSummary } from '#lib/api/types.js';
 	import Badge from '#lib/components/kit/Badge.svelte';
-	import Button from '#lib/components/kit/Button.svelte';
 	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
-	import Select from '#lib/components/kit/Select.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import Timestamp from '#lib/components/kit/Timestamp.svelte';
 	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import {
@@ -18,9 +17,10 @@
 	import { EMPTY_VALUE } from '#lib/core/format.js';
 	import { parseAppliedBy, type AppliedBy } from '#lib/config/applied-by.js';
 	import {
-		REVISIONS_PAGE_ALL,
-		REVISIONS_PAGE_DEFAULT
-	} from '#lib/data/config-resources.svelte.js';
+		REVISIONS_PAGE_SIZES,
+		TABLE_PAGE_DEFAULT,
+		revisionsApiLimit
+	} from '#lib/core/table-pagination.js';
 	import { t } from '#lib/i18n/index.js';
 
 	interface Props {
@@ -35,16 +35,10 @@
 	let {
 		revisions,
 		total,
-		limit = REVISIONS_PAGE_DEFAULT,
+		limit = TABLE_PAGE_DEFAULT,
 		offset = 0,
 		onWindowChange
 	}: Props = $props();
-
-	const pageSizeKey = $derived(limit >= REVISIONS_PAGE_ALL ? 'all' : String(limit));
-	const rangeStart = $derived(total === 0 ? 0 : offset + 1);
-	const rangeEnd = $derived(Math.min(offset + revisions.length, total));
-	const canPrev = $derived(offset > 0);
-	const canNext = $derived(offset + revisions.length < total);
 
 	function originLabel(origin: AppliedBy['origin']): string {
 		if (origin === 'local') return t('config.originLocal');
@@ -54,23 +48,9 @@
 		return t('config.originUnknown');
 	}
 
-	function resolveLimit(key: string): number {
-		if (key === 'all') return REVISIONS_PAGE_ALL;
-		const n = Number(key);
-		return Number.isFinite(n) && n > 0 ? n : REVISIONS_PAGE_DEFAULT;
-	}
-
-	function changePageSize(key: string) {
-		void onWindowChange?.(resolveLimit(key), 0);
-	}
-
-	function goPrev() {
-		const nextOffset = Math.max(0, offset - limit);
-		void onWindowChange?.(limit, nextOffset);
-	}
-
-	function goNext() {
-		void onWindowChange?.(limit, offset + limit);
+	function changeWindow(nextLimit: number, nextOffset: number) {
+		// UI sizes already ≤ 200; clamp is defense-in-depth against hand-rolled callers.
+		void onWindowChange?.(revisionsApiLimit(nextLimit), nextOffset);
 	}
 </script>
 
@@ -86,41 +66,6 @@
 	{#if revisions.length === 0 && total === 0}
 		<EmptyState title={t('config.historyEmpty')} />
 	{:else}
-		<div class="mb-3 flex flex-wrap items-center gap-3">
-			<span class="{TYPE_MUTED} tabular-nums text-sm">
-				{t('config.historyRange')
-					.replace('{start}', String(rangeStart))
-					.replace('{end}', String(rangeEnd))
-					.replace('{total}', String(total))}
-			</span>
-			{#if onWindowChange}
-				<div class="ml-auto flex flex-wrap items-center gap-2">
-					<label class="flex items-center gap-2 text-sm">
-						<span class="{TYPE_MUTED} text-xs whitespace-nowrap">
-							{t('config.historyPageSize')}
-						</span>
-						<Select
-							class="h-9 w-auto min-w-[4.5rem]"
-							aria-label={t('config.historyPageSize')}
-							value={pageSizeKey}
-							onchange={(e) => changePageSize(e.currentTarget.value)}
-						>
-							<option value="10">10</option>
-							<option value="20">20</option>
-							<option value="50">50</option>
-							<option value="all">{t('config.historyPageAll')}</option>
-						</Select>
-					</label>
-					<Button variant="ghost" size="sm" disabled={!canPrev} onclick={goPrev}>
-						{t('config.historyPrev')}
-					</Button>
-					<Button variant="ghost" size="sm" disabled={!canNext} onclick={goNext}>
-						{t('config.historyNext')}
-					</Button>
-				</div>
-			{/if}
-		</div>
-
 		{#if revisions.length === 0}
 			<p class={TYPE_MUTED}>{t('config.historyPageEmpty')}</p>
 		{:else}
@@ -183,6 +128,16 @@
 					{/each}
 				</tbody>
 			</TableShell>
+		{/if}
+
+		{#if onWindowChange}
+			<TablePagination
+				{total}
+				{limit}
+				{offset}
+				pageSizes={REVISIONS_PAGE_SIZES}
+				onWindowChange={changeWindow}
+			/>
 		{/if}
 	{/if}
 </Panel>

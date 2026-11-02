@@ -4,11 +4,7 @@
 	import { api } from '#lib/api/client.js';
 	import { requiresApiKeyForApi } from '#lib/auth/config.js';
 	import { getStoredApiKey } from '#lib/auth/credentials.js';
-	import {
-		completeOidcCallback,
-		writeOidcAppRole,
-		writeOidcOrganizationRoles
-	} from '#lib/auth/oidc.js';
+	import { completeOidcCallback } from '#lib/auth/oidc.js';
 	import { sanitizeReturnTo } from '#lib/auth/return-to.js';
 	import type { AppRole } from '#lib/auth/types.js';
 	import AppBrand from '#lib/components/layout/AppBrand.svelte';
@@ -20,7 +16,11 @@
 	import { APP_VERSION } from '#lib/core/constants.js';
 	import { resolveApiError } from '#lib/core/errors.js';
 	import { t } from '#lib/i18n/index.js';
-	import { initAuth, loginWithOidcSession } from '#lib/stores/auth.svelte.js';
+	import {
+		applyOidcSyncedRoles,
+		initAuth,
+		loginWithOidcSession
+	} from '#lib/stores/auth.svelte.js';
 	import { initSettings } from '#lib/stores/settings.svelte.js';
 	import { onMount } from 'svelte';
 
@@ -40,22 +40,23 @@
 
 				try {
 					const synced = await api.syncOidcUser();
-					writeOidcAppRole(synced.role as AppRole);
-					writeOidcOrganizationRoles(
+					applyOidcSyncedRoles(
+						synced.role as AppRole,
 						(synced.organization_roles ?? {}) as Record<string, AppRole>
 					);
-					loginWithOidcSession();
 				} catch {
 					// Soft-fail: client-side claim mapping still works for this session.
+					// (403 when auto-provisioning is off still leaves a valid JWT.)
 				}
 
 				if (requiresApiKeyForApi() && !getStoredApiKey()) {
 					const loginUrl = `/login?returnTo=${encodeURIComponent(returnTo)}&oidc=1`;
-					await goto(loginUrl);
+					await goto(loginUrl, { replaceState: true });
 					return;
 				}
 
-				await goto(returnTo);
+				// replaceState so Back does not re-hit /login/callback?code=… (reuse fails).
+				await goto(returnTo, { replaceState: true });
 			} catch (err) {
 				error = resolveApiError(err, t('login.oidcFailed'));
 			}

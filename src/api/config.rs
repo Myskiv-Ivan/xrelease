@@ -224,7 +224,8 @@ impl RevisionsQuery {
 
 /// Largest history page a single request may fetch.
 const REVISIONS_MAX_LIMIT: i64 = 200;
-const REVISIONS_DEFAULT_LIMIT: i64 = 50;
+/// Matches Operate UI table default (`TABLE_PAGE_DEFAULT` = 10).
+const REVISIONS_DEFAULT_LIMIT: i64 = 10;
 
 /// `GET /api/v1/config/revisions` — paginated apply/reject audit history.
 ///

@@ -185,7 +185,7 @@ export const api = {
 		return { view, etag };
 	},
 	getConfigSchema: () => request<ConfigSchema>('/api/v1/config/schema'),
-	listConfigRevisions: (limit = 50, offset = 0) =>
+	listConfigRevisions: (limit = 10, offset = 0) =>
 		request<ConfigRevisionsResponse>(
 			`/api/v1/config/revisions?limit=${limit}&offset=${offset}`
 		),
@@ -270,7 +270,7 @@ export const api = {
 		const view = (await response.json()) as OrganizationConfigView;
 		return { view, etag: response.headers.get('ETag') };
 	},
-	listOrgConfigRevisions: (org: string, limit = 50, offset = 0) =>
+	listOrgConfigRevisions: (org: string, limit = 10, offset = 0) =>
 		request<OrganizationRevisionsResponse>(
 			`/api/v1/organizations/${encodeURIComponent(org)}/config/revisions?limit=${limit}&offset=${offset}`
 		),

@@ -5,7 +5,6 @@
 	import {
 		buildRoutingFlow,
 		traceConnections,
-		NODE_HEIGHT,
 		NODE_WIDTH,
 		type FlowNode,
 		type FlowWarning
@@ -21,7 +20,7 @@
 		fill?: boolean;
 	}
 
-	let { graph, height = 'min(70dvh, 42rem)', fill = false }: Props = $props();
+	let { graph, height = 'min(62dvh, 36rem)', fill = false }: Props = $props();
 
 	const MIN_SCALE = 0.2;
 	const MAX_SCALE = 2.5;
@@ -300,7 +299,7 @@
 								: state === 'dim'
 									? 'border-border bg-card opacity-25'
 									: 'border-border bg-card hover:border-accent/60 hover:shadow-sm'}"
-						style="left: {node.x}px; top: {node.y}px; width: {NODE_WIDTH}px; height: {NODE_HEIGHT}px;"
+						style="left: {node.x}px; top: {node.y}px; width: {NODE_WIDTH}px; height: {node.height}px;"
 						aria-pressed={selected === node.id}
 						onclick={() => (selected = selected === node.id ? null : node.id)}
 						onmouseenter={() => (hovered = node.id)}

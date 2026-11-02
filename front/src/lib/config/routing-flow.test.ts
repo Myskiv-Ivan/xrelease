@@ -234,15 +234,41 @@ describe('traceConnections', () => {
 });
 
 describe('preferredRoutingViewportHeight', () => {
-	it('grows with tall graphs instead of clamping to a short viewport', () => {
-		// 20 sources ≈ 20*56 + 19*12 + 48 content
-		const tall = 20 * 56 + 19 * 12 + 48;
-		const height = preferredRoutingViewportHeight(tall, { min: 400, max: 2000 });
-		expect(height).toBeGreaterThanOrEqual(tall);
-		expect(height).toBeLessThanOrEqual(2000);
+	it('caps the canvas instead of stretching the page for tall graphs', () => {
+		const height = preferredRoutingViewportHeight(4000, { min: 352, max: 576 });
+		expect(height).toBeLessThanOrEqual(576);
+		expect(height).toBeGreaterThanOrEqual(352);
 	});
 
-	it('respects min when the graph is small', () => {
+	it('respects min when the preferred box would be smaller', () => {
 		expect(preferredRoutingViewportHeight(100, { min: 500, max: 900 })).toBe(500);
+	});
+});
+
+describe('multi-lane packing', () => {
+	it('wraps 20 sources into two lanes so the stack stays short', () => {
+		const sources = Array.from({ length: 20 }, (_, i) => `  - id: src-${i}
+    type: github
+    repo: org/repo-${i}
+    routing_tag: platform`).join('\n');
+		const doc = `notifiers:
+  - type: webhook
+    name: firehose
+    url: https://hooks.example/all
+teams:
+  - tag: platform
+    name: Platform
+sources:
+${sources}
+`;
+		const flow = flowFrom(doc);
+		const sourceNodes = flow.nodes.filter((n) => n.kind === 'source');
+		expect(sourceNodes).toHaveLength(20);
+		const xs = new Set(sourceNodes.map((n) => n.x));
+		expect(xs.size).toBe(2);
+		// 10 compact rows ≈ 10*44 + 9*8 < single-lane 20*56
+		const maxY = Math.max(...sourceNodes.map((n) => n.y + n.height));
+		expect(maxY).toBeLessThan(20 * 56);
+		expect(sourceNodes.every((n) => n.height === 44)).toBe(true);
 	});
 });

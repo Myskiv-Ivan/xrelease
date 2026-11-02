@@ -10,6 +10,7 @@ import {
 	type JwtPayload
 } from '#lib/auth/jwt.js';
 import { verifyJwtWithJwks } from '#lib/auth/jwks.js';
+import { notifyAuthProfileSync } from '#lib/auth/sync.js';
 import type { OidcProfile, OidcTokens } from '#lib/auth/types.js';
 
 interface OidcPendingState {
@@ -376,6 +377,7 @@ export async function refreshOidcTokensIfNeeded(): Promise<OidcTokens | null> {
 
 	if (!stored.refreshToken) {
 		writeOidcTokens(null);
+		notifyAuthProfileSync();
 		return null;
 	}
 
@@ -397,6 +399,7 @@ export async function refreshOidcTokensIfNeeded(): Promise<OidcTokens | null> {
 
 	if (!response.ok) {
 		writeOidcTokens(null);
+		notifyAuthProfileSync();
 		return null;
 	}
 

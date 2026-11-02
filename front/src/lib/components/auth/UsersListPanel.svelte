@@ -7,8 +7,10 @@
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import StatusBanner from '#lib/components/kit/StatusBanner.svelte';
 	import UsersTable from '#lib/components/auth/UsersTable.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 	import { resolveApiError } from '#lib/core/errors.js';
+	import { createTablePager } from '#lib/core/table-pager.svelte.js';
 	import { t } from '#lib/i18n/index.js';
 	import { getAuthState } from '#lib/stores/auth.svelte.js';
 	import { getNetworkState } from '#lib/stores/network.svelte.js';
@@ -23,10 +25,13 @@
 
 	const auth = getAuthState();
 	const network = getNetworkState();
+	const pager = createTablePager();
 
 	let users = $state<AuthUserView[]>([]);
 	let loadError = $state<string | null>(null);
 	let isLoading = $state(false);
+
+	const pageWindow = $derived(pager.slice(users));
 
 	const canManage = $derived(auth.hasPermission('settings:write'));
 
@@ -83,7 +88,13 @@
 		{:else if users.length === 0}
 			<EmptyState title={t('users.emptyTitle')} description={t('users.emptyDescription')} />
 		{:else}
-			<UsersTable {users} />
+			<UsersTable users={pageWindow.items} />
+			<TablePagination
+				total={users.length}
+				limit={pager.limit}
+				offset={pageWindow.offset}
+				onWindowChange={pager.setWindow}
+			/>
 		{/if}
 	</Panel>
 {/if}

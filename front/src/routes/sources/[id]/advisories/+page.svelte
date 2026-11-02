@@ -7,6 +7,7 @@
 	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import Select from '#lib/components/kit/Select.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
 	import { TYPE_HINT } from '#lib/components/kit/layout-styles.js';
 	import {
@@ -21,6 +22,7 @@
 		type AdvisorySortKey
 	} from '#lib/config/advisory-presentation.js';
 	import { matchesSearch, passesSelectFilter } from '#lib/core/table-filters.js';
+	import { createTablePager } from '#lib/core/table-pager.svelte.js';
 	import {
 		compareNaturalStrings,
 		compareValues,
@@ -34,6 +36,7 @@
 	const sourceId = $derived(decodeURIComponent(page.params.id ?? ''));
 	const detailQuery = createSourceDetailQuery(() => sourceId);
 	const source = $derived(detailQuery.data);
+	const pager = createTablePager();
 
 	let search = $state('');
 	let bucketFilter = $state('all');
@@ -85,6 +88,17 @@
 		}
 		return result;
 	});
+
+	$effect(() => {
+		void search;
+		void bucketFilter;
+		void tagFilter;
+		void sort.key;
+		void sort.direction;
+		pager.reset();
+	});
+
+	const pageWindow = $derived(pager.slice(sortedRows));
 
 	/**
 	 * Why the table is empty, in the operator's terms. "No CVEs" and "enrichment
@@ -164,9 +178,15 @@
 					/>
 				{:else}
 					<AdvisoryDetailTable
-						rows={sortedRows}
+						rows={pageWindow.items}
 						{sort}
 						onSortChange={(next) => (sort = next)}
+					/>
+					<TablePagination
+						total={sortedRows.length}
+						limit={pager.limit}
+						offset={pageWindow.offset}
+						onWindowChange={pager.setWindow}
 					/>
 				{/if}
 

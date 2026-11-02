@@ -5,6 +5,7 @@
 	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import Button from '#lib/components/kit/Button.svelte';
 	import Select from '#lib/components/kit/Select.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
 	import { getSourceKindMeta } from '#lib/config/source-kinds.js';
 	import {
@@ -22,6 +23,7 @@
 		passesSelectFilter,
 		passesTeamFilter
 	} from '#lib/core/table-filters.js';
+	import { createTablePager } from '#lib/core/table-pager.svelte.js';
 	import { scopeToOrganization } from '#lib/data/organization-scope.js';
 	import { getSourcesStore } from '#lib/data/sources.svelte.js';
 	import { getTeamsStore } from '#lib/data/teams.svelte.js';
@@ -31,6 +33,7 @@
 	const sourcesStore = getSourcesStore();
 	const teamsStore = getTeamsStore();
 	const auth = getAuthState();
+	const pager = createTablePager();
 
 	let sort = $state<SortState<SourceSortKey>>({
 		key: 'display_name',
@@ -79,6 +82,18 @@
 		}
 		return sortByKey(filteredSources, sort.key, sort.direction);
 	});
+
+	// Filters / sort change → snap back to page 1 so the window stays meaningful.
+	$effect(() => {
+		void kindFilter;
+		void teamFilter;
+		void search;
+		void sort.key;
+		void sort.direction;
+		pager.reset();
+	});
+
+	const pageWindow = $derived(pager.slice(sortedSources));
 
 	function exportCsv() {
 		exportRowsAsCsv(
@@ -170,7 +185,13 @@
 		{#if sortedSources.length === 0}
 			<EmptyState title={t('sources.noMatches')} description={t('sources.noMatchesDescription')} />
 		{:else}
-			<SourcesTable sources={sortedSources} {sort} onSortChange={(next) => (sort = next)} />
+			<SourcesTable sources={pageWindow.items} {sort} onSortChange={(next) => (sort = next)} />
+			<TablePagination
+				total={sortedSources.length}
+				limit={pager.limit}
+				offset={pageWindow.offset}
+				onWindowChange={pager.setWindow}
+			/>
 		{/if}
 	{/if}
 </DashboardShell>

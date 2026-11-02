@@ -35,8 +35,8 @@
 
 	/** Bare chrome for Scalar embed iframe — no header/footer, no shared body theme fights. */
 	const isEmbedShell = $derived(page.url.pathname.startsWith('/docs/embed'));
-	/** Auth page paints its own full-bleed wash — drop the content max-width column. */
-	const isLoginShell = $derived(page.url.pathname === '/login');
+	/** Auth pages paint their own full-bleed wash — drop the content max-width column. */
+	const isLoginShell = $derived(page.url.pathname.startsWith('/login'));
 
 	onMount(() => {
 		initAuth();

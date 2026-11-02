@@ -4,6 +4,7 @@
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import EmptyState from '#lib/components/kit/EmptyState.svelte';
 	import SortHeader from '#lib/components/kit/SortHeader.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import TableShell from '#lib/components/kit/TableShell.svelte';
 	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
 	import AdvisorySeverityCounts from '#lib/components/sources/AdvisorySeverityCounts.svelte';
@@ -21,6 +22,7 @@
 		severityRank
 	} from '#lib/config/advisory-presentation.js';
 	import { matchesSearch } from '#lib/core/table-filters.js';
+	import { createTablePager } from '#lib/core/table-pager.svelte.js';
 	import {
 		compareNaturalStrings,
 		compareNullableDates,
@@ -49,6 +51,7 @@
 	/** `order` = the API's newest-version-first position (the `#` column). */
 	type ReleaseSortKey = 'order' | 'tag' | 'published_at' | 'first_seen_at' | 'advisories';
 
+	const pager = createTablePager();
 	let search = $state('');
 	let advisoriesOnly = $state(false);
 	let sort = $state<SortState<ReleaseSortKey>>({ key: 'order', direction: 'asc' });
@@ -110,6 +113,16 @@
 	function handleSort(key: ReleaseSortKey) {
 		sort = toggleSortKey(sort, key);
 	}
+
+	$effect(() => {
+		void search;
+		void advisoriesOnly;
+		void sort.key;
+		void sort.direction;
+		pager.reset();
+	});
+
+	const pageWindow = $derived(pager.slice(sortedRows));
 
 	/** Flattened across every synced release, for the header summary strip. */
 	const summary = $derived(allAdvisories(releases));
@@ -207,7 +220,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each sortedRows as { release, order } (order)}
+					{#each pageWindow.items as { release, order } (order)}
 						{@const advisories = releaseAdvisories(release)}
 						<tr class={TABLE_BODY_ROW}>
 							<td class="{TABLE_BODY_CELL} text-muted-foreground tabular-nums">{order + 1}</td>
@@ -260,6 +273,12 @@
 					{/each}
 				</tbody>
 			</TableShell>
+			<TablePagination
+				total={sortedRows.length}
+				limit={pager.limit}
+				offset={pageWindow.offset}
+				onWindowChange={pager.setWindow}
+			/>
 		{/if}
 
 		{#if showAdvisories && summary.length === 0}

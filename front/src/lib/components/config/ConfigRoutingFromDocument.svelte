@@ -16,7 +16,7 @@
 		preferredRoutingViewportHeight
 	} from '#lib/config/routing-flow.js';
 	import { t } from '#lib/i18n/index.js';
-	import { TYPE_HINT, TYPE_PANEL_TITLE } from '#lib/components/kit/layout-styles.js';
+	import { TYPE_HINT, TYPE_SECTION } from '#lib/components/kit/layout-styles.js';
 	import { cn } from '#lib/utils.js';
 
 	interface Props {
@@ -107,24 +107,31 @@
 		return graphFrom(desiredContent, overlay) ?? graphFrom(effectiveContent);
 	});
 
-	const viewportHeightPx = $derived(
-		graph ? preferredRoutingViewportHeight(buildRoutingFlow(graph).height) : 36 * 16
+	const viewportHeightPx = $derived(preferredRoutingViewportHeight());
+	const flowWidthHint = $derived(
+		graph ? buildRoutingFlow(graph).nodes.filter((n) => n.kind === 'source').length : 0
 	);
 </script>
 
 {#if graph}
 	<section class={cn('flex w-full flex-col gap-2', className)}>
 		{#if variant === 'page' && !drafts}
-			<h2 class={TYPE_PANEL_TITLE}>{t('config.graphTitle')}</h2>
+			<h2 class={TYPE_SECTION}>{t('config.graphTitle')}</h2>
 		{/if}
 		{#if variant === 'page' && drafts}
-			<h2 class={TYPE_PANEL_TITLE}>{t('config.graphTitle')} · {t('config.graphDraftHint')}</h2>
+			<h2 class={TYPE_SECTION}>{t('config.graphTitle')} · {t('config.graphDraftHint')}</h2>
 		{/if}
 		{#if variant === 'card'}
-			<RoutingGraphCanvas {graph} height="22rem" />
+			<RoutingGraphCanvas {graph} height="20rem" />
 		{:else}
-			<!-- Explicit height — fill/h-full collapsed to 0 without a sized flex ancestor. -->
-			<RoutingGraphCanvas {graph} height={`${viewportHeightPx}px`} />
+			<!-- Fixed viewport — large topologies pan/zoom instead of stretching the page. -->
+			<RoutingGraphCanvas
+				{graph}
+				height={`${viewportHeightPx}px`}
+			/>
+			{#if flowWidthHint > 10}
+				<p class={TYPE_HINT}>{t('config.graphLargeHint')}</p>
+			{/if}
 		{/if}
 	</section>
 {:else if drafts || desiredContent?.trim() || effectiveContent?.trim()}

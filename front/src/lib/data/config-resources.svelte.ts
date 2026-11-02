@@ -1,4 +1,9 @@
 import type { ConfigRevisionSummary } from '#lib/api/types.js';
+import {
+	REVISIONS_API_MAX,
+	TABLE_PAGE_DEFAULT,
+	revisionsApiLimit
+} from '#lib/core/table-pagination.js';
 import { createResourceStore } from '#lib/data/resource.svelte.js';
 import { t } from '#lib/i18n/index.js';
 
@@ -7,9 +12,10 @@ interface RevisionsPage {
 	total: number;
 }
 
-/** API clamps history pages to 200 (`REVISIONS_MAX_LIMIT` on the server). */
-export const REVISIONS_PAGE_ALL = 200;
-export const REVISIONS_PAGE_DEFAULT = 20;
+/** @deprecated Prefer TABLE_PAGE_DEFAULT. */
+export const REVISIONS_PAGE_DEFAULT = TABLE_PAGE_DEFAULT;
+/** @deprecated Prefer REVISIONS_API_MAX. */
+export const REVISIONS_PAGE_ALL = REVISIONS_API_MAX;
 
 interface CreateConfigResourcesOptions<TView> {
 	fetchView: () => Promise<{ view: TView; etag: string | null }>;
@@ -26,7 +32,7 @@ interface CreateConfigResourcesOptions<TView> {
  * failure counts as a page error.
  */
 export function createConfigResources<TView>(options: CreateConfigResourcesOptions<TView>) {
-	let revisionsLimit = REVISIONS_PAGE_DEFAULT;
+	let revisionsLimit: number = REVISIONS_PAGE_DEFAULT;
 	let revisionsOffset = 0;
 
 	const viewResource = createResourceStore<{ view: TView; etag: string | null }>({
@@ -91,12 +97,12 @@ export function createConfigResources<TView>(options: CreateConfigResourcesOptio
 			await Promise.all([viewResource.refresh(), revisionsResource.refresh()]);
 		},
 		async setRevisionsWindow(limit: number, offset = 0) {
-			revisionsLimit = Math.max(1, limit);
+			revisionsLimit = revisionsApiLimit(limit);
 			revisionsOffset = Math.max(0, offset);
 			await revisionsResource.reload();
 		},
 		reset() {
-			revisionsLimit = REVISIONS_PAGE_DEFAULT;
+			revisionsLimit = TABLE_PAGE_DEFAULT;
 			revisionsOffset = 0;
 			viewResource.reset();
 			revisionsResource.reset();

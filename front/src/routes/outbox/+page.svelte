@@ -14,6 +14,7 @@
 	import Button from '#lib/components/kit/Button.svelte';
 	import Checkbox from '#lib/components/kit/Checkbox.svelte';
 	import Select from '#lib/components/kit/Select.svelte';
+	import TablePagination from '#lib/components/kit/TablePagination.svelte';
 	import TableToolbar from '#lib/components/kit/TableToolbar.svelte';
 	import * as Tabs from '#lib/components/kit/tabs.js';
 	import { exportRowsAsCsv } from '#lib/core/csv.js';
@@ -26,6 +27,7 @@
 		passesSelectFilter,
 		passesTeamFilter
 	} from '#lib/core/table-filters.js';
+	import { createTablePager } from '#lib/core/table-pager.svelte.js';
 	import { sortByKey } from '#lib/core/sort.js';
 	import type { SortState } from '#lib/core/sort.js';
 	import { t } from '#lib/i18n/index.js';
@@ -37,6 +39,7 @@
 	const outboxStore = getOutboxStore();
 	const sourcesStore = getSourcesStore();
 	const teamsStore = getTeamsStore();
+	const pager = createTablePager();
 
 	let sourceFilter = $state('all');
 	let statusFilter = $state('all');
@@ -122,6 +125,19 @@
 	});
 
 	const sortedEntries = $derived(sortByKey(filteredEntries, sort.key, sort.direction));
+
+	$effect(() => {
+		void sourceFilter;
+		void statusFilter;
+		void teamFilter;
+		void search;
+		void deferredOnly;
+		void sort.key;
+		void sort.direction;
+		pager.reset();
+	});
+
+	const pageWindow = $derived(pager.slice(sortedEntries));
 
 	function exportCsv() {
 		exportRowsAsCsv(
@@ -263,10 +279,16 @@
 				/>
 			{:else}
 				<OutboxTable
-					entries={sortedEntries}
+					entries={pageWindow.items}
 					{sort}
 					onSortChange={(next) => (sort = next)}
 					{sourceLabel}
+				/>
+				<TablePagination
+					total={sortedEntries.length}
+					limit={pager.limit}
+					offset={pageWindow.offset}
+					onWindowChange={pager.setWindow}
 				/>
 			{/if}
 		</Tabs.Root>

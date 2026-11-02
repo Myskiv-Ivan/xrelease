@@ -18,8 +18,21 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ## [Unreleased]
 
+### Added
+
+- Operate UI shared table paging (`TablePagination` + `createTablePager`):
+  Sources, Outbox, Users, Seen releases, Advisories, and Config history default
+  to **10** rows with **10 / 20 / 50 / 100 / 500** (history capped at **200** to
+  match the API).
+- Config Edit sources: kind chips, search / routing-tag filters, and accordion
+  groups by source type (long catalogues stay scannable).
+- Routing graph: multi-lane packing + compact nodes for dense topologies
+  (20+ sources); fixed viewport with pan/zoom instead of stretching the page.
+
 ### Changed
 
+- Config revisions API / OpenAPI default `limit` is **10** (was 50), aligned
+  with the Operate UI table default; max remains 200.
 - Frontend moves to **SvelteKit 3** (`@sveltejs/kit` 3.1.1, adapter-static 4,
   Vite 8, Svelte 5.57): `$lib` → `#lib` package imports; auth helpers accept
   Kit 3 readonly `page.url` / searchParams. Vitest 5, `tailwind-variants` 4,
@@ -45,6 +58,14 @@ Schema upgrades run automatically on startup. Lab resets remain
 
 ### Fixed
 
+- OIDC / login navigation: resume `returnTo` when already signed in; 401 recovery
+  clears the session locally without racing an IdP end-session redirect that
+  dropped the deep link; callback uses `replaceState` so Back does not replay
+  `?code=`; sync roles apply without wiping an in-flight `/auth/me`.
+- Config Edit no longer sticky-warns for redacted secrets (`access_token`,
+  Apprise urls, …); placeholders / field hints cover “leave blank to keep”.
+- History page-size Select no longer desyncs when the UI offered 500 while the
+  API clamped to 200 (history sizes are now 10/20/50/100/200).
 - UI CrashLoopBackOff on Kubernetes: Helm nginx ConfigMap used literal
   `proxy_pass http://xrelease:…`, which nginx resolves **once at start**.
   If Service DNS is briefly missing, nginx exits with

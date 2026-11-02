@@ -51,8 +51,10 @@
 	onMount(() => {
 		initAuth();
 		initSettings();
+		// Already signed in (e.g. hit /login?returnTo=/config from a bookmark) —
+		// resume the deep link, do not dump to Overview.
 		if (auth.isAuthenticated) {
-			goto('/');
+			void goto(safeReturnTo(page.url.searchParams), { replaceState: true });
 		}
 	});
 
@@ -86,7 +88,7 @@
 				username: response.user.username ?? user,
 				displayName: response.user.display_name ?? undefined
 			});
-			goto(safeReturnTo(page.url.searchParams));
+			await goto(safeReturnTo(page.url.searchParams), { replaceState: true });
 		} catch (err) {
 			error =
 				err instanceof ApiClientError
@@ -110,7 +112,7 @@
 		try {
 			await api.verifyApiKey(trimmed);
 			loginWithApiKey(trimmed);
-			goto(safeReturnTo(page.url.searchParams));
+			await goto(safeReturnTo(page.url.searchParams), { replaceState: true });
 		} catch (err) {
 			error =
 				err instanceof ApiClientError

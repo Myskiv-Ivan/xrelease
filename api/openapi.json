@@ -1494,7 +1494,7 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "default": 50,
+              "default": 10,
               "maximum": 200
             },
             "description": "Page size (clamped to 1.200)"

@@ -17,32 +17,70 @@ export type FlowWarning = 'no-target' | 'no-channel' | 'unused' | 'not-listening
 
 export const NODE_WIDTH = 200;
 export const NODE_HEIGHT = 56;
+/** Compact nodes when a column is dense — keeps labels readable under fit-zoom. */
+export const NODE_HEIGHT_COMPACT = 44;
 const COLUMN_GAP = 96;
+const LANE_GAP = 20;
 const ROW_GAP = 12;
+const ROW_GAP_COMPACT = 8;
 const PADDING = 24;
+/** Stack past this count → extra lanes inside the column (sources especially). */
+export const MAX_ROWS_PER_LANE = 10;
 
 /**
- * Viewport height so large graphs (20+ sources) stay near 1:1 scale —
- * grow with content and let the page scroll instead of shrinking nodes.
+ * Fixed canvas height for the routing map.
+ *
+ * Large topologies (20+ sources) used to grow the page to ~2 viewports — unreadable
+ * and hard to scan. Cap the box; pan/zoom + multi-lane packing keep nodes usable.
  */
 export function preferredRoutingViewportHeight(
-	flowHeight: number,
+	_flowHeight?: number,
 	opts?: { min?: number; max?: number; chrome?: number }
 ): number {
-	const min = opts?.min ?? 36 * 16; // 36rem
-	const chrome = opts?.chrome ?? 48;
-	const needed = Math.max(0, flowHeight) + chrome;
-	if (opts?.max != null) {
-		return Math.round(Math.min(opts.max, Math.max(min, needed)));
-	}
+	const min = opts?.min ?? 22 * 16; // 22rem
+	const max = opts?.max ?? 36 * 16; // 36rem
 	if (typeof window === 'undefined') {
-		return Math.round(Math.max(min, needed));
+		return Math.round(Math.min(max, Math.max(min, 28 * 16)));
 	}
-	// Soft cap ≈ one viewport; hard cap allows scroll for tall topologies.
-	const softMax = Math.floor(window.innerHeight * 0.92);
-	const hardMax = Math.floor(window.innerHeight * 1.85);
-	if (needed <= softMax) return Math.round(Math.max(min, needed));
-	return Math.round(Math.min(hardMax, Math.max(min, needed)));
+	const dvhCap = Math.floor(window.innerHeight * 0.62);
+	return Math.round(Math.min(max, Math.max(min, dvhCap)));
+}
+
+function densityForCount(count: number): { height: number; rowGap: number } {
+	if (count > MAX_ROWS_PER_LANE) {
+		return { height: NODE_HEIGHT_COMPACT, rowGap: ROW_GAP_COMPACT };
+	}
+	return { height: NODE_HEIGHT, rowGap: ROW_GAP };
+}
+
+/**
+ * Place nodes in one logical column, wrapping into side-by-side lanes when tall.
+ * Returns the occupied width (for the next column's x) and the stack height.
+ */
+function placeColumn(
+	nodes: FlowNode[],
+	startX: number,
+	centerInHeight: number
+): { width: number; height: number } {
+	if (nodes.length === 0) return { width: 0, height: 0 };
+
+	const { height: nodeH, rowGap } = densityForCount(nodes.length);
+	const lanes = Math.max(1, Math.ceil(nodes.length / MAX_ROWS_PER_LANE));
+	const rowsPerLane = Math.ceil(nodes.length / lanes);
+	const stackHeight =
+		rowsPerLane * nodeH + Math.max(0, rowsPerLane - 1) * rowGap;
+	const offsetY = PADDING + Math.max(0, (centerInHeight - stackHeight) / 2);
+
+	nodes.forEach((node, index) => {
+		const lane = Math.floor(index / rowsPerLane);
+		const row = index % rowsPerLane;
+		node.x = round(startX + lane * (NODE_WIDTH + LANE_GAP));
+		node.y = round(offsetY + row * (nodeH + rowGap));
+		node.height = nodeH;
+	});
+
+	const width = lanes * NODE_WIDTH + (lanes - 1) * LANE_GAP;
+	return { width, height: stackHeight };
 }
 
 export interface FlowNode {
@@ -55,6 +93,8 @@ export interface FlowNode {
 	badge: string;
 	x: number;
 	y: number;
+	/** Drawn height — compact when the column is dense. */
+	height: number;
 	warning: FlowWarning | null;
 	/** Key of the underlying draft/channel, for selection hand-off to the editor. */
 	ref: string;
@@ -101,10 +141,6 @@ function barycenter(ids: string[], order: Map<string, number>, fallback: number)
 	const known = ids.map((id) => order.get(id)).filter((v): v is number => v != null);
 	if (known.length === 0) return fallback;
 	return known.reduce((sum, v) => sum + v, 0) / known.length;
-}
-
-function columnX(column: number): number {
-	return PADDING + column * (NODE_WIDTH + COLUMN_GAP);
 }
 
 /**
@@ -170,7 +206,7 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 		return ax === bx ? a.label.localeCompare(b.label) : ax - bx;
 	});
 
-	// --- Nodes ----------------------------------------------------------------
+	// --- Nodes (x/y filled by placeColumn) ------------------------------------
 	const sourceNodes: FlowNode[] = graph.sources.map((source) => ({
 		id: sourceId(source.key),
 		kind: 'source' as const,
@@ -178,8 +214,9 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 		label: source.label,
 		sublabel: source.routingTag ?? '',
 		badge: getSourceKindMeta(source.type).label,
-		x: columnX(0),
+		x: 0,
 		y: 0,
+		height: NODE_HEIGHT,
 		warning: (outgoing.get(sourceId(source.key)) ?? []).length === 0 ? 'no-target' : null,
 		ref: source.key
 	}));
@@ -191,8 +228,9 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 		label: team.name || team.tag,
 		sublabel: team.name ? team.tag : '',
 		badge: `${team.sourceCount} src · ${team.channelCount} ch`,
-		x: columnX(1),
+		x: 0,
 		y: 0,
+		height: NODE_HEIGHT,
 		warning: team.channelCount === 0 ? 'no-channel' : null,
 		ref: team.tag
 	}));
@@ -208,8 +246,9 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 				? ''
 				: channel.tags.join(', '),
 		badge: getSinkKindLabel(channel.type),
-		x: columnX(2),
+		x: 0,
 		y: 0,
+		height: NODE_HEIGHT,
 		warning: !channel.listens
 			? 'not-listening'
 			: (incoming.get(channelId(channel.key)) ?? []).length === 0
@@ -218,19 +257,25 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 		ref: channel.key
 	}));
 
-	// --- Vertical placement: stack each column, then centre the short ones -----
+	// --- Placement: multi-lane wrap for tall columns, then centre shorter ones --
 	const columns = [sourceNodes, teamNodes, channelNodes];
-	const columnHeights = columns.map((nodes) =>
-		nodes.length === 0 ? 0 : nodes.length * NODE_HEIGHT + (nodes.length - 1) * ROW_GAP
-	);
-	const tallest = Math.max(0, ...columnHeights);
-
-	columns.forEach((nodes, index) => {
-		const offset = PADDING + (tallest - columnHeights[index]) / 2;
-		nodes.forEach((node, row) => {
-			node.y = round(offset + row * (NODE_HEIGHT + ROW_GAP));
-		});
+	const provisionalHeights = columns.map((nodes) => {
+		if (nodes.length === 0) return 0;
+		const { height: nodeH, rowGap } = densityForCount(nodes.length);
+		const lanes = Math.max(1, Math.ceil(nodes.length / MAX_ROWS_PER_LANE));
+		const rowsPerLane = Math.ceil(nodes.length / lanes);
+		return rowsPerLane * nodeH + Math.max(0, rowsPerLane - 1) * rowGap;
 	});
+	const tallest = Math.max(0, ...provisionalHeights);
+
+	let cursorX = PADDING;
+	let maxRight = PADDING;
+	for (const nodes of columns) {
+		if (nodes.length === 0) continue;
+		const placed = placeColumn(nodes, cursorX, tallest);
+		maxRight = Math.max(maxRight, cursorX + placed.width);
+		cursorX += placed.width + COLUMN_GAP;
+	}
 
 	const nodes = [...sourceNodes, ...teamNodes, ...channelNodes];
 	const byId = new Map(nodes.map((node) => [node.id, node] as const));
@@ -256,9 +301,9 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 			to: link.to,
 			path: bezier(
 				from.x + NODE_WIDTH,
-				from.y + NODE_HEIGHT / 2,
+				from.y + from.height / 2,
 				to.x,
-				to.y + NODE_HEIGHT / 2
+				to.y + to.height / 2
 			),
 			wildcard: link.wildcard
 		});
@@ -269,8 +314,7 @@ export function buildRoutingFlow(graph: RoutingGraph): RoutingFlow {
 		track(incidentEdges, link.to, id);
 	}
 
-	const usedColumns = columns.filter((nodes) => nodes.length > 0).length;
-	const width = usedColumns === 0 ? PADDING * 2 : columnX(columns.length - 1) + NODE_WIDTH + PADDING;
+	const width = nodes.length === 0 ? PADDING * 2 : maxRight + PADDING;
 
 	return {
 		nodes,
