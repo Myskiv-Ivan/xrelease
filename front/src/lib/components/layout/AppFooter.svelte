@@ -31,7 +31,7 @@
 	-->
 	<nav
 		class={cn(
-			'mx-auto flex flex-wrap items-center justify-start gap-x-1 gap-y-1 px-4 text-left sm:px-6',
+			'mx-auto flex flex-wrap items-center justify-center gap-x-1 gap-y-1 px-4 text-center sm:px-6',
 			LAYOUT_MAX,
 			TYPE_MUTED
 		)}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import DashboardShell from '#lib/components/layout/DashboardShell.svelte';
 	import OrgScopeNotice from '#lib/components/layout/OrgScopeNotice.svelte';
 	import SourcesTable from '#lib/components/sources/SourcesTable.svelte';
@@ -11,6 +13,7 @@
 	import {
 		latestRelease,
 		latestReleaseSortKey,
+		sourceHealth,
 		type SourceSortKey
 	} from '#lib/config/source-presentation.js';
 	import { exportRowsAsCsv } from '#lib/core/csv.js';
@@ -35,13 +38,31 @@
 	const auth = getAuthState();
 	const pager = createTablePager();
 
+	const HEALTH_FILTERS = ['all', 'error', 'stale', 'attention'] as const;
+	type HealthFilter = (typeof HEALTH_FILTERS)[number];
+
+	function parseHealthFilter(raw: string | null): HealthFilter {
+		if (raw === 'error' || raw === 'stale' || raw === 'attention') return raw;
+		return 'all';
+	}
+
 	let sort = $state<SortState<SourceSortKey>>({
 		key: 'display_name',
 		direction: 'asc'
 	});
 	let kindFilter = $state<string>('all');
 	let teamFilter = $state<string>('all');
+	let healthFilter = $state<HealthFilter>(parseHealthFilter(page.url.searchParams.get('health')));
 	let search = $state('');
+
+	function setHealthFilter(next: string) {
+		const value = parseHealthFilter(next);
+		healthFilter = value;
+		const url = new URL(page.url.href);
+		if (value === 'all') url.searchParams.delete('health');
+		else url.searchParams.set('health', value);
+		void replaceState(`${url.pathname}${url.search}${url.hash}`, {});
+	}
 
 	/** Multi-org runtime is composed; switcher scopes this view to `{org}::…` ids. */
 	const orgScopedSources = $derived(
@@ -61,6 +82,10 @@
 		return orgScopedSources.filter((source) => {
 			if (!passesSelectFilter(source.kind, kindFilter)) return false;
 			if (!passesTeamFilter(source.routing_tag, teamFilter)) return false;
+			const health = sourceHealth(source);
+			if (healthFilter === 'error' && health !== 'error') return false;
+			if (healthFilter === 'stale' && health !== 'warning') return false;
+			if (healthFilter === 'attention' && health === 'ok') return false;
 			return matchesSearch(
 				search,
 				source.display_name,
@@ -83,10 +108,16 @@
 		return sortByKey(filteredSources, sort.key, sort.direction);
 	});
 
+	// Deep-link from Overview (`?health=error`) stays in sync if the URL changes.
+	$effect(() => {
+		healthFilter = parseHealthFilter(page.url.searchParams.get('health'));
+	});
+
 	// Filters / sort change → snap back to page 1 so the window stays meaningful.
 	$effect(() => {
 		void kindFilter;
 		void teamFilter;
+		void healthFilter;
 		void search;
 		void sort.key;
 		void sort.direction;
@@ -151,6 +182,17 @@
 			total={orgScopedSources.length}
 		>
 			{#snippet filters()}
+				<Select
+					class="w-auto"
+					value={healthFilter}
+					aria-label={t('sources.healthFilter')}
+					onchange={(e) => setHealthFilter(e.currentTarget.value)}
+				>
+					<option value="all">{t('sources.healthFilterAll')}</option>
+					<option value="error">{t('sources.healthFilterError')}</option>
+					<option value="stale">{t('sources.healthFilterStale')}</option>
+					<option value="attention">{t('sources.healthFilterAttention')}</option>
+				</Select>
 				<Select class="w-auto" bind:value={kindFilter} aria-label={t('sources.kind')}>
 					{#each kindOptions as kind}
 						<option value={kind}>

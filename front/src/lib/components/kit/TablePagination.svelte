@@ -57,18 +57,22 @@
 </script>
 
 {#if total > 0}
-	<div class="mt-3 flex flex-wrap items-center gap-3">
-		<span class="{TYPE_MUTED} tabular-nums text-sm">
+	<div
+		class="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between"
+	>
+		<span class="{TYPE_MUTED} order-2 tabular-nums text-sm sm:order-1">
 			{t('common.tableRange')
 				.replace('{start}', String(rangeStart))
 				.replace('{end}', String(rangeEnd))
 				.replace('{total}', String(total))}
 		</span>
-		<div class="ml-auto flex flex-wrap items-center gap-2">
-			<label class="flex items-center gap-2 text-sm">
-				<span class="{TYPE_MUTED} text-xs whitespace-nowrap">{t('common.tablePageSize')}</span>
+
+		<div class="order-1 flex flex-wrap items-center gap-3 sm:order-2 sm:justify-end">
+			<label class="inline-flex items-center gap-2 text-sm text-foreground">
+				<span class="whitespace-nowrap {TYPE_MUTED}">{t('common.tablePageSize')}</span>
+				<!-- Compact select: override kit default h-11 / min-w so label + control share one baseline. -->
 				<Select
-					class="h-9 w-auto min-w-[4.5rem]"
+					class="w-[4.75rem] shrink-0 [&_select]:h-9 [&_select]:min-h-9 [&_select]:min-w-0 [&_select]:py-0 [&_select]:pr-8 [&_select]:text-sm"
 					aria-label={t('common.tablePageSize')}
 					value={pageSizeKey}
 					onchange={(e) => changePageSize(e.currentTarget.value)}
@@ -78,13 +82,16 @@
 					{/each}
 				</Select>
 			</label>
+
 			{#if showNav && total > safeLimit}
-				<Button variant="ghost" size="sm" disabled={!canPrev} onclick={goPrev}>
-					{t('common.tablePrev')}
-				</Button>
-				<Button variant="ghost" size="sm" disabled={!canNext} onclick={goNext}>
-					{t('common.tableNext')}
-				</Button>
+				<div class="inline-flex items-center gap-1">
+					<Button variant="ghost" size="sm" disabled={!canPrev} onclick={goPrev}>
+						{t('common.tablePrev')}
+					</Button>
+					<Button variant="ghost" size="sm" disabled={!canNext} onclick={goNext}>
+						{t('common.tableNext')}
+					</Button>
+				</div>
 			{/if}
 		</div>
 	</div>

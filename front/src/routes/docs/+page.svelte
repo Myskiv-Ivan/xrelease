@@ -38,12 +38,13 @@
 </script>
 
 <DashboardShell title={t('docs.title')} description={t('docs.description')} permission="about:read">
-	<div class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 px-4 sm:px-6">
+	<!-- Stay inside LAYOUT_MAX — full-bleed w-screen ignores lg:pl-56 and overflows the rail. -->
+	<div class="min-w-0 w-full">
 		<iframe
 			bind:this={frame}
 			title={t('docs.title')}
 			src={embedSrc}
-			class="min-h-[calc(100dvh-12rem)] w-full rounded-lg border border-border bg-card"
+			class="min-h-[calc(100dvh-12rem)] w-full max-w-full rounded-lg border border-border bg-card"
 			onload={postTheme}
 		></iframe>
 	</div>

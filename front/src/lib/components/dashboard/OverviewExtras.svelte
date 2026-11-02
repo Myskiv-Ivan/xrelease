@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SourceDetail } from '#lib/api/types.js';
 	import Badge from '#lib/components/kit/Badge.svelte';
+	import Button from '#lib/components/kit/Button.svelte';
 	import Panel from '#lib/components/kit/Panel.svelte';
 	import Section from '#lib/components/kit/Section.svelte';
 	import StatCard from '#lib/components/kit/StatCard.svelte';
@@ -80,11 +81,14 @@
 						label={t('overview.errorSources')}
 						value={formatNumber(healthCounts.errors)}
 						tone="danger"
+						hint={t('overview.errorSourcesHint')}
+						href="/sources?health=error"
 					/>
 					<StatCard
 						label={t('overview.staleSources')}
 						value={formatNumber(healthCounts.stale)}
 						tone={healthCounts.stale > 0 ? 'warning' : 'default'}
+						href={healthCounts.stale > 0 ? '/sources?health=stale' : undefined}
 					/>
 					<StatCard
 						label={t('overview.healthySources')}
@@ -97,11 +101,14 @@
 						label={t('overview.staleSources')}
 						value={formatNumber(healthCounts.stale)}
 						tone="warning"
+						hint={t('overview.staleSourcesHint')}
+						href="/sources?health=stale"
 					/>
 					<StatCard
 						label={t('overview.errorSources')}
 						value={formatNumber(healthCounts.errors)}
 						tone={healthCounts.errors > 0 ? 'danger' : 'default'}
+						href={healthCounts.errors > 0 ? '/sources?health=error' : undefined}
 					/>
 					<StatCard
 						label={t('overview.healthySources')}
@@ -185,11 +192,17 @@
 		</p>
 	{:else}
 		<Panel title={t('overview.needsAttention')}>
-			<ul class="grid gap-0 divide-y divide-border/60 sm:grid-cols-2 sm:gap-x-6 sm:divide-y-0">
+			{#snippet actions()}
+				<Button href="/sources?health=attention" variant="ghost" size="sm">
+					{t('overview.viewFailingSources')}
+				</Button>
+			{/snippet}
+			<p class="mb-3 {TYPE_HINT}">{t('overview.needsAttentionHint')}</p>
+			<ul class="flex flex-col gap-0 divide-y divide-border/60">
 				{#each attentionSources as source (source.id)}
 					{@const health = sourceHealth(source)}
-					<li class="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 sm:border-b">
-						<div class="min-w-0">
+					<li class="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+						<div class="min-w-0 flex-1">
 							<a
 								href="/sources/{encodeURIComponent(source.id)}"
 								class="block truncate text-sm font-medium text-foreground no-underline hover:underline"
@@ -202,8 +215,20 @@
 									· <Timestamp value={source.last_polled_at} class="inline" />
 								{/if}
 							</p>
+							{#if source.last_error}
+								<p
+									class="mt-1 line-clamp-2 text-sm text-destructive"
+									title={source.last_error}
+								>
+									{source.last_error}
+								</p>
+							{:else if health === 'warning'}
+								<p class="mt-1 text-sm text-warning">
+									{t('overview.staleSourcesHint')}
+								</p>
+							{/if}
 						</div>
-						<div class="flex shrink-0 items-center gap-2">
+						<div class="flex shrink-0 flex-wrap items-center gap-2">
 							{#if source.consecutive_errors > 0}
 								<Badge tone="danger" title={source.last_error ?? undefined}>
 									{source.consecutive_errors}
@@ -215,7 +240,6 @@
 									: health === 'warning'
 										? 'warning'
 										: 'muted'}
-								title={source.last_error ?? undefined}
 							>
 								{health === 'error'
 									? t('overview.healthError')
@@ -223,6 +247,13 @@
 										? t('overview.healthStale')
 										: t('overview.ok')}
 							</Badge>
+							<Button
+								href="/sources/{encodeURIComponent(source.id)}"
+								variant="outline"
+								size="sm"
+							>
+								{t('overview.openSource')}
+							</Button>
 						</div>
 					</li>
 				{/each}

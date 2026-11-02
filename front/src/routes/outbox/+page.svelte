@@ -55,16 +55,23 @@
 		direction: 'desc'
 	});
 
-	onMount(() => {
-		if (!auth.isAuthenticated) return;
+	/** Start as soon as auth is ready — onMount alone flashes EmptyState before fetch. */
+	$effect(() => {
+		if (!auth.isAuthenticated) {
+			outboxStore.stop();
+			return;
+		}
 		outboxStore.start();
+	});
+
+	onMount(() => {
 		return () => outboxStore.stop();
 	});
 
-	$effect(() => {
-		if (auth.isAuthenticated) return;
-		outboxStore.stop();
-	});
+	/** True until the first fetch settles (success or error) — prevents empty flash on refresh. */
+	const awaitingFirstLoad = $derived(
+		outboxStore.lastUpdated === null && !outboxStore.error
+	);
 
 	function sourceLabel(sourceId: string): string {
 		return sourcesStore.findById(sourceId)?.display_name ?? sourceId;
@@ -188,7 +195,7 @@
 	title={t('outbox.title')}
 	permission="outbox:read"
 	error={outboxStore.error}
-	isLoading={outboxStore.isLoading}
+	isLoading={outboxStore.isLoading || awaitingFirstLoad}
 	hasContent={orgScopedEntries.length > 0 || outboxStore.entries.length > 0}
 	isRefreshing={outboxStore.isRefreshing}
 	lastUpdated={outboxStore.lastUpdated}

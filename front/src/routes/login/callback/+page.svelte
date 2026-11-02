@@ -67,8 +67,8 @@
 <div
 	class="mx-auto flex w-full max-w-sm flex-col justify-center gap-6 py-8 sm:min-h-[calc(100dvh-10rem)] sm:max-w-md sm:gap-7 sm:py-10"
 >
-	<header class="flex flex-col gap-3">
-		<AppBrand size="lg" layout="inline" version={APP_VERSION} />
+	<header class="flex flex-col items-center gap-4 text-center">
+		<AppBrand size="lg" layout="stack" version={APP_VERSION} />
 		<p class={TYPE_PAGE_DESC}>{t('login.oidcCompleting')}</p>
 	</header>
 
