@@ -11,7 +11,6 @@ export const en = {
 		signIn: 'Sign in',
 		signOut: 'Sign out',
 		main: 'Main',
-		more: 'More',
 		account: 'Account',
 		mobile: 'Sections'
 	},
